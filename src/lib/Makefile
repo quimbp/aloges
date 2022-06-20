@@ -1,0 +1,81 @@
+# ======================================================================== #
+# ALOGES PROJECT                                                           #
+# Quim Ballabrera, April 2022                                              #
+# Institut de Ciencies del Mar, CSIC                                       #
+# Last Modified: 2022-04-14                                                #
+#                                                                          #
+# Copyright (C) 2022, Joaquim Ballabrera                                   #
+#                                                                          #
+# This program is free software: you can redistribute it and/or modify     #
+# it under the terms of the GNU Lesser General Public License as published #
+# by the Free Software Foundation, either version 3 of the License, or     #
+# (at your option) any later version.                                      #
+#                                                                          #
+# This program is distributed in the hope that it will be useful,          #
+# but WITHOUT ANY WARRANTY; without even the implied warranty of           #
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.                     #
+# See the Lesser GNU General Public License for more details.              #
+#                                                                          #
+# You should have received a copy of the GNU Lesser General                #
+# Public License along with this program.                                  #
+# If not, see <http://www.gnu.org/licenses/>.                              #
+# -------------------------------------------------------------------------#
+
+include ../../make.inc
+
+#DBFLAGS = -ffpe-summary=zero,invalid,overflow,underflow
+#DBFLAGS = -ffpe-trap=zero,invalid,overflow,underflow
+DBFLAGS =
+FCFLAGS = $(FFLAGS) $(DBFLAGS)
+
+INCDIR = ../../include/
+INC = -I$(INCDIR) $(CDFINC)
+
+TARGET = ../../lib/libaloges.a
+OBJ = module_types.o module_constants.o module_math.o module_tools.o \
+      module_time.o module_grid.o module_lineargs.o module_help.o
+
+all: $(OBJ) aloges.mod
+	rm -f $(TARGET)
+	$(INSTALL) *.mod $(INCDIR)
+	$(AR) $(TARGET) $(OBJ)
+
+clean:
+	rm -f $(TARGET) *.o *.mod 
+	if test -d $(INCDIR); then rm -f $(INCDIR)module_types.mod; fi
+	if test -d $(INCDIR); then rm -f $(INCDIR)module_constants.mod; fi
+	if test -d $(INCDIR); then rm -f $(INCDIR)module_math.mod; fi
+	if test -d $(INCDIR); then rm -f $(INCDIR)module_tools.mod; fi
+	if test -d $(INCDIR); then rm -f $(INCDIR)module_time.mod; fi
+	if test -d $(INCDIR); then rm -f $(INCDIR)module_grid.mod; fi
+	if test -d $(INCDIR); then rm -f $(INCDIR)module_lineargs.mod; fi
+	if test -d $(INCDIR); then rm -f $(INCDIR)module_help.mod; fi
+	if test -d $(INCDIR); then rm -f $(INCDIR)aloges.mod; fi
+
+module_types.o: module_types.f90
+	$(FC) -c $(FFLAGS) $(INC) module_types.f90
+
+module_constants.o: module_types.o module_constants.f90
+	$(FC) -c $(FFLAGS) $(INC) module_constants.f90
+
+module_math.o: module_types.o module_constants.o module_math.f90
+	$(FC) -c $(FFLAGS) $(INC) module_math.f90
+
+module_tools.o: module_types.o module_constants.o module_math.o module_tools.f90
+	$(FC) -c $(FFLAGS) $(INC) module_tools.f90
+
+module_time.o: module_types.o module_constants.o module_math.o module_tools.o module_time.f90
+	$(FC) -c $(FFLAGS) $(INC) module_time.f90
+
+module_grid.o: module_types.o module_constants.o module_math.o module_tools.o module_grid.f90
+	$(FC) -c $(FFLAGS) $(INC) module_grid.f90
+
+module_lineargs.o: module_types.o module_constants.o module_tools.o module_lineargs.f90
+	$(FC) -c $(FFLAGS) $(INC) module_lineargs.f90
+
+module_help.o: module_types.o module_constants.o module_tools.o module_help.f90
+	$(FC) -c $(FFLAGS) $(INC) module_help.f90
+
+aloges.mod: $(OBJ)
+	$(FC) -c $(FFLAGS) $(INC) aloges.f90
+
