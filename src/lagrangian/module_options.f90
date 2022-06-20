@@ -88,6 +88,7 @@ subroutine options
     call program_help(HLP,VERSION,AUTHOR)
 
     na = lineargs()
+    if (na.eq.0) call crash('Use option --help for options')
 
     ! ... Check for help
     ! ...
@@ -424,16 +425,17 @@ subroutine options
   call HLP%add_option ('-for        TIME_PERIOD','Length of the Lagrangian simulation','')
   call HLP%add_option ('-dt         DT (in seconds)','Runge-Kutta time step value','600')
   call HLP%add_option ('-reverse           ','Perform backward integration','')
-  call HLP%add_option ('-trajectory filename ','Output trajectory file','out.nc')
+  call HLP%add_option ('-trajectory filename ','Input/Output trajectory file','out.nc')
   call HLP%add_option ('-endpos     filename ','Output final position file','release.out')
   call HLP%add_option ('-xmin       MIN_LONGITUDE','Option to crop the computational domain','')
   call HLP%add_option ('-xmax       MAX_LONGITUDE','Option to crop the computational domain','')
   call HLP%add_option ('-ymin       MIN_LATITUDE','Option to crop the computational domain','')
   call HLP%add_option ('-ymax       MAX_LATITUDE','Option to crop the computational domain','')
-  call HLP%add_option ('-xo         XO','Optional value of the float initial &
-   &position','')
-  call HLP%add_option ('-yo         YO','Optional value of the float initial &
-   &position','')
+  call HLP%add_option ('-xo         XO','Optional value of the float initial position','')
+  call HLP%add_option ('-yo         YO','Optional value of the float initial position','')
+  call HLP%add_option ('-zo         ZO','Optional value of the float initial position','0.0')
+  call HLP%add_option ('-to         TO/DATE','Optional value of the float initial &
+   &release time (seconds after initial simulation time)','0')
   call HLP%add_option ('-velmin     MIN_THRESHOLD','Minimum velocity threshold','1D-5')
   call HLP%add_option ('-mu         value','Non-dimensioanl amplitude of the gaussian multiplicative noise','0')
   call HLP%add_option ('-va         value','Amplitude of the gaussian istropic velocity fluctuation','0')
@@ -441,18 +443,17 @@ subroutine options
   call HLP%add_option ('-rand       NFLOATS','Option to request a simulation with NFLOATS randomly &
     &generated floats per each release position.','1')
   call HLP%add_option ('-Rx         RADIUS_X','Longitude radius for releasing random floats &
-   &around each release location','0.02')
+   &around specified release location','0.02')
   call HLP%add_option ('-Ry         RADIUS_Y','Latitude radius for releasing random floats &
-   &around each release location','0.02')
+   &around specified release location','0.02')
+  call HLP%add_option ('-Rz         RADIUS_Z','Depth radius for releasing random floats &
+   &around specified release location','0.0')
+  call HLP%add_option ('-Rt         RADIUS_T','Time radius for releasing random floats &
+   &around specified release location','0.0')
   call HLP%add_option ('-verbose    VERBOSE_LEVEL','To increase output verbosity. (0=Quiet,...3=Maximum verbose)','1')
   call HLP%add_option ('--options   filename','To read the commandline options from a file','')
   call HLP%add_option ('--help','To show this help','')
   
-  call HLP%add_option ('-do         RELEASE_DATE','Optional value of the float &
-   &initial release time (Date in iso8601 format)','')
-
-  call HLP%add_option ('-to         TO','Optional value of the float initial &
-   &release time (seconds after initial simulation time)','0')
   call HLP%set_example('alm -OU file=roms.nc u=u x=lon y=lat t=time &
    &-V file=roms.nc v=v x=lon y=lat t=time -release release.inp &
    &-trajectory float.nc -end release.out')
