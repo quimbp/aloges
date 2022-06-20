@@ -28,14 +28,21 @@ include ../../make.inc
 DBFLAGS =
 FCFLAGS = $(FFLAGS) $(DBFLAGS)
 
+BINDIR = ../../bin/
 INCDIR = ../../include/
+LIBDIR = ../../lib/
+
 INC = -I$(INCDIR) $(CDFINC)
-LIB = -L../../lib -laloges $(CDFLIB)
+LIB = -L$(LIBDIR) -laloges $(CDFLIB)
 
 TARGET = alm
 OBJ = module_alm.o module_forcing.o module_float.o module_model.o module_options.o 
 
-all: $(TARGET) $(OBJ) main.f90
+all: $(BINDIR) $(TARGET) $(OBJ) main.f90
+
+$(BINDIR):
+	@echo "Directory $(BINDIR) does not exist. Creating it"
+	mkdir -p $@
 
 it:
 	make clean
@@ -43,11 +50,12 @@ it:
 
 clean:
 	rm -f $(TARGET) $(OBJ) *.mod 
+	if test -d $(BINDIR); then rm -f $(BINDIR)alm; fi
 
 $(TARGET): $(OBJ) main.f90
 	rm -f $(TARGET)
 	$(FC) $(FFLAGS) -o $(TARGET) main.f90 $(OBJ) $(INC) $(LIB)
-	$(INSTALL) $(TARGET) ../../bin/
+	$(INSTALL) $(TARGET) $(BINDIR)
 
 module_alm.o: module_alm.f90
 	$(FC) -c $(FFLAGS) $(INC) module_alm.f90

@@ -28,6 +28,7 @@ include ../../make.inc
 DBFLAGS =
 FCFLAGS = $(FFLAGS) $(DBFLAGS)
 
+LIBDIR = ../../lib/
 INCDIR = ../../include/
 INC = -I$(INCDIR) $(CDFINC)
 
@@ -35,7 +36,7 @@ TARGET = ../../lib/libaloges.a
 OBJ = module_types.o module_constants.o module_math.o module_tools.o \
       module_time.o module_grid.o module_lineargs.o module_help.o
 
-all: $(OBJ) aloges.mod
+all: $(OBJ) $(LIBDIR) $(INCDIR) aloges.mod
 	rm -f $(TARGET)
 	$(INSTALL) *.mod $(INCDIR)
 	$(AR) $(TARGET) $(OBJ)
@@ -51,6 +52,14 @@ clean:
 	if test -d $(INCDIR); then rm -f $(INCDIR)module_lineargs.mod; fi
 	if test -d $(INCDIR); then rm -f $(INCDIR)module_help.mod; fi
 	if test -d $(INCDIR); then rm -f $(INCDIR)aloges.mod; fi
+
+$(INCDIR):
+	@echo "Directory $(INCDIR) does not exist. Creating it"
+	mkdir -p $@
+
+$(LIBDIR):
+	@echo "Directory $(LIBDIR) does not exist. Creating it"
+	mkdir -p $@
 
 module_types.o: module_types.f90
 	$(FC) -c $(FFLAGS) $(INC) module_types.f90
