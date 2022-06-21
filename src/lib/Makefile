@@ -30,7 +30,7 @@ FCFLAGS = $(FFLAGS) $(DBFLAGS)
 
 LIBDIR = ../../lib/
 INCDIR = ../../include/
-INC = -I$(INCDIR) $(CDFINC)
+INC = $(CDFINC)
 
 TARGET = ../../lib/libaloges.a
 OBJ = module_types.o module_constants.o module_math.o module_tools.o \
