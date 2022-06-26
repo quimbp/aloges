@@ -157,6 +157,7 @@ contains
     else if (Release_by_file) then
 
       Nfloats = release_read(Release_file)
+      if (Nfloats.eq.0) return
 
     else
 
@@ -336,7 +337,7 @@ contains
         read(iu,*) xx, yy, zz, tt
       endif
 
-      xx = deg2rad*xx; yy = deg2rad*yy
+      xx = deg2rad*xx; yy = deg2rad*yy; zz = -abs(zz)
       valid = point_type(xx,yy,zz).eq.1
       if (valid) then
         ii = ii + 1
@@ -396,8 +397,6 @@ contains
     deallocate(rlat)
     deallocate(rdepth)
     deallocate(rtime)
-
-    return
 
   end function release_read_ascii
   ! ...

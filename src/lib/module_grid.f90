@@ -781,12 +781,11 @@ contains
   ! ...
   ! ==================================================================
   ! ...
-  subroutine grid_crop(GRD,xmin,xmax,ymin,ymax,zmin,zmax,tmin,tmax)
+  subroutine grid_crop(GRD,xmin,xmax,ymin,ymax,tmin,tmax)
 
     class(type_ncgrid), intent(inout)            :: GRD
     real(dp), intent(in)                         :: xmin,xmax
     real(dp), intent(in)                         :: ymin,ymax
-    real(dp), intent(in)                         :: zmin,zmax
     real(dp), intent(in)                         :: tmin,tmax
 
     ! ... Local variables
@@ -800,8 +799,6 @@ contains
     if (xmax.gt.GRD%xmax) call crash('Domain xmax < Grid xmax')
     if (ymin.lt.GRD%ymin) call crash('Domain ymin < Grid ymin')
     if (ymax.gt.GRD%ymax) call crash('Domain ymax < Grid ymax')
-    if (zmin.lt.GRD%zmin) call crash('Domain zmin < Grid zmin')
-    if (zmax.gt.GRD%zmax) call crash('Domain zmax < Grid zmax')
     if (tmin.lt.GRD%tmin) call crash('Domain tmin < Grid tmin')
     if (tmax.gt.GRD%tmax) call crash('Domain tmax < Grid tmax')
 
@@ -940,41 +937,6 @@ contains
       GRD%ymin = minval(GRD%y1)
       GRD%ymax = maxval(GRD%y1)
     endif
-
-    ! ... Z cropping
-    ! ...
-    io = -1
-    do i=1,GRD%nz-1
-      if (GRD%z(i).lt.zmin.and.GRD%z(i+1).ge.zmin) then
-          io = i
-          exit
-      endif
-    enddo
-    io = max(io,1)
-
-    il = GRD%nz+1
-    do i=1,GRD%nz-1
-      if (GRD%z(i).lt.zmax.and.GRD%z(i+1).ge.zmax) then
-        il = i+1
-        exit
-      endif
-    enddo
-    il = min(il,GRD%nz)
-
-    GRD%ka = io; GRD%kb = il; ni = il-io+1; GRD%nz = ni
-
-    allocate(tmp1(ni))
-
-    do i=io,io+ni-1
-      tmp1(i-io+1) = GRD%z(i)
-    enddo
-    deallocate(GRD%z)
-    allocate(GRD%z(ni))
-    do i=1,ni
-      GRD%z(i) = tmp1(i)
-    enddo
-
-    deallocate (tmp1)
 
     ! ... T cropping
     ! ...

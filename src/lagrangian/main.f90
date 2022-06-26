@@ -118,15 +118,14 @@ model_dini = num2date(model_tini,units=model_time_units,calendar=model_time_cale
 model_dfin = num2date(model_tfin,units=model_time_units,calendar=model_time_calendar)
 
 
-! ... Initialize floats
-! ....
-call float_ini()
-if (Nfloats.eq.0) call crash('No floats')
-
-
 ! ... Initialize model
 ! ...
 call model_ini()
+
+! ... Initialize floats
+! ....
+call float_ini()
+if (Nfloats.eq.0) call crash('No valid floats')
 
 
 ! ... Create output trajectory file

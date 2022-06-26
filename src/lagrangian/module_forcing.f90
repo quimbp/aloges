@@ -191,7 +191,7 @@ contains
 ! ...
   subroutine open_forcing()
 
-    integer i,j,err
+    integer i,j,err,nz
     real(dp) xmin,xmax,ymin,ymax,zmin,zmax,tmin,tmax
 
     GOU%cartesian = Cartesian
@@ -241,6 +241,7 @@ contains
       call GAV%open(AVfilename)
     endif
 
+
     if (WithOU) call GOU%scan(OUxname,OUyname,OUzname,OUtname,OUunits,OUcalen)
     if (WithOV) call GOV%scan(OVxname,OVyname,OVzname,OVtname,OVunits,OVcalen)
     if (WithOW) call GOW%scan(OWxname,OWyname,OWzname,OWtname,OWunits,OWcalen)
@@ -251,6 +252,23 @@ contains
     if (WithAU) call GAU%scan(AUxname,AUyname,AUzname,AUtname,AUunits,AUcalen)
     if (WithAV) call GAV%scan(AVxname,AVyname,AVzname,AVtname,AVunits,AVcalen)
 
+    ! ... Check that U,V,T,S,RHO,C have the same vertical structure
+    ! ...
+    nz = 1
+    if (WithOU) nz = max(nz,GOU%nz)
+    if (WithOV) nz = max(nz,GOV%nz)
+    if (WithOT) nz = max(nz,GOT%nz)
+    if (WithOS) nz = max(nz,GOS%nz)
+    if (WithOR) nz = max(nz,GOR%nz)
+    if (WithOC) nz = max(nz,GOC%nz)
+    if (verb.ge.3) write(*,*) 'Value of nz = ', nz
+    if (WithOU.and.GOU%nz.ne.nz) call crash('GOU: Incompatible vertical grid')
+    if (WithOV.and.GOV%nz.ne.nz) call crash('GOV: Incompatible vertical grid')
+    if (WithOT.and.GOT%nz.ne.nz) call crash('GOT: Incompatible vertical grid')
+    if (WithOS.and.GOS%nz.ne.nz) call crash('GOS: Incompatible vertical grid')
+    if (WithOR.and.GOR%nz.ne.nz) call crash('GOR: Incompatible vertical grid')
+    if (WithOC.and.GOC%nz.ne.nz) call crash('GOC: Incompatible vertical grid')
+  
     ! ... Reference time,  units and calendar:
     ! ...
     if (WithOU) then
@@ -327,14 +345,14 @@ contains
     !if (WithOR) zmin = max(zmin,GOR%zmin)
     !if (WithOC) zmin = max(zmin,GOC%zmin)
     
-    zmax = forcing_zmax
-    if (WithOU) zmax = min(zmax,GOU%zmax)
-    if (WithOV) zmax = min(zmax,GOV%zmax)
-    if (WithOW) zmax = min(zmax,GOW%zmax)
-    !if (WithOT) zmax = min(zmax,GOT%zmax)
-    !if (WithOS) zmax = min(zmax,GOS%zmax)
-    !if (WithOR) zmax = min(zmax,GOR%zmax)
-    !if (WithOC) zmax = min(zmax,GOC%zmax)
+    zmax = 0.0D0
+!    if (WithOU) zmax = min(zmax,GOU%zmax)
+!    if (WithOV) zmax = min(zmax,GOV%zmax)
+!    if (WithOW) zmax = min(zmax,GOW%zmax)
+!    !if (WithOT) zmax = min(zmax,GOT%zmax)
+!    !if (WithOS) zmax = min(zmax,GOS%zmax)
+!    !if (WithOR) zmax = min(zmax,GOR%zmax)
+!    !if (WithOC) zmax = min(zmax,GOC%zmax)
    
  
     ! ... Common time domain:
@@ -367,15 +385,15 @@ contains
   
     ! ... Model crop
     ! ...
-    if (WithOU) call GOU%crop(xmin,xmax,ymin,ymax,zmin,zmax,tmin,tmax)
-    if (WithOV) call GOV%crop(xmin,xmax,ymin,ymax,zmin,zmax,tmin,tmax)
-    if (WithOW) call GOW%crop(xmin,xmax,ymin,ymax,zmin,zmax,tmin,tmax)
-    if (WithOT) call GOT%crop(xmin,xmax,ymin,ymax,zmin,zmax,tmin,tmax)
-    if (WithOS) call GOS%crop(xmin,xmax,ymin,ymax,zmin,zmax,tmin,tmax)
-    if (WithOR) call GOR%crop(xmin,xmax,ymin,ymax,zmin,zmax,tmin,tmax)
-    if (WithOC) call GOC%crop(xmin,xmax,ymin,ymax,zmin,zmax,tmin,tmax)
-    if (WithAU) call GAU%crop(xmin,xmax,ymin,ymax,zmin,zmax,tmin,tmax)
-    if (WithAV) call GAV%crop(xmin,xmax,ymin,ymax,zmin,zmax,tmin,tmax)
+    if (WithOU) call GOU%crop(xmin,xmax,ymin,ymax,tmin,tmax)
+    if (WithOV) call GOV%crop(xmin,xmax,ymin,ymax,tmin,tmax)
+    if (WithOW) call GOW%crop(xmin,xmax,ymin,ymax,tmin,tmax)
+    if (WithOT) call GOT%crop(xmin,xmax,ymin,ymax,tmin,tmax)
+    if (WithOS) call GOS%crop(xmin,xmax,ymin,ymax,tmin,tmax)
+    if (WithOR) call GOR%crop(xmin,xmax,ymin,ymax,tmin,tmax)
+    if (WithOC) call GOC%crop(xmin,xmax,ymin,ymax,tmin,tmax)
+    if (WithAU) call GAU%crop(xmin,xmax,ymin,ymax,tmin,tmax)
+    if (WithAV) call GAV%crop(xmin,xmax,ymin,ymax,tmin,tmax)
 
     forcing_xmin = xmin
     forcing_xmax = xmax
