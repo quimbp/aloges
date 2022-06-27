@@ -46,13 +46,15 @@ type type_float
   real(dp)                                       :: dist = 0.0D0   ! travelled distance (km)
   real(dp)                                       :: temp = 0.0D0   ! temperature
   real(dp)                                       :: psa  = 0.0D0   ! salinity
-  real(dp)                                       :: dens = 0.0D0   ! density
-  real(dp)                                       :: trac = 0.0D0   ! tracer concentration
+  real(dp)                                       :: rho  = 0.0D0   ! density
+  real(dp)                                       :: size = 0.0D0   ! size
+  real(dp)                                       :: C    = 0.0D0   ! tracer concentration
   real(dp)                                       :: buoy = 0.0D0   ! buoyancy
 end type type_float
 
 integer                                          :: Nfloats = 0
-type(type_float), dimension(:), pointer          :: FLT
+type(type_float), dimension(:), pointer          :: FLT      ! Array of buoys
+type(type_float)                                 :: FLTk     ! A buoy
 
 logical                                          :: Release_by_file = .False.
 logical                                          :: Release_by_pos  = .False.
@@ -60,10 +62,14 @@ logical                                          :: WithReleaseXo   = .False.
 logical                                          :: WithReleaseYo   = .False.
 logical                                          :: WithReleaseZo   = .False.
 logical                                          :: WithReleaseTime = .False.
+logical                                          :: WithReleaseRho  = .False.
+logical                                          :: WithReleaseSize = .False.
 real(dp)                                         :: Release_xo
 real(dp)                                         :: Release_yo
 real(dp)                                         :: Release_zo      = 0.0D0
 real(dp)                                         :: Release_to      = 0.0D0
+real(dp)                                         :: Release_rho     = 1027.0D0
+real(dp)                                         :: Release_size    = 1D-4 ! 2r
 character(len=maxlen)                            :: Release_file
 character(len=maxlen)                            :: Release_time
 

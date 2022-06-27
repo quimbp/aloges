@@ -30,8 +30,6 @@ use module_model
 
 implicit none
 
-real(dp), dimension(2) :: epsilon
-
 ! ... Initial messaje
 ! ...
 call hello()
@@ -114,8 +112,10 @@ else
 endif
 alm_tlen = nint(alm_tfin - alm_tini)
 
-model_dini = num2date(model_tini,units=model_time_units,calendar=model_time_calendar)
-model_dfin = num2date(model_tfin,units=model_time_units,calendar=model_time_calendar)
+model_dini = num2date(model_tini,units=model_time_units, &
+                      calendar=model_time_calendar)
+model_dfin = num2date(model_tfin,units=model_time_units, &
+                      calendar=model_time_calendar)
 
 
 ! ... Initialize model

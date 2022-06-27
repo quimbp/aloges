@@ -72,6 +72,7 @@ subroutine options
 
   integer                                        :: na,i
   character(len=maxlen)                          :: word
+  character(len=maxlen)                          :: rhovalue
   character(len=400)                             :: OUlist=''
   character(len=400)                             :: OVlist=''
   character(len=400)                             :: OWlist=''
@@ -115,6 +116,10 @@ subroutine options
     call arglst('-AU',WithAU,AUlist)
     call arglst('-AV',WithAV,AVlist)
 
+    call argflg('-cart',Cartesian)
+    call argflg('-Cart',Cartesian)
+    call argflg('-CART',Cartesian)
+    Spherical = .not.Cartesian
 
     OUfilename = 'fakebasin.nc'
     OUxname    = 'lon'
@@ -140,7 +145,7 @@ subroutine options
     ! ... OU, OV, OW, OT, OS, OR, OC options
     ! ...
     if (WithOU) then
-      Oufilename = token_read(OUlist,'file=')
+      OUfilename = token_read(OUlist,'file=')
       word = token_read(OUlist,'var='); if (len_trim(word).gt.0) OUvname = trim(word)
       word = token_read(OUlist,'x=');   if (len_trim(word).gt.0) OUxname = trim(word)
       word = token_read(OUlist,'y=');   if (len_trim(word).gt.0) OUyname = trim(word)
@@ -148,7 +153,7 @@ subroutine options
       word = token_read(OUlist,'t=');   if (len_trim(word).gt.0) OUtname = trim(word)
     endif
     if (WithOV) then
-      Oufilename = token_read(OVlist,'file=')
+      OVfilename = token_read(OVlist,'file=')
       word = token_read(OVlist,'var='); if (len_trim(word).gt.0) OVvname = trim(word)
       word = token_read(OVlist,'x=');   if (len_trim(word).gt.0) OVxname = trim(word)
       word = token_read(OVlist,'y=');   if (len_trim(word).gt.0) OVyname = trim(word)
@@ -156,15 +161,16 @@ subroutine options
       word = token_read(OVlist,'t=');   if (len_trim(word).gt.0) OVtname = trim(word)
     endif
     if (WithOW) then
-      Oufilename = token_read(OWlist,'file=')
+      OWfilename = token_read(OWlist,'file=')
       word = token_read(OWlist,'var='); if (len_trim(word).gt.0) OWvname = trim(word)
       word = token_read(OWlist,'x=');   if (len_trim(word).gt.0) OWxname = trim(word)
       word = token_read(OWlist,'y=');   if (len_trim(word).gt.0) OWyname = trim(word)
       word = token_read(OWlist,'z=');   if (len_trim(word).gt.0) OWzname = trim(word)
       word = token_read(OWlist,'t=');   if (len_trim(word).gt.0) OWtname = trim(word)
     endif
+
     if (WithOT) then
-      Oufilename = token_read(OTlist,'file=')
+      OTfilename = token_read(OTlist,'file=')
       word = token_read(OTlist,'var='); if (len_trim(word).gt.0) OTvname = trim(word)
       word = token_read(OTlist,'x=');   if (len_trim(word).gt.0) OTxname = trim(word)
       word = token_read(OTlist,'y=');   if (len_trim(word).gt.0) OTyname = trim(word)
@@ -172,7 +178,7 @@ subroutine options
       word = token_read(OTlist,'t=');   if (len_trim(word).gt.0) OTtname = trim(word)
     endif
     if (WithOS) then
-      Oufilename = token_read(OSlist,'file=')
+      OSfilename = token_read(OSlist,'file=')
       word = token_read(OSlist,'var='); if (len_trim(word).gt.0) OSvname = trim(word)
       word = token_read(OSlist,'x=');   if (len_trim(word).gt.0) OSxname = trim(word)
       word = token_read(OSlist,'y=');   if (len_trim(word).gt.0) OSyname = trim(word)
@@ -180,15 +186,33 @@ subroutine options
       word = token_read(OSlist,'t=');   if (len_trim(word).gt.0) OStname = trim(word)
     endif
     if (WithOR) then
-      Oufilename = token_read(ORlist,'file=')
-      word = token_read(ORlist,'var='); if (len_trim(word).gt.0) ORvname = trim(word)
-      word = token_read(ORlist,'x=');   if (len_trim(word).gt.0) ORxname = trim(word)
-      word = token_read(ORlist,'y=');   if (len_trim(word).gt.0) ORyname = trim(word)
-      word = token_read(ORlist,'z=');   if (len_trim(word).gt.0) ORzname = trim(word)
-      word = token_read(ORlist,'t=');   if (len_trim(word).gt.0) ORtname = trim(word)
+      ORfilename = token_read(ORlist,'file=')
+      rhovalue = token_read(ORlist,'value=')
+      if (len_trim(rhovalue).gt.0) then
+        rhovalue = uppercase(rhovalue)
+        if(is_numeric(rhovalue)) then
+          if (verb.ge.3) write(*,*) 'Constant water density: ', trim(rhovalue)
+          WithOR = .false.
+          water_density_source = 0
+          read(rhovalue,*) water_rho
+        else
+          if (verb.ge.3) write(*,*) 'Water density from analytical model'
+          WithOR = .false.
+          water_density_source = 1
+        endif
+      else
+        if (verb.ge.3) write(*,*) 'Water density from file'
+        water_density_source = 2
+        word = token_read(ORlist,'var='); if (len_trim(word).gt.0) ORvname = trim(word)
+        word = token_read(ORlist,'x=');   if (len_trim(word).gt.0) ORxname = trim(word)
+        word = token_read(ORlist,'y=');   if (len_trim(word).gt.0) ORyname = trim(word)
+        word = token_read(ORlist,'z=');   if (len_trim(word).gt.0) ORzname = trim(word)
+        word = token_read(ORlist,'t=');   if (len_trim(word).gt.0) ORtname = trim(word)
+      endif
     endif
+
     if (WithOC) then
-      Oufilename = token_read(OClist,'file=')
+      OCfilename = token_read(OClist,'file=')
       word = token_read(OClist,'var='); if (len_trim(word).gt.0) OCvname = trim(word)
       word = token_read(OClist,'x=');   if (len_trim(word).gt.0) OCxname = trim(word)
       word = token_read(OClist,'y=');   if (len_trim(word).gt.0) OCyname = trim(word)
@@ -196,7 +220,7 @@ subroutine options
       word = token_read(OClist,'t=');   if (len_trim(word).gt.0) OCtname = trim(word)
     endif
     if (WithAU) then
-      Aufilename = token_read(AUlist,'file=')
+      AUfilename = token_read(AUlist,'file=')
       word = token_read(AUlist,'var='); if (len_trim(word).gt.0) AUvname = trim(word)
       word = token_read(AUlist,'x=');   if (len_trim(word).gt.0) AUxname = trim(word)
       word = token_read(AUlist,'y=');   if (len_trim(word).gt.0) AUyname = trim(word)
@@ -204,7 +228,7 @@ subroutine options
       word = token_read(AUlist,'t=');   if (len_trim(word).gt.0) AUtname = trim(word)
     endif
     if (WithAV) then
-      Aufilename = token_read(AVlist,'file=')
+      AVfilename = token_read(AVlist,'file=')
       word = token_read(AVlist,'var='); if (len_trim(word).gt.0) AVvname = trim(word)
       word = token_read(AVlist,'x=');   if (len_trim(word).gt.0) AVxname = trim(word)
       word = token_read(AVlist,'y=');   if (len_trim(word).gt.0) AVyname = trim(word)
@@ -260,6 +284,11 @@ subroutine options
     call argdbl('-yo',WithReleaseYo,Release_yo)
     call argdbl('-zo',WithReleaseZo,Release_zo)
     call argstr('-to',WithReleaseTime,Release_time)
+    call argdbl('-ro',WithReleaseRho,Release_rho)
+    call argdbl('-so',WithReleaseSize,Release_size)
+    if (WithReleaseRho.and.water_density_source.lt.0) then
+      call crash('No water density method has been specified.')
+    endif
 
     ! ... Random floats
     ! ...
@@ -379,6 +408,13 @@ subroutine options
     if (len_trim(AUfilename).gt.0) WithAU = .true.
     if (len_trim(AVfilename).gt.0) WithAV = .true.
 
+!    ! ... Analytical density function
+!    ! ...
+!    call argflg('-rho_ana',rho_ana)
+!    call argflg('-Rho_ana',rho_ana)
+!    call argflg('-Rho_Ana',rho_ana)
+
+
     ! ... Check options
     ! ...
     call checkopts()
@@ -413,6 +449,9 @@ subroutine options
     &and -end, respctively.')
   call HLP%add_option ('-OU token=value [token=value...]','Input ocean U field (required)','')
   call HLP%add_option ('-OV token=value [token=value...]','Input ocean V field (optional)','')
+  call HLP%add_option ('-OT token=value [token=value...]','Input ocean temperature field (optional)','')
+  call HLP%add_option ('-OS token=value [token=value...]','Input ocean salinity field (optional)','')
+  call HLP%add_option ('-OR token=value [token=value...]','Input ocean density field (optional)','')
   call HLP%add_option ('-AU token=value [token=value...]','Input atmosphere U field (optional)','')
   call HLP%add_option ('-AV token=value [token=value...]','Input atmosphere V field (optional)','')
   call HLP%add_option ('-A11        value','Component a11 of the atmosphere response matrix','0.0')
@@ -436,7 +475,11 @@ subroutine options
   call HLP%add_option ('-zo         ZO','Optional value of the float initial position','0.0')
   call HLP%add_option ('-to         TO/DATE','Optional value of the float initial &
    &release time (seconds after initial simulation time)','0')
-  call HLP%add_option ('-velmin     MIN_THRESHOLD','Minimum velocity threshold','1D-5')
+  call HLP%add_option ('-ro         RHO','Optional value of the float density. It requires &
+    &the use of option -OR to specify water density','')
+  call HLP%add_option ('-so         SIZE','Optional value of the float diameter','')
+  call HLP%add_option ('-velmin     MIN_THRESHOLD','Minimum velocity threshold. &
+    &Set it to zero for pure random walk motion','1D-5')
   call HLP%add_option ('-mu         value','Non-dimensioanl amplitude of the gaussian multiplicative noise','0')
   call HLP%add_option ('-va         value','Amplitude of the gaussian istropic velocity fluctuation','0')
   call HLP%add_option ('-alpha      value','Non-dimensional ocean velocity multiplicator','1.0')

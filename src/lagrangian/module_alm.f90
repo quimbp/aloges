@@ -32,6 +32,11 @@ implicit none
 ! ...
 integer, parameter                               :: ndims = 3      ! Lagrangian model dimensions
 
+! ... Metrics
+! ...
+logical                                          :: Cartesian = .False.
+logical                                          :: Spherical = .True.
+
 ! ... ALM beahvior: Model, fitting, assimilation
 ! ... By default we run the model
 ! ...

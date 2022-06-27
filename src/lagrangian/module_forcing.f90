@@ -35,8 +35,6 @@ implicit none
 
 ! ... Input files
 ! ...
-logical                                          :: Cartesian  = .False.
-
 character(len=maxlen)                            :: tifilename = ''  ! Traj initial
 character(len=maxlen)                            :: OUfilename = ''  ! Oce u vel
 character(len=maxlen)                            :: OVfilename = ''  ! Oce v vel

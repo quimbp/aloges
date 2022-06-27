@@ -68,7 +68,7 @@ real(dp)               :: inf     ! = 1.0_dp/0.0_dp
 
 ! ... Physical constants
 ! ...
-real(dp), parameter    :: grav    = 9.80665_dp     ! m / s^2
+real(dp), parameter    :: gravity = 9.80665_dp     ! m / s^2
 real(dp), parameter    :: Omega   = 7.292E-5_dp    ! 1/s
 real(dp), parameter    :: Rearth  = 6371315.0_dp   ! m
 

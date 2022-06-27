@@ -177,6 +177,15 @@ integer                                          :: output_status
 integer                                          :: output_kid
 real(dp)                                         :: output_missing = -999.0D0
 
+
+! ... Analytical density
+! ... water_visc: Kinematic viscosity [m2/s] = Dynamic viscosity / rho
+! ... water_rho: Water density kg/m3
+! ...
+integer                                          :: water_density_source=-1
+real(dp)                                         :: water_visc = 1D-6 ! m2/s
+real(dp)                                         :: water_rho  = 1020.0D0 !kg/m3
+
 contains
 ! ...
 ! =====================================================================
@@ -1173,19 +1182,87 @@ contains
     dy   = dt*u(2)     !   [seconds] x [meters/seconds]
     dz   = dt*u(3)     !   [seconds] x [meters/seconds]
 
-    ryo  = xo(2)
-    coslat = cos(ryo)
+    if (Spherical) then
+      ! ... Spherical metrics
+      ! ...
+      ryo  = xo(2)
+      coslat = cos(ryo)
+      ryn = asin(sin(ryo+dy*IEarth)*cos(dx*IEarth))
+      rdx = atan2(sin(dx*Iearth)*coslat,cos(dx*Iearth)-sin(ryo)*sin(ryn))
+      xn(1)  = xo(1) + rdx             ! Radians
+      xn(2)  = ryn                     ! Radians
+      xn(3)  = xo(3) + dz              ! meters
+    else
+      ! ... Cartesian metrics
+      ! ...
+      xn(1)  = xo(1) + dx              ! meters
+      xn(2)  = xo(2) + dy              ! meters
+      xn(3)  = xo(3) + dz              ! meters
+    endif
 
-    ryn = asin(sin(ryo+dy*IEarth)*cos(dx*IEarth))
-    rdx = atan2(sin(dx*Iearth)*coslat,cos(dx*Iearth)-sin(ryo)*sin(ryn))
-
-    xn(1)  = xo(1) + rdx             ! Radians
-    xn(2)  = ryn                     ! Radians
-    xn(3)  = xo(3)+dz                ! meters
     if (xn(3).gt.0) xn(3) = 0.0D0
 
-
   end function displacement
+  ! ...
+  ! =====================================================================
+  ! ...
+  function analytical_rho(z,lat) result(rho)
 
+    ! ... Analytical model for ocean density
+    ! ... V. Gladkikh and R. Tenzer
+    ! ... A mathematical model of the Global Ocean Saltwater Density
+    ! ... distribution. Pure and Applied Geophysics, 169 (February) 2012
+    ! ... 249-257
+    ! ... DOI: 10.1007/s00024-011-0275-5
+    ! ...
+    ! ... rho(D,phi) = 1000 + A(phi) + B(phi)*D^C(phi)
+    ! ...
 
+    real(dp), intent(in)                         :: z     ! meters
+    real(dp), intent(in)                         :: lat   ! degrees
+    real(dp)                                     :: rho
+
+    real(dp) phi,D,A,B,C
+    real(dp) mu,Pycno
+
+    phi = abs(lat)
+    D   = abs(z)
+
+    mu = 0.928D0 - 0.079D0*cos(0.053*lat)
+    Pycno = mu + 0.5D0*(1.0D0-mu)*(1.0D0+tanh(0.00988D0*D-1.01613))
+
+    A = 27.91D0 - 2.06D0*exp(-(0.0161D0*phi)**5.0D0)
+    B = 0.00637D0 + 0.00828D0*exp(-(0.017D0*phi)**4.66D0)
+    C = 0.964D0 - 0.091D0*exp(-(0.016*phi)**5.0D0)
+
+    rho = 1000.0D0 + A*Pycno + B*D**C
+
+    return
+
+  end function analytical_rho
+  ! ...
+  ! =====================================================================
+  ! ...
+  function emergence(F,rw) result (wo)
+
+    type(type_float), intent(in)                 :: F
+    real(dp), intent(in)                         :: rw
+    real(dp)                                     :: wo
+
+    ! ... Stokes terminal velocity:
+    ! ... Sphere of radius Radius_s and density rho_s
+    ! ... In a fluid with density rho_m and viscosity eta_m
+    ! ... wo = 2*g*Radius_s**2*(rho_s-rho_m)/(9*eta_m)
+    ! ...    = g*Diameter_s**2*(rho_s-rho_m)/(18*eta_m)
+    ! ...    = - g*Diameter_s**2*(1-rho_s/rho_m)/(18*mu_m)
+    ! ... with
+    ! ... Diameter_s = Sphere diameter (size)
+    ! ... mu_m/rho_m = Kinematic viscosity      ! m2 s-1
+    ! ...
+    wo = gravity*F%size*F%size*(1.0D0-F%rho/rw)/18.0D0/water_visc
+
+  end function emergence
+  ! ...
+  ! =====================================================================
+  ! ...
 end module module_model
