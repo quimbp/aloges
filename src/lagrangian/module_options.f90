@@ -65,10 +65,12 @@ subroutine options
   logical                                        :: WithRy    = .False.
   logical                                        :: WithRz    = .False.
   logical                                        :: WithRt    = .False.
-  logical                                        :: withA11   = .False.
-  logical                                        :: withA12   = .False.
-  logical                                        :: withA21   = .False.
-  logical                                        :: withA22   = .False.
+  logical                                        :: WithA11   = .False.
+  logical                                        :: WithA12   = .False.
+  logical                                        :: WithA21   = .False.
+  logical                                        :: WithA22   = .False.
+  logical                                        :: WithVisc  = .False.
+  logical                                        :: WithSaveP = .False.
 
   integer                                        :: na,i
   character(len=maxlen)                          :: word
@@ -271,6 +273,7 @@ subroutine options
     ! ...
     call argstr('-trajectory',WithTname,trajectory_name)
     call argstr('-endpos',WithTfnal,trajectory_final)
+    call argint('-saveper',WithSaveP,save_period)
 
     ! ... Pereiro, 2019, minimum thrsthold velovity parameter
     ! ...
@@ -293,6 +296,8 @@ subroutine options
     if (water_density_method.ge.0.or. &
         WithReleaseRho.or. &
         WithReleaseSize) model_buoyancy = .True.
+
+    call argdbl('-vis',WithVisc,water_visc)
 
     ! ... Random floats
     ! ...
@@ -398,7 +403,6 @@ subroutine options
     call argdbl('-a22',WithA22,A22)
     call argdbl('-A22',WithA22,A22)
 
-   
 
     ! ... Forcing specification flags
     ! ...
@@ -412,11 +416,6 @@ subroutine options
     if (len_trim(AUfilename).gt.0) WithAU = .True.
     if (len_trim(AVfilename).gt.0) WithAV = .True.
 
-!    ! ... Analytical density function
-!    ! ...
-!    call argflg('-rho_ana',rho_ana)
-!    call argflg('-Rho_ana',rho_ana)
-!    call argflg('-Rho_Ana',rho_ana)
 
 
     ! ... Check options

@@ -235,7 +235,6 @@ contains
       vz = 0.0D0
     endif
 
-
     dxdt(:) = 0.0D0
 
     ! ... Zonal advection:
@@ -256,6 +255,8 @@ contains
         endif
         dxdt(1) = alpha(1)*ff + vx
       endif
+    else
+      dxdt(1) = vx
     endif
 
     ! ... Meridional advection
@@ -279,6 +280,8 @@ contains
         endif
         dxdt(2) = alpha(2)*ff + vy
       endif
+    else
+      dxdt(2) = vy
     endif
 
     ! ... Vertical advection
@@ -299,7 +302,12 @@ contains
         endif
         dxdt(3) = alpha(3)*ff + vz
       endif
+    else
+      dxdt(3) = vz
     endif
+
+    ! ... Add, if requested, a buoyancy term:
+    ! ...
     if (model_buoyancy) then
       select case (water_density_method)
       case (0)
@@ -344,7 +352,7 @@ contains
 
     type(type_date)                         :: datemin,datemax
     integer i,j,k
-    real(dp) critical_size
+    real(dp) critical_size,yave
 
     if (reverse) model_sign = -1.0D0
 
@@ -491,17 +499,40 @@ contains
     noise_V0 = sqrt(2.0D0*noise_KH0/abs(model_dt))   ! 
     noise_V1 = sqrt(2.0D0*noise_KH1/abs(model_dt))
 
-    if (Wadv) then
+!   if (Wadv) then
       noise_W0 = sqrt(2.0D0*noise_KV0/abs(model_dt))   ! 
       noise_W1 = sqrt(2.0D0*noise_KV1/abs(model_dt))
-    else
-      noise_W0 = 0.0D0
-      noise_W1 = 0.0D0
-    endif
+!   else
+!     noise_W0 = 0.0D0
+!     noise_W1 = 0.0D0
+!   endif
 
     if (noise_V0+noise_W0.gt.0.0D0) noise_model_0 = .True.
     if (noise_V1+noise_W1.gt.0.0D0) noise_model_1 = .True.
-    
+   
+    ! ... Get the "typical" water density.
+    ! ... if water_density_method .le. 0, then it is the
+    ! ... value in water_rho.
+    ! ..
+    if (model_buoyancy) then
+      if (water_density_method.eq.1) then
+        yave = 0.5D0*(alm_ymin+alm_ymax)*rad2deg
+        water_rho = 0.0D0
+        do k=1,GOU%Nz
+          water_rho = water_rho + analytical_rho(GOU%z(k),yave)
+        enddo
+        water_rho = water_rho / GOU%Nz
+      else if (water_density_method.eq.2) then
+        print*, 'WARNING: This needs to be calculated !!!!'
+        yave = 0.5D0*(alm_ymin+alm_ymax)*rad2deg
+        water_rho = 0.0D0
+        do k=1,GOU%Nz
+          water_rho = water_rho + analytical_rho(GOU%z(k),yave)
+        enddo
+        water_rho = water_rho / GOU%Nz
+      endif
+    endif
+
     if (verb.ge.1) then
       write(*,*)
       write(*,*) 'Simulation period: '
@@ -510,25 +541,32 @@ contains
       else
         write(*,*) 'Backward model'
       endif
-      write(*,*) 'Initial time : ', model_tini, model_dini%iso()
-      write(*,*) 'Final time   : ', model_tfin, model_dfin%iso()
+      write(*,*) 'Initial time  : ', model_tini, model_dini%iso()
+      write(*,*) 'Final time    : ', model_tfin, model_dfin%iso()
       write(*,*) 'Time step     : ', model_dt
       write(*,*) 'Number steps  : ', model_nsteps
+      write(*,*) 'Saving period : ', save_period
       write(*,*) 'Advection XYZ : ', Uadv, Vadv, Wadv
 
       if (model_buoyancy) then
-        ! ... Drop sizes are defined be Aravamudan et al. (1982)
-        ! ...
-        critical_size = 9.52D0*(water_visc/gravity)**(2.D0/3.D0)/(1-Release_rho/water_rho)**(1.0D0/3.0D0)
-        write(*,*) 'Model buoyancy activate'
+        write(*,*) 'Model buoyancy activated'
         write(*,*) 'Water kinematic viscosity : ', water_visc
         write(*,*) 'Water density method      : ', water_density_method
-        if (water_density_method.eq.0) write(*,*) 'Water density constant    : ', water_rho
+        write(*,*) 'Reference Water density   : ', water_rho
         write(*,*) 'Particle density          : ', Release_rho
         write(*,*) 'Particle diameter         : ', Release_size
-        if (Release_size.gt.critical_size) call crash('Particle size > Minumum allowed size')
+        if (Release_rho.lt.water_rho) then
+          ! ... Maximum drop sizes are claculated by Aravamudan et al. (1982)
+          ! ... Break up for oil on rough seas - simplified models and step-by
+          ! ... step calculations. US Coast Guard Report CG-D-28-82
+          ! ... US Department of Transportation, Washington DC.
+          ! ...
+          critical_size = 9.52D0*(water_visc/gravity)**(2.D0/3.D0)/(1.0D0-Release_rho/water_rho)**(1.0D0/3.0D0)
+          write(*,*) 'Maximum Particle diameter : ', critical_size
+          !if (Release_size.gt.critical_size) call crash('Particle size > Minumum allowed size')
+        endif
       else
-        write(*,*) 'Model buoyancy not active'
+        write(*,*) 'Model buoyancy not activated'
       endif
 
       write(*,*) 'Wind forcing  : ', Winds
@@ -876,8 +914,19 @@ contains
       err = NF90_PUT_ATT(output_id,output_status,"is2",'float was stranded')
       call check()
 
+      if (model_buoyancy) then
+        err = NF90_PUT_ATT(output_id,0,'Buoyancy','Activated')
+        err = NF90_PUT_ATT(output_id,0,'Water_viscosity',Water_visc)
+        err = NF90_PUT_ATT(output_id,0,'Water_density_method',water_density_method)
+        err = NF90_PUT_ATT(output_id,0,'Reference_Water_density',water_rho)
+        err = NF90_PUT_ATT(output_id,0,'Particle_size',Release_size)
+        err = NF90_PUT_ATT(output_id,0,'Particle_density',Release_rho)
+      else
+        err = NF90_PUT_ATT(output_id,0,'Buoyancy','No activated')
+      endif
+
       call get_commandline(lcom)
-      err = NF90_PUT_ATT(output_id,0,'CommandLine',TRIM(lcom))
+      err = NF90_PUT_ATT(output_id,0,'Command_line',TRIM(lcom))
       call check()
 
       err = NF90_ENDDEF(output_id)
@@ -1298,9 +1347,11 @@ contains
     ! ... Stokes terminal velocity:
     ! ... Sphere of radius Radius_s and density rho_s
     ! ... In a fluid with density rho_m and viscosity eta_m
-    ! ... wo = 2*g*Radius_s**2*(rho_s-rho_m)/(9*eta_m)
-    ! ...    = g*Diameter_s**2*(rho_s-rho_m)/(18*eta_m)
-    ! ...    = - g*Diameter_s**2*(1-rho_s/rho_m)/(18*mu_m)
+    ! ... Positive emergence, upward emrgence.
+    ! ...
+    ! ... wo = - 2*g*Radius_s**2*(rho_s-rho_m)/(9*eta_m)
+    ! ...    = - g*Diameter_s**2*(rho_s-rho_m)/(18*eta_m)
+    ! ...    = g*Diameter_s**2*(1-rho_s/rho_m)/(18*mu_m)
     ! ... with
     ! ... Diameter_s = Sphere diameter (size)
     ! ... mu_m/rho_m = Kinematic viscosity      ! m2 s-1
