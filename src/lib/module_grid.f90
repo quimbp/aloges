@@ -60,6 +60,8 @@ end type type_ncvar
 type type_ncgrid
   logical                                        :: grid2d = .False.
   logical                                        :: Cartesian = .False.
+  logical                                        :: Stationary = .False.
+  logical                                        :: Climatology = .False.
   character(len=maxlen)                          :: filename=''
   character(len=maxlen)                          :: xname='None'
   character(len=maxlen)                          :: yname='None'
@@ -188,15 +190,15 @@ contains
       ! ...
       err  = NF90_GET_ATT(fid,myvar,'_FillValue',rwork)
       if (err.eq.NF90_NOERR) then
-        GRD%var(myvar)%missing = .true.
+        GRD%var(myvar)%missing = .True.
         GRD%var(myvar)%missing_value   = rwork
       else
         err = NF90_GET_ATT (fid,myvar,'missing_value',rwork)
         if (err.eq.NF90_NOERR) then
-          GRD%var(myvar)%missing = .true.
+          GRD%var(myvar)%missing = .True.
           GRD%var(myvar)%missing_value   = rwork
         else
-          GRD%var(myvar)%missing = .false.
+          GRD%var(myvar)%missing = .False.
         endif
       endif
 

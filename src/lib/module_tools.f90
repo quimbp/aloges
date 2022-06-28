@@ -239,11 +239,11 @@ contains
     path = name(1:io-1)
     base = name(io:)
 
-    cdot = .false.
+    cdot = .False.
     io = 1
  02 if = index(base(io:),'.')
     if (if.GT.0) then
-       cdot = .true.
+       cdot = .True.
        io = io + if
        goto 02
     endif
@@ -472,12 +472,12 @@ contains
     integer ii
 
     if (.not.present(type)) then
-      ascii = .true.
+      ascii = .True.
     else
       if ((type(1:1).eq.'b').or.(type(1:1).eq.'B')) then
-        ascii = .false.
+        ascii = .False.
       else
-        ascii = .true.
+        ascii = .True.
       endif
     endif
 

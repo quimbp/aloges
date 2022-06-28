@@ -192,17 +192,17 @@ subroutine options
         rhovalue = uppercase(rhovalue)
         if(is_numeric(rhovalue)) then
           if (verb.ge.3) write(*,*) 'Constant water density: ', trim(rhovalue)
-          WithOR = .false.
-          water_density_source = 0
+          WithOR = .False.
+          water_density_method = 0
           read(rhovalue,*) water_rho
         else
           if (verb.ge.3) write(*,*) 'Water density from analytical model'
-          WithOR = .false.
-          water_density_source = 1
+          WithOR = .False.
+          water_density_method = 1
         endif
       else
         if (verb.ge.3) write(*,*) 'Water density from file'
-        water_density_source = 2
+        water_density_method = 2
         word = token_read(ORlist,'var='); if (len_trim(word).gt.0) ORvname = trim(word)
         word = token_read(ORlist,'x=');   if (len_trim(word).gt.0) ORxname = trim(word)
         word = token_read(ORlist,'y=');   if (len_trim(word).gt.0) ORyname = trim(word)
@@ -286,9 +286,13 @@ subroutine options
     call argstr('-to',WithReleaseTime,Release_time)
     call argdbl('-ro',WithReleaseRho,Release_rho)
     call argdbl('-so',WithReleaseSize,Release_size)
-    if (WithReleaseRho.and.water_density_source.lt.0) then
+    if (WithReleaseRho.and.water_density_method.lt.0) then
       call crash('No water density method has been specified.')
     endif
+
+    if (water_density_method.ge.0.or. &
+        WithReleaseRho.or. &
+        WithReleaseSize) model_buoyancy = .True.
 
     ! ... Random floats
     ! ...
@@ -398,15 +402,15 @@ subroutine options
 
     ! ... Forcing specification flags
     ! ...
-    if (len_trim(OUfilename).gt.0) WithOU = .true.
-    if (len_trim(OVfilename).gt.0) WithOV = .true.
-    if (len_trim(OWfilename).gt.0) WithOW = .true.
-    if (len_trim(OTfilename).gt.0) WithOT = .true.
-    if (len_trim(OSfilename).gt.0) WithOS = .true.
-    if (len_trim(ORfilename).gt.0) WithOR = .true.
-    if (len_trim(OCfilename).gt.0) WithOW = .true.
-    if (len_trim(AUfilename).gt.0) WithAU = .true.
-    if (len_trim(AVfilename).gt.0) WithAV = .true.
+    if (len_trim(OUfilename).gt.0) WithOU = .True.
+    if (len_trim(OVfilename).gt.0) WithOV = .True.
+    if (len_trim(OWfilename).gt.0) WithOW = .True.
+    if (len_trim(OTfilename).gt.0) WithOT = .True.
+    if (len_trim(OSfilename).gt.0) WithOS = .True.
+    if (len_trim(ORfilename).gt.0) WithOR = .True.
+    if (len_trim(OCfilename).gt.0) WithOW = .True.
+    if (len_trim(AUfilename).gt.0) WithAU = .True.
+    if (len_trim(AVfilename).gt.0) WithAV = .True.
 
 !    ! ... Analytical density function
 !    ! ...

@@ -202,9 +202,9 @@ contains
   real(dp) xsum
   real(dp), dimension(:), allocatable            :: v,f
   
-  lper = .false.
+  lper = .False.
   if (present(periodic)) then
-    if (periodic) lper = .true.
+    if (periodic) lper = .True.
   endif
   
   if (lper) then

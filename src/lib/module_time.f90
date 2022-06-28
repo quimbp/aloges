@@ -159,14 +159,14 @@ logical function isleap(year,calendar)
     cal = trim(calendar)
     call check_calendar(cal)
     if (trim(cal).eq.'noleap') then
-      isleap = .false.
+      isleap = .False.
       return
     endif
   endif
 
-  isleap = .false.
-  if (MOD(year,400).eq.0) isleap = .true.
-  if ((MOD(year,4).eq.0).and.(mod(year,100).ne.0)) isleap = .true.
+  isleap = .False.
+  if (MOD(year,400).eq.0) isleap = .True.
+  if ((MOD(year,4).eq.0).and.(mod(year,100).ne.0)) isleap = .True.
 
   return
 end function isleap

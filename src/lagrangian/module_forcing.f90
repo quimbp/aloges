@@ -393,6 +393,15 @@ contains
     if (WithAU) call GAU%crop(xmin,xmax,ymin,ymax,tmin,tmax)
     if (WithAV) call GAV%crop(xmin,xmax,ymin,ymax,tmin,tmax)
 
+    if (WithOU.and.GOU%nt.eq.1) GOU%Stationary = .True.
+    if (WithOV.and.GOV%nt.eq.1) GOV%Stationary = .True.
+    if (WithOT.and.GOT%nt.eq.1) GOT%Stationary = .True.
+    if (WithOS.and.GOS%nt.eq.1) GOS%Stationary = .True.
+    if (WithOR.and.GOR%nt.eq.1) GOR%Stationary = .True.
+    if (WithOC.and.GOC%nt.eq.1) GOC%Stationary = .True.
+    if (WithAU.and.GAU%nt.eq.1) GAU%Stationary = .True.
+    if (WithAV.and.GAV%nt.eq.1) GAV%Stationary = .True.
+
     forcing_xmin = xmin
     forcing_xmax = xmax
     forcing_ymin = ymin

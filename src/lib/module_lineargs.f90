@@ -48,10 +48,10 @@ character(len=maxlen) word,line
 na = iargc()
 if (na.eq.0) return
 
-read_from_file = .false.
+read_from_file = .False.
 call getarg(1,word)
-if (word(1:3).eq.'--o') read_from_file = .true.
-if (word(1:3).eq.'--O') read_from_file = .true.
+if (word(1:3).eq.'--o') read_from_file = .True.
+if (word(1:3).eq.'--O') read_from_file = .True.
 
 if (read_from_file) then
 ! ... Read execution options from a file
@@ -114,7 +114,7 @@ do k=1,lineargs_nargs
  if (lineargs_used(k).EQ.0) then
  if (lineargs_val(k)(:n).EQ.label(:n)) then 
   lineargs_used(k) = 1
-  flag = .true.
+  flag = .True.
   return
  endif
  endif
@@ -150,7 +150,7 @@ DO k=1,lineargs_nargs
     write(6,*) 'Option ',TRIM(lineargs_val(k+1)),' already used.'
     call crash ('Invalid option')
   endif
-  flag      = .true.
+  flag      = .True.
   lett      = lineargs_val(k+1)(1:1)
 !  if (lett.EQ.'N'.OR.lett.EQ.'n') then
 !  val     = nan4
@@ -189,7 +189,7 @@ DO k=1,lineargs_nargs
     write(6,*) 'Option ',TRIM(lineargs_val(k+1)),' already used.'
     call crash ('Invalid option')
   endif
-  flag      = .true.
+  flag      = .True.
   read(lineargs_val(k+1),*) val
   lineargs_used(k)   = 1
   lineargs_used(k+1) = 1
@@ -222,7 +222,7 @@ DO k=1,lineargs_nargs
     write(6,*) 'Option ',TRIM(lineargs_val(k+1)),' already used.'
     call crash ('Invalid option')
   endif
-  flag      = .true.
+  flag      = .True.
   val       = TRIM(lineargs_val(k+1))
   lineargs_used(k)   = 1
   lineargs_used(k+1) = 1
@@ -253,7 +253,7 @@ DO k=1,lineargs_nargs
  if (lineargs_used(k).EQ.0) then
  if (lineargs_val(k)(:n).EQ.label(:n)) then
   if (k+1.GT.lineargs_nargs) call crash('Invalid option')
-  flag = .true.
+  flag = .True.
   lineargs_used(k) = 1
   DO j=1,lineargs_nargs-k
     if (lineargs_val(k+j)(1:1).EQ.'-') EXIT
@@ -292,7 +292,7 @@ DO k=1,lineargs_nargs
     write(6,*) 'Option ',TRIM(lineargs_val(k+1)),' already used.'
     call crash ('Invalid option')
   endif
-  flag      = .true.
+  flag      = .True.
   lett      = lineargs_val(k+1)(1:1)
 !  if (lett.EQ.'N'.OR.lett.EQ.'n') then
 !    val     = nan

@@ -116,8 +116,6 @@ real(dp), dimension(ndims)                       :: alpha   = 1.0_dp  ! No units
 ! ... current's file.
 character(len=180)                               :: model_time_units = ''
 character(len=20)                                :: model_time_calendar = ''
-!real(dp)                                         :: Reference_time = 0.0D0
-!type(type_date)                                  :: Reference_date
 
 ! ... Middle of the month day (for climatological forcing)
 ! ...
@@ -142,6 +140,7 @@ real(dp)                                         :: noise_W1  = 0.0D0
 ! ... [ west, south, bottom ]
 ! ...
 integer, dimension(3)                            :: IOU,IOV,IOW,IAU,IAV
+integer, dimension(3)                            :: IOT,IOS,IOR
 
 ! ... Saving frequency
 ! ...
@@ -182,7 +181,8 @@ real(dp)                                         :: output_missing = -999.0D0
 ! ... water_visc: Kinematic viscosity [m2/s] = Dynamic viscosity / rho
 ! ... water_rho: Water density kg/m3
 ! ...
-integer                                          :: water_density_source=-1
+logical                                          :: model_buoyancy = .False.
+integer                                          :: water_density_method=-1
 real(dp)                                         :: water_visc = 1D-6 ! m2/s
 real(dp)                                         :: water_rho  = 1020.0D0 !kg/m3
 
@@ -215,7 +215,7 @@ contains
     ! ...
     real(dp) f1,f2,ff,a1,a2
     real(dp) t1,t2
-    real(dp) veps,vx,vy,vz
+    real(dp) veps,vx,vy,vz,rhok,wok
 
     if (noise_model_1) then
       ! ... Horizontal noise
@@ -245,7 +245,7 @@ contains
         dxdt(1) = vx
       else
         IOU = GOU%locate(xo)
-        if (Stationary) then
+        if (GOU%Stationary) then
           ff  = GOU%interpol(OUrhs(:,:,:,1),xo,IOU,SingleLayer)
         else
           t1 = GOU%t(OUr1)
@@ -265,7 +265,7 @@ contains
         dxdt(2) = vy
       else
         IOV = GOV%locate(xo)
-        if (Stationary) then
+        if (GOV%Stationary) then
           ff  = GOV%interpol(OVrhs(:,:,:,1),xo,IOV,SingleLayer)
         else
           t1 = GOV%t(OVr1)
@@ -288,17 +288,44 @@ contains
         dxdt(3) = vz
       else
         IOW = GOW%locate(xo)
-        if (Stationary) then
+        if (GOW%Stationary) then
           ff  = GOW%interpol(OWrhs(:,:,:,1),xo,IOW,SingleLayer)
         else
           t1 = GOW%t(OWr1)
           t2 = GOW%t(OWr2)
-          f1 = GOV%interpol(OWrhs(:,:,:,1),xo,IOW,SingleLayer)
-          f2 = GOV%interpol(OWrhs(:,:,:,2),xo,IOW,SingleLayer)
+          f1 = GOW%interpol(OWrhs(:,:,:,1),xo,IOW,SingleLayer)
+          f2 = GOW%interpol(OWrhs(:,:,:,2),xo,IOW,SingleLayer)
           ff = f1 + (f2-f1)*(model_time-t1)/(t2-t1)
         endif
         dxdt(3) = alpha(3)*ff + vz
       endif
+    endif
+    if (model_buoyancy) then
+      select case (water_density_method)
+      case (0)
+        ! ... Density is constant
+        ! ... 
+        rhok = water_rho
+      case (1)
+        ! ... Density is a function of z and latitude
+        ! ... 
+        rhok = analytical_rho(xo(3),rad2deg*xo(2))
+      case (2)
+        ! ... Density comes from a file
+        ! ... 
+        IOR = GOR%locate(xo)
+        if (GOR%Stationary) then
+          ff  = GOR%interpol(ORrhs(:,:,:,1),xo,IOR,SingleLayer)
+        else
+          t1 = GOR%t(ORr1)
+          t2 = GOR%t(ORr2)
+          f1 = GOR%interpol(ORrhs(:,:,:,1),xo,IOR,SingleLayer)
+          f2 = GOR%interpol(ORrhs(:,:,:,2),xo,IOR,SingleLayer)
+          rhok = f1 + (f2-f1)*(model_time-t1)/(t2-t1)
+        endif
+      end select
+      wok = emergence(FLTk,rhok)
+      dxdt(3) = dxdt(3) + wok
     endif
 
     if (winds.and.surface) then
@@ -317,6 +344,7 @@ contains
 
     type(type_date)                         :: datemin,datemax
     integer i,j,k
+    real(dp) critical_size
 
     if (reverse) model_sign = -1.0D0
 
@@ -487,6 +515,22 @@ contains
       write(*,*) 'Time step     : ', model_dt
       write(*,*) 'Number steps  : ', model_nsteps
       write(*,*) 'Advection XYZ : ', Uadv, Vadv, Wadv
+
+      if (model_buoyancy) then
+        ! ... Drop sizes are defined be Aravamudan et al. (1982)
+        ! ...
+        critical_size = 9.52D0*(water_visc/gravity)**(2.D0/3.D0)/(1-Release_rho/water_rho)**(1.0D0/3.0D0)
+        write(*,*) 'Model buoyancy activate'
+        write(*,*) 'Water kinematic viscosity : ', water_visc
+        write(*,*) 'Water density method      : ', water_density_method
+        if (water_density_method.eq.0) write(*,*) 'Water density constant    : ', water_rho
+        write(*,*) 'Particle density          : ', Release_rho
+        write(*,*) 'Particle diameter         : ', Release_size
+        if (Release_size.gt.critical_size) call crash('Particle size > Minumum allowed size')
+      else
+        write(*,*) 'Model buoyancy not active'
+      endif
+
       write(*,*) 'Wind forcing  : ', Winds
       write(*,*) 'Noise model 0 : ', noise_model_0
       write(*,*) 'Noise model 1 : ', noise_model_1
@@ -519,9 +563,9 @@ contains
       FLT(ifloat)%to = model_tini + FLT(ifloat)%to    ! FLT%to seconds since model_tini
       if (model_time.ge.FLT(ifloat)%to) then
         if (verb.ge.2) write(*,*) 'Initial step releasing for float ', ifloat
-        FLT(ifloat)%released = .true.
-        FLT(ifloat)%floating = .true.
-        FLT(ifloat)%indomain = .true.
+        FLT(ifloat)%released = .True.
+        FLT(ifloat)%floating = .True.
+        FLT(ifloat)%indomain = .True.
         FLT(ifloat)%x        = FLT(ifloat)%xo
         FLT(ifloat)%y        = FLT(ifloat)%yo
         FLT(ifloat)%z        = FLT(ifloat)%zo
@@ -546,9 +590,9 @@ contains
         if (.NOT.FLT(ifloat)%released) then
           if (model_time.ge.FLT(ifloat)%to) then
             if (verb.ge.2) write(*,*) 'Releasing float ', ifloat
-            FLT(ifloat)%released = .true.
-            FLT(ifloat)%floating = .true.
-            FLT(ifloat)%indomain = .true.
+            FLT(ifloat)%released = .True.
+            FLT(ifloat)%floating = .True.
+            FLT(ifloat)%indomain = .True.
             FLT(ifloat)%x        = FLT(ifloat)%xo
             FLT(ifloat)%y        = FLT(ifloat)%yo
             FLT(ifloat)%z        = FLT(ifloat)%zo
@@ -558,6 +602,8 @@ contains
         endif
 
         if (FLT(ifloat)%floating) then
+
+          FLTk = FLT(ifloat)
 
           ! ... Runge - Kutta
           ! ....................................................
@@ -764,7 +810,7 @@ contains
       call check()
 
       if (input_timeid.le.0) then
-        call cdf_copyatts(.false.,input_id,input_timeid,output_id,output_timeid,natts)
+        call cdf_copyatts(.False.,input_id,input_timeid,output_id,output_timeid,natts)
       else
         err = NF90_PUT_ATT(output_id,output_timeid,'units',trim(model_time_units))
         call check()

@@ -36,6 +36,7 @@ type type_float
   logical                                        :: released = .False.
   logical                                        :: floating = .False.
   logical                                        :: indomain = .False.
+  logical                                        :: surface  = .False.
   real(dp)                                       :: xo,yo,zo,to    ! position and time initial
   real(dp)                                       :: x,y,z,t        ! position and time
   real(dp)                                       :: u = 0.0D0      ! x-velocity (m/s)
@@ -148,7 +149,7 @@ contains
             ttr = Release_to + Radius_t*rnd(4)
             i = point_type(xxr,yyr,zzr)
             if (i.eq.1) then 
-              is_land = .false.
+              is_land = .False.
             else
               !print*, 'unsuitable ', xxr, yyr, zzr
             endif
@@ -195,7 +196,7 @@ contains
           endif
           i = point_type(xxr,yyr,zzr)
           if (i.eq.1) then 
-            is_land = .false.
+            is_land = .False.
           else
             !print*, 'unsuitable ', xxr, yyr, zzr
           endif
@@ -208,9 +209,9 @@ contains
 
     endif 
 
-    wrng = .False.
-    if (any(FLT(:)%to.lt.0)) wrng = .True.
     if (verb.ge.1) then
+      wrng = .False.
+      if (any(FLT(:)%to.lt.0)) wrng = .True.
       write(*,*)
       write(*,*) 'Floats to be released'
       if (wrng) write(*,*) '(*) Floats with negative release time will be released at initial time'
@@ -228,9 +229,12 @@ contains
     endif
 
     ! ... Ensure that floats will be released at initial time if release to < 0:
+    ! ... Also include the buoyancy-related values:
     ! ...
     do i=1,Nfloats
       FLT(i)%to = max(FLT(i)%to,0.0D0)
+      FLT(i)%rho  = release_rho
+      FLT(i)%size = release_size
     enddo
 
     !stop '99999'

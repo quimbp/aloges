@@ -30,8 +30,8 @@ implicit none
 
 ! ... Logical constants
 ! ...
-logical, parameter     :: True    = .true.
-logical, parameter     :: False   = .false.
+logical, parameter     :: True    = .True.
+logical, parameter     :: False   = .False.
 
 ! ... Mathematical constants
 ! ...
