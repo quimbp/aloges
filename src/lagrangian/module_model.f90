@@ -66,7 +66,6 @@ real(dp), dimension(:,:,:), pointer              :: AVrhs        ! (X,Y,2)
 
 ! ... Time records to be read
 ! ...
-integer                                          :: OUr1=-1, OUr2=-1
 integer                                          :: OVr1=-1, OVr2=-1
 integer                                          :: OWr1=-1, OWr2=-1
 integer                                          :: OTr1=-1, OTr2=-1
@@ -247,8 +246,8 @@ contains
         if (GOU%Stationary) then
           ff  = GOU%interpol(OUrhs(:,:,:,1),xo,IOU,SingleLayer)
         else
-          t1 = GOU%t(OUr1)
-          t2 = GOU%t(OUr2)
+          t1 = GOU%t(GOU%rec1)
+          t2 = GOU%t(GOU%rec2)
           f1 = GOU%interpol(OUrhs(:,:,:,1),xo,IOU,SingleLayer)
           f2 = GOU%interpol(OUrhs(:,:,:,2),xo,IOU,SingleLayer)
           ff = f1 + (f2-f1)*(model_time-t1)/(t2-t1)
@@ -333,6 +332,7 @@ contains
         endif
       end select
       wok = emergence(FLTk,rhok)
+      if (verb.ge.4) write(*,*) 'water_rho, emergence vel: ', rhok, wok
       dxdt(3) = dxdt(3) + wok
     endif
 
@@ -352,7 +352,7 @@ contains
 
     type(type_date)                         :: datemin,datemax
     integer i,j,k
-    real(dp) critical_size,yave
+    real(dp) critical_size,yave,rhok
 
     if (reverse) model_sign = -1.0D0
 
@@ -360,7 +360,7 @@ contains
     model_tfin = alm_tfin
     model_tlen = nint(model_tfin - model_tini)
     if (mod(model_tlen,model_dt).ne.0) call crash('Simulation length not a multiple of time step.')
-    model_nsteps = nint(model_tlen/model_dt)
+    model_nsteps = nint(model_tlen/model_dt) - 1
 
     model_dini = num2date(model_tini,units=model_time_units,calendar=model_time_calendar)
     model_dfin = num2date(model_tfin,units=model_time_units,calendar=model_time_calendar)
@@ -370,15 +370,15 @@ contains
     if (WithOU) then
       Uadv = .True.
       allocate (OUrhs(GOU%nx,GOU%ny,GOU%nz,2))
-      OUr1 = locate(GOU%t,model_tini) 
-      if ((OUr1.lt.1.or.OUr1.ge.GOU%nt)) call crash ('U time not bracketed')
-      if (GOU%nt.eq.1.or.Stationary) then
-        OUr2 = OUr1
+      GOU%rec1 = locate(GOU%t,model_tini) 
+      if ((GOU%rec1.lt.1.or.GOU%rec1.ge.GOU%nt)) call crash ('U time not bracketed')
+      if (GOU%nt.eq.1.or.GOU%Stationary) then
+        GOU%rec2 = GOU%rec1
       else
-        OUr2 = min(OUr1+1,GOU%nt)
+        GOU%rec2 = min(GOU%rec1+1,GOU%nt)
       endif
-      OUrhs(:,:,:,1) = GOU%read3D(GOU%varid,step=Our1,missing_value=0.0D0,verbose=verb.ge.3)
-      OUrhs(:,:,:,2) = GOU%read3D(GOU%varid,step=Our2,missing_value=0.0D0,verbose=verb.ge.3)
+      OUrhs(:,:,:,1) = GOU%read3D(GOU%varid,step=GOU%rec1,missing_value=0.0D0,verbose=verb.ge.3)
+      OUrhs(:,:,:,2) = GOU%read3D(GOU%varid,step=GOU%rec2,missing_value=0.0D0,verbose=verb.ge.3)
     endif
 
     if (WithOV) then
@@ -386,13 +386,13 @@ contains
       allocate (OVrhs(GOV%nx,GOV%ny,GOV%nz,2))
       OVr1 = locate(GOV%t,model_tini) 
       if ((OVr1.lt.1.or.OVr1.ge.GOV%nt)) call crash ('V time not bracketed')
-      if (GOV%nt.eq.1.or.Stationary) then
+      if (GOV%nt.eq.1.or.GOV%Stationary) then
         OVr2 = OVr1
       else
         OVr2 = min(OVr1+1,GOV%nt)
       endif
-      OVrhs(:,:,:,1) = GOV%read3D(GOV%varid,step=Ovr1,missing_value=0.0D0,verbose=verb.ge.3)
-      OVrhs(:,:,:,2) = GOV%read3D(GOV%varid,step=Ovr2,missing_value=0.0D0,verbose=verb.ge.3)
+      OVrhs(:,:,:,1) = GOV%read3D(GOV%varid,step=OVr1,missing_value=0.0D0,verbose=verb.ge.3)
+      OVrhs(:,:,:,2) = GOV%read3D(GOV%varid,step=OVr2,missing_value=0.0D0,verbose=verb.ge.3)
     endif
 
     if (WithOW) then
@@ -400,91 +400,91 @@ contains
       allocate (OWrhs(GOW%nx,GOW%ny,GOW%nz,2))
       OWr1 = locate(GOW%t,model_tini) 
       if ((OWr1.lt.1.or.OWr1.ge.GOW%nt)) call crash ('W time not bracketed')
-      if (GOW%nt.eq.1.or.Stationary) then
+      if (GOW%nt.eq.1.or.GOW%Stationary) then
         OWr2 = OWr1
       else
         OWr2 = min(OWr1+1,GOW%nt)
       endif
-      OWrhs(:,:,:,1) = GOW%read3D(GOW%varid,step=Owr1,missing_value=0.0D0,verbose=verb.ge.3)
-      OWrhs(:,:,:,2) = GOW%read3D(GOW%varid,step=Owr2,missing_value=0.0D0,verbose=verb.ge.3)
+      OWrhs(:,:,:,1) = GOW%read3D(GOW%varid,step=OWr1,missing_value=0.0D0,verbose=verb.ge.3)
+      OWrhs(:,:,:,2) = GOW%read3D(GOW%varid,step=OWr2,missing_value=0.0D0,verbose=verb.ge.3)
     endif
 
     if (WithOT) then
       allocate (OTrhs(GOT%nx,GOT%ny,GOT%nz,2))
       OTr1 = locate(GOT%t,model_tini) 
       if ((OTr1.lt.1.or.OTr1.ge.GOT%nt)) call crash ('T time not bracketed')
-      if (GOT%nt.eq.1.or.Stationary) then
+      if (GOT%nt.eq.1.or.GOT%Stationary) then
         OTr2 = OTr1
       else
         OTr2 = min(OTr1+1,GOT%nt)
       endif
-      OTrhs(:,:,:,1) = GOT%read3D(GOT%varid,step=Otr1,verbose=verb.ge.3)
-      OTrhs(:,:,:,2) = GOT%read3D(GOT%varid,step=Otr2,verbose=verb.ge.3)
+      OTrhs(:,:,:,1) = GOT%read3D(GOT%varid,step=OTr1,verbose=verb.ge.3)
+      OTrhs(:,:,:,2) = GOT%read3D(GOT%varid,step=OTr2,verbose=verb.ge.3)
     endif
 
     if (WithOS) then
       allocate (OSrhs(GOS%nx,GOS%ny,GOS%nz,2))
       OSr1 = locate(GOS%t,model_tini) 
       if ((OSr1.lt.1.or.OSr1.ge.GOS%nt)) call crash ('S time not bracketed')
-      if (GOS%nt.eq.1.or.Stationary) then
+      if (GOS%nt.eq.1.or.GOS%Stationary) then
         OSr2 = OSr1
       else
         OSr2 = min(OSr1+1,GOS%nt)
       endif
-      OSrhs(:,:,:,1) = GOS%read3D(GOS%varid,step=Osr1,verbose=verb.ge.3)
-      OSrhs(:,:,:,2) = GOS%read3D(GOS%varid,step=Osr2,verbose=verb.ge.3)
+      OSrhs(:,:,:,1) = GOS%read3D(GOS%varid,step=OSr1,verbose=verb.ge.3)
+      OSrhs(:,:,:,2) = GOS%read3D(GOS%varid,step=OSr2,verbose=verb.ge.3)
     endif
 
     if (WithOR) then
       allocate (ORrhs(GOR%nx,GOR%ny,GOR%nz,2))
       ORr1 = locate(GOR%t,model_tini) 
       if ((ORr1.lt.1.or.ORr1.ge.GOR%nt)) call crash ('R time not bracketed')
-      if (GOR%nt.eq.1.or.Stationary) then
+      if (GOR%nt.eq.1.or.GOR%Stationary) then
         ORr2 = ORr1
       else
         ORr2 = min(ORr1+1,GOR%nt)
       endif
-      ORrhs(:,:,:,1) = GOR%read3D(GOR%varid,step=Orr1,verbose=verb.ge.3)
-      ORrhs(:,:,:,2) = GOR%read3D(GOR%varid,step=Orr2,verbose=verb.ge.3)
+      ORrhs(:,:,:,1) = GOR%read3D(GOR%varid,step=ORr1,verbose=verb.ge.3)
+      ORrhs(:,:,:,2) = GOR%read3D(GOR%varid,step=ORr2,verbose=verb.ge.3)
     endif
 
     if (WithOC) then
       allocate (OCrhs(GOC%nx,GOC%ny,GOC%nz,2))
       OCr1 = locate(GOC%t,model_tini) 
       if ((OCr1.lt.1.or.OCr1.ge.GOC%nt)) call crash ('C time not bracketed')
-      if (GOC%nt.eq.1.or.Stationary) then
+      if (GOC%nt.eq.1.or.GOC%Stationary) then
         OCr2 = OCr1
       else
         OCr2 = min(OCr1+1,GOC%nt)
       endif
-      OCrhs(:,:,:,1) = GOC%read3D(GOC%varid,step=Ocr1,verbose=verb.ge.3)
-      OCrhs(:,:,:,2) = GOC%read3D(GOC%varid,step=Ocr2,verbose=verb.ge.3)
+      OCrhs(:,:,:,1) = GOC%read3D(GOC%varid,step=OCr1,verbose=verb.ge.3)
+      OCrhs(:,:,:,2) = GOC%read3D(GOC%varid,step=OCr2,verbose=verb.ge.3)
     endif
 
     if (WithAU) then
       allocate (AUrhs(GAU%nx,GAU%ny,2))
       AUr1 = locate(GAU%t,model_tini) 
       if ((AUr1.lt.1.or.AUr1.ge.GAU%nt)) call crash ('AU time not bracketed')
-      if (GAU%nt.eq.1.or.Stationary) then
+      if (GAU%nt.eq.1.or.GAU%Stationary) then
         AUr2 = AUr1
       else
         AUr2 = min(AUr1+1,GAU%nt)
       endif
-      AUrhs(:,:,1) = GAU%read2D(GAU%varid,step=Aur1,missing_value=0.0D0)
-      AUrhs(:,:,2) = GAU%read2D(GAU%varid,step=Aur2,missing_value=0.0D0)
+      AUrhs(:,:,1) = GAU%read2D(GAU%varid,step=AUr1,missing_value=0.0D0)
+      AUrhs(:,:,2) = GAU%read2D(GAU%varid,step=AUr2,missing_value=0.0D0)
     endif
 
     if (WithAV) then
       allocate (AVrhs(GAV%nx,GAV%ny,2))
       AVr1 = locate(GAV%t,model_tini) 
       if ((AVr1.lt.1.or.AVr1.ge.GAV%nt)) call crash ('AV time not bracketed')
-      if (GAV%nt.eq.1.or.Stationary) then
+      if (GAV%nt.eq.1.or.GAV%Stationary) then
         AVr2 = AVr1
       else
         AVr2 = min(AVr1+1,GAV%nt)
       endif
-      AVrhs(:,:,1) = GAV%read2D(GAV%varid,step=Avr1,missing_value=0.0D0)
-      AVrhs(:,:,2) = GAV%read2D(GAV%varid,step=Avr2,missing_value=0.0D0)
+      AVrhs(:,:,1) = GAV%read2D(GAV%varid,step=AVr1,missing_value=0.0D0)
+      AVrhs(:,:,2) = GAV%read2D(GAV%varid,step=AVr2,missing_value=0.0D0)
     endif
 
     if (SingleLayer) Wadv = .False.
@@ -518,8 +518,15 @@ contains
       if (water_density_method.eq.1) then
         yave = 0.5D0*(alm_ymin+alm_ymax)*rad2deg
         water_rho = 0.0D0
+        if (verb.ge.3) then
+          write(*,*)
+          write(*,*) '   Z         rho(z) '
+          write(*,*) '--------------------'
+        endif
         do k=1,GOU%Nz
-          water_rho = water_rho + analytical_rho(GOU%z(k),yave)
+          rhok = analytical_rho(GOU%z(k),yave)
+          water_rho = water_rho + rhok
+          if (verb.ge.3) write(*,*) GOU%z(k), rhok
         enddo
         water_rho = water_rho / GOU%Nz
       else if (water_density_method.eq.2) then
@@ -572,7 +579,7 @@ contains
       write(*,*) 'Wind forcing  : ', Winds
       write(*,*) 'Noise model 0 : ', noise_model_0
       write(*,*) 'Noise model 1 : ', noise_model_1
-      if (Uadv) write(*,*) 'Zonal velocity record pointers     : ', OUr1, OUr2
+      if (Uadv) write(*,*) 'Zonal velocity record pointers     : ', GOU%rec1, GOU%rec2
       if (Vadv) write(*,*) 'Meridional velocity record pointers: ', OVr1, OVr2
       if (Wadv) write(*,*) 'Vertical velocity record pointers  : ', OWr1, OWr2
       if (WithAU) write(*,*) 'Zonal wind record pointers         : ', AUr1, AUr2
@@ -614,12 +621,13 @@ contains
     call trajectory_write(model_time,verb.ge.2) 
 
 
+    if (verb.ge.1) write(*,*) 'Running model ...'
     do model_step=1,model_nsteps
 
       model_time = model_tini + (model_step-1)*model_dt
       model_date = num2date(Reference_time+model_time,model_time_units,model_time_calendar)
 
-      if (verb.ge.1) write(*,*) 'step, time, date :: ', model_step, model_time, model_date%iso()
+      if (verb.ge.2) write(*,*) 'step, time, date :: ', model_step, model_time, model_date%iso()
 
       do ifloat=1,Nfloats
 
@@ -694,13 +702,14 @@ contains
       model_time = model_time + model_sign*model_dt
 
       if (mod(model_step,save_frequency).eq.0) then
-        if (verb.ge.1) write(*,*) "Saving trajectory position"
+        !if (verb.ge.2) write(*,*) "Saving trajectory position"
         call trajectory_write(model_time,verb.ge.2)
       endif
 
       call forcing_update(model_time)
 
     enddo
+    if (verb.ge.1) write(*,*) 'Done !'
 
   end subroutine model_run
   ! ...
@@ -715,38 +724,38 @@ contains
       ! ..................................................
       ! .................................................. OCE U
       ! ..................................................
-      if (Our1.lt.0) then
+      if (GOU%rec1.lt.0) then
         ! ... First call !
         ! ...
-        OUr1 = locate(GOU%t,time) 
-        if ((OUr1.lt.1.or.OUr1.ge.GOU%nt)) call crash ('U time not bracketed')
-        if (GOU%nt.eq.1.or.Stationary) then
-          OUr2 = OUr1
+        GOU%rec1 = locate(GOU%t,time) 
+        if ((GOU%rec1.lt.1.or.GOU%rec1.ge.GOU%nt)) call crash ('U time not bracketed')
+        if (GOU%Stationary) then
+          GOU%rec2 = GOU%rec1
         else
-          OUr2 = OUr1 + 1
+          GOU%rec2 = GOU%rec1 + 1
         endif
-        OUrhs(:,:,:,1) = GOU%read3D(GOU%varid,step=Our1,missing_value=0.0D0)
-        OUrhs(:,:,:,2) = GOU%read3D(GOU%varid,step=Our2,missing_value=0.0D0)
-      else
+        OUrhs(:,:,:,1) = GOU%read3D(GOU%varid,step=GOU%rec1,missing_value=0.0D0)
+        OUrhs(:,:,:,2) = GOU%read3D(GOU%varid,step=GOU%rec2,missing_value=0.0D0)
+      else if (.not.GOU%Stationary) then
         ! ... Update fields
         ! ...
         if (reverse) then
-          if (time.lt.GOU%t(OUr1)) then
-            Our2 = Our1
-            Our1 = Our1 - 1
+          if (time.lt.GOU%t(GOU%rec1)) then
+            GOU%rec2 = GOU%rec1
+            GOU%rec1 = GOU%rec1 - 1
             if (verb.ge.1) print '(T2,"Backward bracket U update:",F9.0," - ",F9.0)', &
-                           GOU%t(Our1), GOU%t(Our2)
+                           GOU%t(GOU%rec1), GOU%t(GOU%rec2)
             OUrhs(:,:,:,2) = OUrhs(:,:,:,1)
-            OUrhs(:,:,:,1) = GOU%read3D(GOU%varid,step=Our1,missing_value=0.0D0)
+            OUrhs(:,:,:,1) = GOU%read3D(GOU%varid,step=GOU%rec1,missing_value=0.0D0)
           endif
         else
-          if (time.ge.GOU%t(OUr2)) then
-            Our1 = Our2
-            Our2 = Our2 + 1
-            if (verb.ge.1) print '(T2,"Forward bracket U update:",F9.0," - ",F9.0)', &
-                           GOU%t(Our1), GOU%t(Our2)
+          if (time.ge.GOU%t(GOU%rec2)) then
+            GOU%rec1 = GOU%rec2
+            GOU%rec2 = GOU%rec2 + 1
+            if (verb.ge.2) print '(T2,"Forward bracket U update:",F9.0," - ",F9.0)', &
+                           GOU%t(GOU%rec1), GOU%t(GOU%rec2)
             OUrhs(:,:,:,1) = OUrhs(:,:,:,2)
-            OUrhs(:,:,:,2) = GOU%read3D(GOU%varid,step=Our2,missing_value=0.0D0)
+            OUrhs(:,:,:,2) = GOU%read3D(GOU%varid,step=GOU%rec2,missing_value=0.0D0)
           endif
         endif
 
@@ -1238,7 +1247,6 @@ contains
       un(:) = 0.0D0
       xn(:) = xo(:)
     else
-
       if (noise_model_0) then
         ! ... Horizontal noise
         ! ... Sergei A. Lonin: Lagrangian Model for Oil Spill Diffusion at Sea
@@ -1255,7 +1263,10 @@ contains
         un(2) = un(2) + vy
         un(3) = un(3) + vz
       endif
+      !print*, 'un : ', un
       xn = displacement(xo,un,dt)
+      !print*, 'xo: ', xo
+      !print*, 'xn: ', xn
     endif
 
   end subroutine rk

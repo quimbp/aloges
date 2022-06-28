@@ -72,6 +72,8 @@ type type_ncgrid
   integer                                        :: ndims=0
   integer                                        :: nvars=0
   integer                                        :: natts=0
+  integer                                        :: rec1=-1
+  integer                                        :: rec2=-1
   integer                                        :: idi,idj,idk,idl
   integer                                        :: idx,idy,idz,idt
   integer                                        :: unlimid=-1
@@ -213,6 +215,9 @@ contains
       if (err.eq.NF90_NOERR) GRD%var(myvar)%scale_factor = rwork
 
     enddo
+
+    GRD%rec1 = -1
+    GRD%rec2 = -1
 
 
   end subroutine grid_open
