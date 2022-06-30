@@ -61,19 +61,8 @@ real(dp), dimension(:,:,:,:), pointer            :: OTrhs        ! (X,Y,Z,2)
 real(dp), dimension(:,:,:,:), pointer            :: OSrhs        ! (X,Y,Z,2)
 real(dp), dimension(:,:,:,:), pointer            :: ORrhs        ! (X,Y,Z,2)
 real(dp), dimension(:,:,:,:), pointer            :: OCrhs        ! (X,Y,Z,2)
-real(dp), dimension(:,:,:), pointer              :: AUrhs        ! (X,Y,2)
-real(dp), dimension(:,:,:), pointer              :: AVrhs        ! (X,Y,2)
-
-! ... Time records to be read
-! ...
-integer                                          :: OVr1=-1, OVr2=-1
-integer                                          :: OWr1=-1, OWr2=-1
-integer                                          :: OTr1=-1, OTr2=-1
-integer                                          :: OSr1=-1, OSr2=-1
-integer                                          :: ORr1=-1, ORr2=-1
-integer                                          :: OCr1=-1, OCr2=-1
-integer                                          :: AUr1=-1, AUr2=-1
-integer                                          :: AVr1=-1, AVr2=-1
+real(dp), dimension(:,:,:,:), pointer            :: AUrhs        ! (X,Y,1,2)
+real(dp), dimension(:,:,:,:), pointer            :: AVrhs        ! (X,Y,1,2)
 
 ! ... Vertical records to be read
 ! ...
@@ -268,8 +257,8 @@ contains
         if (GOV%Stationary) then
           ff  = GOV%interpol(OVrhs(:,:,:,1),xo,IOV,SingleLayer)
         else
-          t1 = GOV%t(OVr1)
-          t2 = GOV%t(OVr2)
+          t1 = GOV%t(GOV%rec1)
+          t2 = GOV%t(GOV%rec2)
           f1 = GOV%interpol(OVrhs(:,:,:,1),xo,IOV,SingleLayer)
           f2 = GOV%interpol(OVrhs(:,:,:,2),xo,IOV,SingleLayer)
           ff = f1 + (f2-f1)*(model_time-t1)/(t2-t1)
@@ -293,8 +282,8 @@ contains
         if (GOW%Stationary) then
           ff  = GOW%interpol(OWrhs(:,:,:,1),xo,IOW,SingleLayer)
         else
-          t1 = GOW%t(OWr1)
-          t2 = GOW%t(OWr2)
+          t1 = GOW%t(GOW%rec1)
+          t2 = GOW%t(GOW%rec2)
           f1 = GOW%interpol(OWrhs(:,:,:,1),xo,IOW,SingleLayer)
           f2 = GOW%interpol(OWrhs(:,:,:,2),xo,IOW,SingleLayer)
           ff = f1 + (f2-f1)*(model_time-t1)/(t2-t1)
@@ -324,8 +313,8 @@ contains
         if (GOR%Stationary) then
           ff  = GOR%interpol(ORrhs(:,:,:,1),xo,IOR,SingleLayer)
         else
-          t1 = GOR%t(ORr1)
-          t2 = GOR%t(ORr2)
+          t1 = GOR%t(GOR%rec1)
+          t2 = GOR%t(GOR%rec2)
           f1 = GOR%interpol(ORrhs(:,:,:,1),xo,IOR,SingleLayer)
           f2 = GOR%interpol(ORrhs(:,:,:,2),xo,IOR,SingleLayer)
           rhok = f1 + (f2-f1)*(model_time-t1)/(t2-t1)
@@ -384,107 +373,107 @@ contains
     if (WithOV) then
       Vadv = .True.
       allocate (OVrhs(GOV%nx,GOV%ny,GOV%nz,2))
-      OVr1 = locate(GOV%t,model_tini) 
-      if ((OVr1.lt.1.or.OVr1.ge.GOV%nt)) call crash ('V time not bracketed')
+      GOV%rec1 = locate(GOV%t,model_tini) 
+      if ((GOV%rec1.lt.1.or.GOV%rec1.ge.GOV%nt)) call crash ('V time not bracketed')
       if (GOV%nt.eq.1.or.GOV%Stationary) then
-        OVr2 = OVr1
+        GOV%rec2 = GOV%rec1
       else
-        OVr2 = min(OVr1+1,GOV%nt)
+        GOV%rec2 = min(GOV%rec1+1,GOV%nt)
       endif
-      OVrhs(:,:,:,1) = GOV%read3D(GOV%varid,step=OVr1,missing_value=0.0D0,verbose=verb.ge.3)
-      OVrhs(:,:,:,2) = GOV%read3D(GOV%varid,step=OVr2,missing_value=0.0D0,verbose=verb.ge.3)
+      OVrhs(:,:,:,1) = GOV%read3D(GOV%varid,step=GOV%rec1,missing_value=0.0D0,verbose=verb.ge.3)
+      OVrhs(:,:,:,2) = GOV%read3D(GOV%varid,step=GOV%rec2,missing_value=0.0D0,verbose=verb.ge.3)
     endif
 
     if (WithOW) then
       Wadv = .True.
       allocate (OWrhs(GOW%nx,GOW%ny,GOW%nz,2))
-      OWr1 = locate(GOW%t,model_tini) 
-      if ((OWr1.lt.1.or.OWr1.ge.GOW%nt)) call crash ('W time not bracketed')
+      GOW%rec1 = locate(GOW%t,model_tini) 
+      if ((GOW%rec1.lt.1.or.GOW%rec1.ge.GOW%nt)) call crash ('W time not bracketed')
       if (GOW%nt.eq.1.or.GOW%Stationary) then
-        OWr2 = OWr1
+        GOW%rec2 = GOW%rec1
       else
-        OWr2 = min(OWr1+1,GOW%nt)
+        GOW%rec2 = min(GOW%rec1+1,GOW%nt)
       endif
-      OWrhs(:,:,:,1) = GOW%read3D(GOW%varid,step=OWr1,missing_value=0.0D0,verbose=verb.ge.3)
-      OWrhs(:,:,:,2) = GOW%read3D(GOW%varid,step=OWr2,missing_value=0.0D0,verbose=verb.ge.3)
+      OWrhs(:,:,:,1) = GOW%read3D(GOW%varid,step=GOW%rec1,missing_value=0.0D0,verbose=verb.ge.3)
+      OWrhs(:,:,:,2) = GOW%read3D(GOW%varid,step=GOW%rec2,missing_value=0.0D0,verbose=verb.ge.3)
     endif
 
     if (WithOT) then
       allocate (OTrhs(GOT%nx,GOT%ny,GOT%nz,2))
-      OTr1 = locate(GOT%t,model_tini) 
-      if ((OTr1.lt.1.or.OTr1.ge.GOT%nt)) call crash ('T time not bracketed')
+      GOT%rec1 = locate(GOT%t,model_tini) 
+      if ((GOT%rec1.lt.1.or.GOT%rec1.ge.GOT%nt)) call crash ('T time not bracketed')
       if (GOT%nt.eq.1.or.GOT%Stationary) then
-        OTr2 = OTr1
+        GOT%rec2 = GOT%rec1
       else
-        OTr2 = min(OTr1+1,GOT%nt)
+        GOT%rec2 = min(GOT%rec1+1,GOT%nt)
       endif
-      OTrhs(:,:,:,1) = GOT%read3D(GOT%varid,step=OTr1,verbose=verb.ge.3)
-      OTrhs(:,:,:,2) = GOT%read3D(GOT%varid,step=OTr2,verbose=verb.ge.3)
+      OTrhs(:,:,:,1) = GOT%read3D(GOT%varid,step=GOT%rec1,verbose=verb.ge.3)
+      OTrhs(:,:,:,2) = GOT%read3D(GOT%varid,step=GOT%rec2,verbose=verb.ge.3)
     endif
 
     if (WithOS) then
       allocate (OSrhs(GOS%nx,GOS%ny,GOS%nz,2))
-      OSr1 = locate(GOS%t,model_tini) 
-      if ((OSr1.lt.1.or.OSr1.ge.GOS%nt)) call crash ('S time not bracketed')
+      GOS%rec1 = locate(GOS%t,model_tini) 
+      if ((GOS%rec1.lt.1.or.GOS%rec1.ge.GOS%nt)) call crash ('S time not bracketed')
       if (GOS%nt.eq.1.or.GOS%Stationary) then
-        OSr2 = OSr1
+        GOS%rec2 = GOS%rec1
       else
-        OSr2 = min(OSr1+1,GOS%nt)
+        GOS%rec2 = min(GOS%rec1+1,GOS%nt)
       endif
-      OSrhs(:,:,:,1) = GOS%read3D(GOS%varid,step=OSr1,verbose=verb.ge.3)
-      OSrhs(:,:,:,2) = GOS%read3D(GOS%varid,step=OSr2,verbose=verb.ge.3)
+      OSrhs(:,:,:,1) = GOS%read3D(GOS%varid,step=GOS%rec1,verbose=verb.ge.3)
+      OSrhs(:,:,:,2) = GOS%read3D(GOS%varid,step=GOS%rec2,verbose=verb.ge.3)
     endif
 
     if (WithOR) then
       allocate (ORrhs(GOR%nx,GOR%ny,GOR%nz,2))
-      ORr1 = locate(GOR%t,model_tini) 
-      if ((ORr1.lt.1.or.ORr1.ge.GOR%nt)) call crash ('R time not bracketed')
+      GOR%rec1 = locate(GOR%t,model_tini) 
+      if ((GOR%rec1.lt.1.or.GOR%rec1.ge.GOR%nt)) call crash ('R time not bracketed')
       if (GOR%nt.eq.1.or.GOR%Stationary) then
-        ORr2 = ORr1
+        GOR%rec2 = GOR%rec1
       else
-        ORr2 = min(ORr1+1,GOR%nt)
+        GOR%rec2 = min(GOR%rec1+1,GOR%nt)
       endif
-      ORrhs(:,:,:,1) = GOR%read3D(GOR%varid,step=ORr1,verbose=verb.ge.3)
-      ORrhs(:,:,:,2) = GOR%read3D(GOR%varid,step=ORr2,verbose=verb.ge.3)
+      ORrhs(:,:,:,1) = GOR%read3D(GOR%varid,step=GOR%rec1,verbose=verb.ge.3)
+      ORrhs(:,:,:,2) = GOR%read3D(GOR%varid,step=GOR%rec2,verbose=verb.ge.3)
     endif
 
     if (WithOC) then
       allocate (OCrhs(GOC%nx,GOC%ny,GOC%nz,2))
-      OCr1 = locate(GOC%t,model_tini) 
-      if ((OCr1.lt.1.or.OCr1.ge.GOC%nt)) call crash ('C time not bracketed')
+      GOC%rec1 = locate(GOC%t,model_tini) 
+      if ((GOC%rec1.lt.1.or.GOC%rec1.ge.GOC%nt)) call crash ('C time not bracketed')
       if (GOC%nt.eq.1.or.GOC%Stationary) then
-        OCr2 = OCr1
+        GOC%rec2 = GOC%rec1
       else
-        OCr2 = min(OCr1+1,GOC%nt)
+        GOC%rec2 = min(GOC%rec1+1,GOC%nt)
       endif
-      OCrhs(:,:,:,1) = GOC%read3D(GOC%varid,step=OCr1,verbose=verb.ge.3)
-      OCrhs(:,:,:,2) = GOC%read3D(GOC%varid,step=OCr2,verbose=verb.ge.3)
+      OCrhs(:,:,:,1) = GOC%read3D(GOC%varid,step=GOC%rec1,verbose=verb.ge.3)
+      OCrhs(:,:,:,2) = GOC%read3D(GOC%varid,step=GOC%rec2,verbose=verb.ge.3)
     endif
 
     if (WithAU) then
-      allocate (AUrhs(GAU%nx,GAU%ny,2))
-      AUr1 = locate(GAU%t,model_tini) 
-      if ((AUr1.lt.1.or.AUr1.ge.GAU%nt)) call crash ('AU time not bracketed')
+      allocate (AUrhs(GAU%nx,GAU%ny,1,2))
+      GAU%rec1 = locate(GAU%t,model_tini) 
+      if ((GAU%rec1.lt.1.or.GAU%rec1.ge.GAU%nt)) call crash ('AU time not bracketed')
       if (GAU%nt.eq.1.or.GAU%Stationary) then
-        AUr2 = AUr1
+        GAU%rec2 = GAU%rec1
       else
-        AUr2 = min(AUr1+1,GAU%nt)
+        GAU%rec2 = min(GAU%rec1+1,GAU%nt)
       endif
-      AUrhs(:,:,1) = GAU%read2D(GAU%varid,step=AUr1,missing_value=0.0D0)
-      AUrhs(:,:,2) = GAU%read2D(GAU%varid,step=AUr2,missing_value=0.0D0)
+      AUrhs(:,:,1,1) = GAU%read2D(GAU%varid,step=GAU%rec1,missing_value=0.0D0)
+      AUrhs(:,:,1,2) = GAU%read2D(GAU%varid,step=GAU%rec2,missing_value=0.0D0)
     endif
 
     if (WithAV) then
-      allocate (AVrhs(GAV%nx,GAV%ny,2))
-      AVr1 = locate(GAV%t,model_tini) 
-      if ((AVr1.lt.1.or.AVr1.ge.GAV%nt)) call crash ('AV time not bracketed')
+      allocate (AVrhs(GAV%nx,GAV%ny,1,2))
+      GAV%rec1 = locate(GAV%t,model_tini) 
+      if ((GAV%rec1.lt.1.or.GAV%rec1.ge.GAV%nt)) call crash ('AV time not bracketed')
       if (GAV%nt.eq.1.or.GAV%Stationary) then
-        AVr2 = AVr1
+        GAV%rec2 = GAV%rec1
       else
-        AVr2 = min(AVr1+1,GAV%nt)
+        GAV%rec2 = min(GAV%rec1+1,GAV%nt)
       endif
-      AVrhs(:,:,1) = GAV%read2D(GAV%varid,step=AVr1,missing_value=0.0D0)
-      AVrhs(:,:,2) = GAV%read2D(GAV%varid,step=AVr2,missing_value=0.0D0)
+      AVrhs(:,:,1,1) = GAV%read2D(GAV%varid,step=GAV%rec1,missing_value=0.0D0)
+      AVrhs(:,:,1,2) = GAV%read2D(GAV%varid,step=GAV%rec2,missing_value=0.0D0)
     endif
 
     if (SingleLayer) Wadv = .False.
@@ -580,10 +569,10 @@ contains
       write(*,*) 'Noise model 0 : ', noise_model_0
       write(*,*) 'Noise model 1 : ', noise_model_1
       if (Uadv) write(*,*) 'Zonal velocity record pointers     : ', GOU%rec1, GOU%rec2
-      if (Vadv) write(*,*) 'Meridional velocity record pointers: ', OVr1, OVr2
-      if (Wadv) write(*,*) 'Vertical velocity record pointers  : ', OWr1, OWr2
-      if (WithAU) write(*,*) 'Zonal wind record pointers         : ', AUr1, AUr2
-      if (WithAV) write(*,*) 'Meridional wind record pointers    : ', AVr1, AVr2
+      if (Vadv) write(*,*) 'Meridional velocity record pointers: ', GOV%rec1, GOV%rec2
+      if (Wadv) write(*,*) 'Vertical velocity record pointers  : ', GOW%rec1, GOW%rec2
+      if (WithAU) write(*,*) 'Zonal wind record pointers         : ', GAU%rec1, GAU%rec2
+      if (WithAV) write(*,*) 'Meridional wind record pointers    : ', GAV%rec1, GAV%rec2
     endif
 
     return
@@ -1370,6 +1359,31 @@ contains
     wo = gravity*F%size*F%size*(1.0D0-F%rho/rw)/18.0D0/water_visc
 
   end function emergence
+  ! ...
+  ! =====================================================================
+  ! ...
+  real(dp) function Qswh(lon,lat,date) 
+
+    ! ... Calcultates the clear-sky short wave flux W/m2
+    ! ... as a function of the longitue, latitude and date.
+    ! ... UTC time (not local time).
+    ! ... From Bernie et al. (2007), Clim. Dyn. DOI: 10.1007/s00382-007-0249-6
+    ! ...
+    real(dp), intent(in)                         :: lon  ! radians
+    real(dp), intent(in)                         :: lat  ! radians
+    type(type_date), intent(in)                  :: date
+
+    ! ... Local variables
+    ! ...
+    real(dp) t,Ha,dss,delta
+
+    t = (date%hour*3600 + date%minute*60 + date%second)/86400.0D0
+    Ha    = lat + pi*(t+t-1.0D0)
+    dss   = date%yearday + 11       ! Days since winter solstice
+    delta = -deg2rad*DEarth*cos(dpi*dss/365.25D0)
+    Qswh  = max(0.0D0,Solar0*(sin(lat)*sin(delta)+cos(lat)*cos(delta)*cos(Ha)))
+
+  end function Qswh
   ! ...
   ! =====================================================================
   ! ...

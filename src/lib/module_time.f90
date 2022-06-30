@@ -60,6 +60,7 @@ module module_time
       procedure              :: iso           => date_iso
       procedure              :: now           => date_now
       procedure              :: is            => date_set
+      procedure              :: set           => date_set
       procedure              :: jd            => date2jd
       procedure              :: timedelta     => date_increment
 

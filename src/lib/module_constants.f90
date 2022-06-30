@@ -69,8 +69,11 @@ real(dp)               :: inf     ! = 1.0_dp/0.0_dp
 ! ... Physical constants
 ! ...
 real(dp), parameter    :: gravity = 9.80665_dp     ! m / s^2
-real(dp), parameter    :: Omega   = 7.292E-5_dp    ! 1/s
-real(dp), parameter    :: Rearth  = 6371315.0_dp   ! m
+real(dp), parameter    :: Omega   = 7.292E-5_dp    ! Earth 1/s
+real(dp), parameter    :: Rearth  = 6371315.0_dp   ! Earth radius m
+real(dp), parameter    :: Dearth  = 23.446D0       ! Earth orb. decl. deg
+real(dp), parameter    :: Solar0  = 1365.2D0       ! W/m2
+
 
 
 end module module_constants
