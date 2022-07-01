@@ -54,15 +54,15 @@ real(dp)                                         :: model_velmin = 1D-5  ! m/s !
 type(type_date)                                  :: model_dini, model_dfin
 type(type_date)                                  :: model_date 
 
-real(dp), dimension(:,:,:,:), pointer            :: OUrhs        ! (X,Y,Z,2)
-real(dp), dimension(:,:,:,:), pointer            :: OVrhs        ! (X,Y,Z,2)
-real(dp), dimension(:,:,:,:), pointer            :: OWrhs        ! (X,Y,Z,2)
-real(dp), dimension(:,:,:,:), pointer            :: OTrhs        ! (X,Y,Z,2)
-real(dp), dimension(:,:,:,:), pointer            :: OSrhs        ! (X,Y,Z,2)
-real(dp), dimension(:,:,:,:), pointer            :: ORrhs        ! (X,Y,Z,2)
-real(dp), dimension(:,:,:,:), pointer            :: OCrhs        ! (X,Y,Z,2)
-real(dp), dimension(:,:,:,:), pointer            :: AUrhs        ! (X,Y,1,2)
-real(dp), dimension(:,:,:,:), pointer            :: AVrhs        ! (X,Y,1,2)
+real(dp), dimension(:,:,:,:), allocatable        :: OUrhs        ! (X,Y,Z,2)
+real(dp), dimension(:,:,:,:), allocatable        :: OVrhs        ! (X,Y,Z,2)
+real(dp), dimension(:,:,:,:), allocatable        :: OWrhs        ! (X,Y,Z,2)
+real(dp), dimension(:,:,:,:), allocatable        :: OTrhs        ! (X,Y,Z,2)
+real(dp), dimension(:,:,:,:), allocatable        :: OSrhs        ! (X,Y,Z,2)
+real(dp), dimension(:,:,:,:), allocatable        :: ORrhs        ! (X,Y,Z,2)
+real(dp), dimension(:,:,:,:), allocatable        :: OCrhs        ! (X,Y,Z,2)
+real(dp), dimension(:,:,:,:), allocatable        :: AUrhs        ! (X,Y,1,2)
+real(dp), dimension(:,:,:,:), allocatable        :: AVrhs        ! (X,Y,1,2)
 
 ! ... Vertical records to be read
 ! ...
@@ -222,6 +222,7 @@ contains
       vy = 0.0D0
       vz = 0.0D0
     endif
+    if (verb.ge.4) write(*,*) 'vx, vy, vz : ', vx, vy, vz
 
     dxdt(:) = 0.0D0
 
@@ -232,6 +233,7 @@ contains
         dxdt(1) = vx
       else
         IOU = GOU%locate(xo)
+        if (verb.ge.4) write(*,*) 'IOU : ', IOU
         if (GOU%Stationary) then
           ff  = GOU%interpol(OUrhs(:,:,:,1),xo,IOU,SingleLayer)
         else
@@ -254,6 +256,7 @@ contains
         dxdt(2) = vy
       else
         IOV = GOV%locate(xo)
+        if (verb.ge.4) write(*,*) 'IOV : ', IOV
         if (GOV%Stationary) then
           ff  = GOV%interpol(OVrhs(:,:,:,1),xo,IOV,SingleLayer)
         else
@@ -279,6 +282,7 @@ contains
         dxdt(3) = vz
       else
         IOW = GOW%locate(xo)
+        if (verb.ge.4) write(*,*) 'IOW : ', IOW
         if (GOW%Stationary) then
           ff  = GOW%interpol(OWrhs(:,:,:,1),xo,IOW,SingleLayer)
         else
@@ -695,7 +699,12 @@ contains
         call trajectory_write(model_time,verb.ge.2)
       endif
 
-      call forcing_update(model_time)
+      if (WithOU.and..not.GOU%Stationary) call forcing_update('OU',GOU,model_time,OUrhs)
+      if (WithOV.and..not.GOV%Stationary) call forcing_update('OV',GOV,model_time,OVrhs)
+      if (WithOW.and..not.GOW%Stationary) call forcing_update('OW',GOW,model_time,OWrhs)
+      if (WithAU.and..not.GAU%Stationary) call forcing_update('AU',GAU,model_time,AUrhs)
+      if (WithAV.and..not.GAV%Stationary) call forcing_update('AV',GAU,model_time,AVrhs)
+
 
     enddo
     if (verb.ge.1) write(*,*) 'Done !'
@@ -704,7 +713,54 @@ contains
   ! ...
   ! ===================================================================
   ! ...
-  subroutine forcing_update(time)
+  subroutine forcing_update(label,G,time,f)
+
+    character(len=2), intent(in)                         :: label
+    type(type_ncgrid), intent(inout)                     :: G
+    real(dp), intent(in)                                 :: time
+    real(dp), dimension(G%nx,G%ny,G%nz,2), intent(inout) :: f
+        
+    if (G%rec1.lt.0) then
+      ! ... First call !
+      ! ...
+      G%rec1 = locate(G%t,time) 
+      if ((G%rec1.lt.1.or.G%rec1.ge.G%nt)) call crash ('G time not bracketed')
+      if (G%Stationary) then
+        G%rec2 = G%rec1
+      else
+        G%rec2 = G%rec1 + 1
+      endif
+      f(:,:,:,1) = G%read3D(G%varid,step=G%rec1,missing_value=0.0D0)
+      f(:,:,:,2) = G%read3D(G%varid,step=G%rec2,missing_value=0.0D0)
+    else if (.not.G%Stationary) then
+      ! ... Update fields
+      ! ...
+      if (reverse) then
+        if (time.lt.G%t(G%rec1)) then
+          G%rec2 = G%rec1
+          G%rec1 = G%rec1 - 1
+          if (verb.ge.1) write(*,'(T2,"Backward bracket ",A2," update:",F9.0," - ",F9.0)') &
+                         label, G%t(G%rec1), G%t(G%rec2)
+          f(:,:,:,2) = f(:,:,:,1)
+          f(:,:,:,1) = G%read3D(G%varid,step=G%rec1,missing_value=0.0D0)
+        endif
+      else
+        if (time.ge.G%t(G%rec2)) then
+          G%rec1 = G%rec2
+          G%rec2 = G%rec2 + 1
+          if (verb.ge.2) write(*,'(T2,"Forward bracket ",A2," update:",F9.0," - ",F9.0)') &
+                         label, G%t(G%rec1), G%t(G%rec2)
+          f(:,:,:,1) = f(:,:,:,2)
+          f(:,:,:,2) = G%read3D(G%varid,step=G%rec2,missing_value=0.0D0)
+        endif
+      endif
+
+    endif
+
+  end subroutine forcing_update
+
+
+  subroutine forcing_update0(time)
   ! ... Check if a new time bracketed is required
   ! ...
     real(dp), intent(in)                         :: time
@@ -732,7 +788,7 @@ contains
           if (time.lt.GOU%t(GOU%rec1)) then
             GOU%rec2 = GOU%rec1
             GOU%rec1 = GOU%rec1 - 1
-            if (verb.ge.1) print '(T2,"Backward bracket U update:",F9.0," - ",F9.0)', &
+            if (verb.ge.1) write(*,'(T2,"Backward bracket U update:",F9.0," - ",F9.0)') &
                            GOU%t(GOU%rec1), GOU%t(GOU%rec2)
             OUrhs(:,:,:,2) = OUrhs(:,:,:,1)
             OUrhs(:,:,:,1) = GOU%read3D(GOU%varid,step=GOU%rec1,missing_value=0.0D0)
@@ -741,7 +797,7 @@ contains
           if (time.ge.GOU%t(GOU%rec2)) then
             GOU%rec1 = GOU%rec2
             GOU%rec2 = GOU%rec2 + 1
-            if (verb.ge.2) print '(T2,"Forward bracket U update:",F9.0," - ",F9.0)', &
+            if (verb.ge.2) write(*,'(T2,"Forward bracket U update:",F9.0," - ",F9.0)') &
                            GOU%t(GOU%rec1), GOU%t(GOU%rec2)
             OUrhs(:,:,:,1) = OUrhs(:,:,:,2)
             OUrhs(:,:,:,2) = GOU%read3D(GOU%varid,step=GOU%rec2,missing_value=0.0D0)
@@ -751,8 +807,14 @@ contains
       endif
     endif
 
+  end subroutine forcing_update0
 
-  end subroutine forcing_update
+
+
+
+
+
+
   ! ...
   ! ===================================================================
   ! ...
