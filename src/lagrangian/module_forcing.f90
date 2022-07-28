@@ -89,82 +89,82 @@ real(dp)                                         :: UserTlen
 ! ... Time calendar
 ! ... The model will assume the time units and calendar of the zonal ocean
 ! ... current's file.
-character(len=180)                               :: forcing_time_units = ''
-character(len=20)                                :: forcing_time_calendar = ''
+character(len=180)                               :: forcing_time_units = 'seconds since 2000-01-01 00:00:00'
+character(len=20)                                :: forcing_time_calendar = 'gregorian'
 real(dp)                                         :: Reference_time = 0.0D0
 type(type_date)                                  :: Reference_date
 
 ! ... Input variables
 ! ...
-character(len=maxlen)                            :: OUxname = 'longitude'  
-character(len=maxlen)                            :: OUyname = 'latitude'  
-character(len=maxlen)                            :: OUzname = 'depth'  
-character(len=maxlen)                            :: OUtname = 'time'  
-character(len=maxlen)                            :: OUvname = 'None'  
+character(len=maxlen)                            :: OUxname = '' ! 'longitude'  
+character(len=maxlen)                            :: OUyname = '' ! 'latitude'  
+character(len=maxlen)                            :: OUzname = '' ! 'depth'  
+character(len=maxlen)                            :: OUtname = '' ! 'time'  
+character(len=maxlen)                            :: OUvname = 'uo' ! ''  
 character(len=maxlen)                            :: OUunits = ''  
 character(len=maxlen)                            :: OUcalen = ''  
 
-character(len=maxlen)                            :: OVxname = 'longitude'  
-character(len=maxlen)                            :: OVyname = 'latitude'  
-character(len=maxlen)                            :: OVzname = 'depth'  
-character(len=maxlen)                            :: OVtname = 'time'  
-character(len=maxlen)                            :: OVvname = 'None'  
+character(len=maxlen)                            :: OVxname = '' ! 'longitude'  
+character(len=maxlen)                            :: OVyname = '' ! 'latitude'  
+character(len=maxlen)                            :: OVzname = '' ! 'depth'  
+character(len=maxlen)                            :: OVtname = '' ! 'time'  
+character(len=maxlen)                            :: OVvname = 'vo' ! 'None'  
 character(len=maxlen)                            :: OVunits = ''  
 character(len=maxlen)                            :: OVcalen = ''  
 
-character(len=maxlen)                            :: OWxname = 'longitude'  
-character(len=maxlen)                            :: OWyname = 'latitude'  
-character(len=maxlen)                            :: OWzname = 'depth'  
-character(len=maxlen)                            :: OWtname = 'time'  
-character(len=maxlen)                            :: OWvname = 'None'  
-character(len=maxlen)                            :: OWunits = ''  
-character(len=maxlen)                            :: OWcalen = ''  
+character(len=maxlen)                            :: OWxname = '' ! 'longitude'  
+character(len=maxlen)                            :: OWyname = '' ! 'latitude'  
+character(len=maxlen)                            :: OWzname = '' ! 'depth'  
+character(len=maxlen)                            :: OWtname = '' ! 'time'  
+character(len=maxlen)                            :: OWvname = '' ! 'None'  
+character(len=maxlen)                            :: OWunits = '' ! ''  
+character(len=maxlen)                            :: OWcalen = '' ! ''  
 
-character(len=maxlen)                            :: OTxname = 'longitude'  
-character(len=maxlen)                            :: OTyname = 'latitude'  
-character(len=maxlen)                            :: OTzname = 'depth'  
-character(len=maxlen)                            :: OTtname = 'time'  
-character(len=maxlen)                            :: OTvname = 'None'  
+character(len=maxlen)                            :: OTxname = ''  
+character(len=maxlen)                            :: OTyname = ''  
+character(len=maxlen)                            :: OTzname = ''  
+character(len=maxlen)                            :: OTtname = ''  
+character(len=maxlen)                            :: OTvname = 'thetao'  
 character(len=maxlen)                            :: OTunits = ''  
 character(len=maxlen)                            :: OTcalen = ''  
 
-character(len=maxlen)                            :: OSxname = 'longitude'  
-character(len=maxlen)                            :: OSyname = 'latitude'  
-character(len=maxlen)                            :: OSzname = 'depth'  
-character(len=maxlen)                            :: OStname = 'time'  
-character(len=maxlen)                            :: OSvname = 'None'  
+character(len=maxlen)                            :: OSxname = ''  
+character(len=maxlen)                            :: OSyname = ''  
+character(len=maxlen)                            :: OSzname = ''  
+character(len=maxlen)                            :: OStname = ''  
+character(len=maxlen)                            :: OSvname = 'so'  
 character(len=maxlen)                            :: OSunits = ''  
 character(len=maxlen)                            :: OScalen = ''  
 
-character(len=maxlen)                            :: ORxname = 'longitude'  
-character(len=maxlen)                            :: ORyname = 'latitude'  
-character(len=maxlen)                            :: ORzname = 'depth'  
-character(len=maxlen)                            :: ORtname = 'time'  
-character(len=maxlen)                            :: ORvname = 'None'  
+character(len=maxlen)                            :: ORxname = ''  
+character(len=maxlen)                            :: ORyname = ''  
+character(len=maxlen)                            :: ORzname = ''  
+character(len=maxlen)                            :: ORtname = ''  
+character(len=maxlen)                            :: ORvname = ''  
 character(len=maxlen)                            :: ORunits = ''  
 character(len=maxlen)                            :: ORcalen = ''  
 
-character(len=maxlen)                            :: OCxname = 'longitude'  
-character(len=maxlen)                            :: OCyname = 'latitude'  
-character(len=maxlen)                            :: OCzname = 'depth'  
-character(len=maxlen)                            :: OCtname = 'time'  
-character(len=maxlen)                            :: OCvname = 'None'  
+character(len=maxlen)                            :: OCxname = ''  
+character(len=maxlen)                            :: OCyname = ''  
+character(len=maxlen)                            :: OCzname = ''  
+character(len=maxlen)                            :: OCtname = ''  
+character(len=maxlen)                            :: OCvname = ''  
 character(len=maxlen)                            :: OCunits = ''  
 character(len=maxlen)                            :: OCcalen = ''  
 
-character(len=maxlen)                            :: AUxname = 'longitude'  
-character(len=maxlen)                            :: AUyname = 'latitude'  
-character(len=maxlen)                            :: AUzname = 'depth'  
-character(len=maxlen)                            :: AUtname = 'time'  
-character(len=maxlen)                            :: AUvname = 'None'  
+character(len=maxlen)                            :: AUxname = ''  
+character(len=maxlen)                            :: AUyname = ''  
+character(len=maxlen)                            :: AUzname = '-'  
+character(len=maxlen)                            :: AUtname = ''  
+character(len=maxlen)                            :: AUvname = 'u10'  
 character(len=maxlen)                            :: AUunits = ''  
 character(len=maxlen)                            :: AUcalen = ''  
 
-character(len=maxlen)                            :: AVxname = 'longitude'  
-character(len=maxlen)                            :: AVyname = 'latitude'  
-character(len=maxlen)                            :: AVzname = 'depth'  
-character(len=maxlen)                            :: AVtname = 'time'  
-character(len=maxlen)                            :: AVvname = 'None'  
+character(len=maxlen)                            :: AVxname = ''  
+character(len=maxlen)                            :: AVyname = ''  
+character(len=maxlen)                            :: AVzname = '-'  
+character(len=maxlen)                            :: AVtname = ''  
+character(len=maxlen)                            :: AVvname = 'v10'  
 character(len=maxlen)                            :: AVunits = ''  
 character(len=maxlen)                            :: AVcalen = ''  
 
@@ -239,7 +239,6 @@ contains
       call GAV%open(AVfilename)
     endif
 
-
     if (WithOU) call GOU%scan(OUxname,OUyname,OUzname,OUtname,OUunits,OUcalen)
     if (WithOV) call GOV%scan(OVxname,OVyname,OVzname,OVtname,OVunits,OVcalen)
     if (WithOW) call GOW%scan(OWxname,OWyname,OWzname,OWtname,OWunits,OWcalen)
@@ -250,44 +249,99 @@ contains
     if (WithAU) call GAU%scan(AUxname,AUyname,AUzname,AUtname,AUunits,AUcalen)
     if (WithAV) call GAV%scan(AVxname,AVyname,AVzname,AVtname,AVunits,AVcalen)
 
+    if(GOU%Climatology.and.(GOU%nt.ne.12)) call crash ('OU Monthly climatologies only')
+    if(GOV%Climatology.and.(GOV%nt.ne.12)) call crash ('OV Monthly climatologies only')
+    if(GOW%Climatology.and.(GOW%nt.ne.12)) call crash ('OW Monthly climatologies only')
+    if(GAU%Climatology.and.(GAU%nt.ne.12)) call crash ('AU Monthly climatologies only')
+    if(GAV%Climatology.and.(GAV%nt.ne.12)) call crash ('AV Monthly climatologies only')
+
+    ! ... The ALM can use different time units but cannot mix GREGORIAN and NOLEAP
+    ! ... calendars for obvious reasons. Then, we check that the calendars are the
+    ! ... the same.
+    ! ...
+    if (WithOU) then
+      if (len_trim(forcing_time_calendar).eq.0) then
+        forcing_time_calendar = trim(GOU%calendar)
+      else
+        if (forcing_time_calendar.ne.GOU%calendar) call crash('Incompatible calendars')
+      endif
+    endif
+    if (WithOV) then
+      if (len_trim(forcing_time_calendar).eq.0) then
+        forcing_time_calendar = trim(GOV%calendar)
+      else
+        if (forcing_time_calendar.ne.GOV%calendar) call crash('Incompatible calendars')
+      endif
+    endif
+    if (WithOW) then
+      if (len_trim(forcing_time_calendar).eq.0) then
+        forcing_time_calendar = trim(GOW%calendar)
+      else
+        if (forcing_time_calendar.ne.GOW%calendar) call crash('Incompatible calendars')
+      endif
+    endif
+    if (WithOT) then
+      if (len_trim(forcing_time_calendar).eq.0) then
+        forcing_time_calendar = trim(GOT%calendar)
+      else
+        if (forcing_time_calendar.ne.GOT%calendar) call crash('Incompatible calendars')
+      endif
+    endif
+    if (WithOS) then
+      if (len_trim(forcing_time_calendar).eq.0) then
+        forcing_time_calendar = trim(GOS%calendar)
+      else
+        if (forcing_time_calendar.ne.GOS%calendar) call crash('Incompatible calendars')
+      endif
+    endif
+    if (WithOR) then
+      if (len_trim(forcing_time_calendar).eq.0) then
+        forcing_time_calendar = trim(GOR%calendar)
+      else
+        if (forcing_time_calendar.ne.GOR%calendar) call crash('Incompatible calendars')
+      endif
+    endif
+    if (WithOC) then
+      if (len_trim(forcing_time_calendar).eq.0) then
+        forcing_time_calendar = trim(GOC%calendar)
+      else
+        if (forcing_time_calendar.ne.GOC%calendar) call crash('Incompatible calendars')
+      endif
+    endif
+    if (WithAU) then
+      if (len_trim(forcing_time_calendar).eq.0) then
+        forcing_time_calendar = trim(GAU%calendar)
+      else
+        if (forcing_time_calendar.ne.GAU%calendar) call crash('Incompatible calendars')
+      endif
+    endif
+    if (WithAV) then
+      if (len_trim(forcing_time_calendar).eq.0) then
+        forcing_time_calendar = trim(GAV%calendar)
+      else
+        if (forcing_time_calendar.ne.GAV%calendar) call crash('Incompatible calendars')
+      endif
+    endif
+    if (len_trim(forcing_time_calendar).eq.0) forcing_time_calendar = standard_calendar
+    forcing_time_units = trim(standard_time_units)
+
     ! ... Check that U,V,T,S,RHO,C have the same vertical structure
     ! ...
     nz = 1
     if (WithOU) nz = max(nz,GOU%nz)
     if (WithOV) nz = max(nz,GOV%nz)
-    if (WithOT) nz = max(nz,GOT%nz)
-    if (WithOS) nz = max(nz,GOS%nz)
-    if (WithOR) nz = max(nz,GOR%nz)
-    if (WithOC) nz = max(nz,GOC%nz)
+    !if (WithOT) nz = max(nz,GOT%nz)
+    !if (WithOS) nz = max(nz,GOS%nz)
+    !if (WithOR) nz = max(nz,GOR%nz)
+    !if (WithOC) nz = max(nz,GOC%nz)
     if (verb.ge.3) write(*,*) 'Value of nz = ', nz
     if (WithOU.and.GOU%nz.ne.nz) call crash('GOU: Incompatible vertical grid')
     if (WithOV.and.GOV%nz.ne.nz) call crash('GOV: Incompatible vertical grid')
-    if (WithOT.and.GOT%nz.ne.nz) call crash('GOT: Incompatible vertical grid')
-    if (WithOS.and.GOS%nz.ne.nz) call crash('GOS: Incompatible vertical grid')
-    if (WithOR.and.GOR%nz.ne.nz) call crash('GOR: Incompatible vertical grid')
-    if (WithOC.and.GOC%nz.ne.nz) call crash('GOC: Incompatible vertical grid')
+    !if (WithOT.and.GOT%nz.ne.nz) call crash('GOT: Incompatible vertical grid')
+    !if (WithOS.and.GOS%nz.ne.nz) call crash('GOS: Incompatible vertical grid')
+    !if (WithOR.and.GOR%nz.ne.nz) call crash('GOR: Incompatible vertical grid')
+    !if (WithOC.and.GOC%nz.ne.nz) call crash('GOC: Incompatible vertical grid')
   
-    ! ... Reference time,  units and calendar:
-    ! ...
-    if (WithOU) then
-      forcing_time_units = GOU%time_units
-      forcing_time_calendar = GOU%calendar
-    else if (WithOV) then
-      forcing_time_units = GOV%time_units
-      forcing_time_calendar = GOV%calendar
-    else if (WithOW) then
-      forcing_time_units = GOW%time_units
-      forcing_time_calendar = GOW%calendar
-    else if (WithAU) then
-      forcing_time_units = GAU%time_units
-      forcing_time_calendar = GAU%calendar
-    else if (WithAV) then
-      forcing_time_units = GAV%time_units
-      forcing_time_calendar = GAV%calendar
-    endif
-    if (len_trim(forcing_time_units).eq.0) forcing_time_units = standard_time_units
-    if (len_trim(forcing_time_calendar).eq.0) forcing_time_calendar = standard_calendar
-
     ! ... Common geometrical domain:
     ! ...
     xmin = forcing_xmin
@@ -356,32 +410,22 @@ contains
     ! ... Common time domain:
     ! ...
     tmin = forcing_tmin
-    if (.not.OceClim) then
-      if (WithOU) tmin = max(tmin,GOU%tmin)
-      if (WithOV) tmin = max(tmin,GOV%tmin)
-      if (WithOW) tmin = max(tmin,GOW%tmin)
-      !if (WithOT) tmin = max(tmin,GOT%tmin)
-      !if (WithOS) tmin = max(tmin,GOS%tmin)
-      !if (WithOR) tmin = max(tmin,GOR%tmin)
-      !if (WithOC) tmin = max(tmin,GOC%tmin)
-    endif
-    if (WithAU) tmin = max(tmin,GAU%tmin)
-    if (WithAV) tmin = max(tmin,GAV%tmin)
-    
+    if (WithOU.and..not.GOU%Climatology) tmin = max(tmin,GOU%tmin)
+    if (WithOV.and..not.GOV%Climatology) tmin = max(tmin,GOV%tmin)
+    if (WithOW.and..not.GOW%Climatology) tmin = max(tmin,GOW%tmin)
+    if (WithAU.and..not.GAU%Climatology) tmin = max(tmin,GAU%tmin)
+    if (WithAV.and..not.GAV%Climatology) tmin = max(tmin,GAV%tmin)
+
     tmax = forcing_tmax
-    if (.not.OceClim) then
-      if (WithOU) tmax = min(tmax,GOU%tmax)
-      if (WithOV) tmax = min(tmax,GOV%tmax)
-      if (WithOW) tmax = min(tmax,GOW%tmax)
-      !if (WithOT) tmax = min(tmax,GOT%tmax)
-      !if (WithOS) tmax = min(tmax,GOS%tmax)
-      !if (WithOR) tmax = min(tmax,GOR%tmax)
-      !if (WithOC) tmax = min(tmax,GOC%tmax)
-    endif
-    if (WithAU) tmax = min(tmax,GAU%tmax)
-    if (WithAV) tmax = min(tmax,GAV%tmax)
+    if (WithOU.and..not.GOU%Climatology) tmax = min(tmax,GOU%tmax)
+    if (WithOV.and..not.GOV%Climatology) tmax = min(tmax,GOV%tmax)
+    if (WithOW.and..not.GOW%Climatology) tmax = min(tmax,GOW%tmax)
+    if (WithAU.and..not.GAU%Climatology) tmax = min(tmax,GAU%tmax)
+    if (WithAV.and..not.GAV%Climatology) tmax = min(tmax,GAV%tmax)
   
     ! ... Model crop
+    ! ... T,S,Rho,C do not modify the valid domain, but they are
+    ! ... cropped to reduce the memory required by the model
     ! ...
     if (WithOU) call GOU%crop(xmin,xmax,ymin,ymax,tmin,tmax)
     if (WithOV) call GOV%crop(xmin,xmax,ymin,ymax,tmin,tmax)
@@ -393,6 +437,8 @@ contains
     if (WithAU) call GAU%crop(xmin,xmax,ymin,ymax,tmin,tmax)
     if (WithAV) call GAV%crop(xmin,xmax,ymin,ymax,tmin,tmax)
 
+    ! ... Stationarity conditions
+    ! ...
     if (WithOU.and.GOU%nt.eq.1) GOU%Stationary = .True.
     if (WithOV.and.GOV%nt.eq.1) GOV%Stationary = .True.
     if (WithOT.and.GOT%nt.eq.1) GOT%Stationary = .True.
@@ -459,7 +505,6 @@ contains
       GAV%varname = trim(AVvname)
     endif
 
-
     if (verb.ge.1) then
       if (withOU) call GOU%show('Ocean zonal currents')
       if (withOV) call GOV%show('Ocean meridional currents')
@@ -471,6 +516,8 @@ contains
       if (withAU) call GAU%show('Atmosphere zonal wind')
       if (withAV) call GAV%show('Atmosphere meridional wind')
     endif
+    !stop '7777'
+
 
   end subroutine open_forcing
   ! ...

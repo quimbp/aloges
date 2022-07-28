@@ -24,8 +24,12 @@
 module module_alm
 
 use module_types
+use module_time
 
 implicit none
+
+character(len=*), parameter                      :: VERSION = '1.0'
+character(len=*), parameter                      :: AUTHOR  = 'Joaquim Ballabrera'
 
 ! ... Dimension of the Lagrangian model
 ! ... Three-dimensional model: x, y, z
@@ -36,6 +40,10 @@ integer, parameter                               :: ndims = 3      ! Lagrangian 
 ! ...
 logical                                          :: Cartesian = .False.
 logical                                          :: Spherical = .True.
+
+! ... Date of this run
+! ...
+type(type_date)                                  :: now
 
 ! ... ALM beahvior: Model, fitting, assimilation
 ! ... By default we run the model
@@ -53,6 +61,8 @@ logical                                          :: reverse = .False.
 logical                                          :: Uadv     = .False.
 logical                                          :: Vadv     = .False.
 logical                                          :: Wadv     = .False.
+logical                                          :: Udrv     = .False.
+logical                                          :: Vdrv     = .False.
 logical                                          :: Buoyancy = .False.
 
 ! ... Wind action activation:
@@ -70,7 +80,7 @@ logical                                          :: SingleLayer = .False.
 ! ...
 integer                                          :: verb = 1       ! Verbose level
 
-! ... The AML time units and calendar:
+! ... The ALM time units and calendar:
 ! ... They will coincide with the ones specified in the 
 ! ... ocean zonal velocity file or specified by the
 ! ... user.
@@ -97,10 +107,24 @@ real(dp)                                         :: alm_tmin
 real(dp)                                         :: alm_tmax
 real(dp)                                         :: alm_dx
 real(dp)                                         :: alm_dy
+real(dp)                                         :: alm_dz
 real(dp), dimension(:), allocatable              :: alm_x
 real(dp), dimension(:), allocatable              :: alm_y
 real(dp), dimension(:), allocatable              :: alm_z
 real(dp), dimension(:,:,:), allocatable          :: alm_mask
+
+! ... To create own grid
+! ...
+logical                                          :: WithMakeGrid = .False.
+!real(dp)                                         :: alm_west  = 0.0D0
+!real(dp)                                         :: alm_east  = 0.0D0
+!real(dp)                                         :: alm_south = 0.0D0
+!real(dp)                                         :: alm_north = 0.0D0
+real(dp)                                         :: alm_depth = 0.0D0
+
+! ... To keep track of climatologies
+! ...
+logical                                          :: WithClim = .False.
 
 contains
   ! ...

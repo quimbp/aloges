@@ -35,9 +35,6 @@ use module_float
 
 implicit none
 
-character(len=*), parameter                      :: VERSION = '1.0'
-character(len=*), parameter                      :: AUTHOR  = 'Joaquim Ballabrera'
-
 ! ... Runge-Kutta order
 ! ...
 integer                                          :: rk_order = 5
@@ -48,6 +45,7 @@ real(dp)                                         :: model_tini  = 0.0D0
 real(dp)                                         :: model_tfin  = 0.0D0
 real(dp)                                         :: model_tlen  = 0.0D0
 real(dp)                                         :: model_time  = 0.0D0
+real(dp)                                         :: model_daysec= 0.0D0
 real(dp)                                         :: model_dt    = 3600.0D0
 real(dp)                                         :: model_sign  = 1.0D0
 real(dp)                                         :: model_velmin = 1D-5  ! m/s ! Pereiro, 2019
@@ -63,6 +61,27 @@ real(dp), dimension(:,:,:,:), allocatable        :: ORrhs        ! (X,Y,Z,2)
 real(dp), dimension(:,:,:,:), allocatable        :: OCrhs        ! (X,Y,Z,2)
 real(dp), dimension(:,:,:,:), allocatable        :: AUrhs        ! (X,Y,1,2)
 real(dp), dimension(:,:,:,:), allocatable        :: AVrhs        ! (X,Y,1,2)
+
+! ... Constant values
+! ...
+logical                                          :: model_fixed_ou = .False.
+logical                                          :: model_fixed_ov = .False.
+logical                                          :: model_fixed_ow = .False.
+logical                                          :: model_fixed_au = .False.
+logical                                          :: model_fixed_av = .False.
+real(dp)                                         :: model_value_ou = 0.0D0
+real(dp)                                         :: model_value_ov = 0.0D0
+real(dp)                                         :: model_value_ow = 0.0D0
+real(dp)                                         :: model_value_au = 0.0D0
+real(dp)                                         :: model_value_av = 0.0D0
+
+! ... Climatology flags
+! ...
+logical                                          :: OUClim = .False.
+logical                                          :: OVClim = .False.
+logical                                          :: OWClim = .False.
+logical                                          :: AUClim = .False.
+logical                                          :: AVClim = .False.
 
 ! ... Vertical records to be read
 ! ...
@@ -84,14 +103,13 @@ integer                                          :: ADVECTION_LAYER = 0
 ! ... Response Matrix, accounting for direct atmosphere
 ! ... drag and Stokes drift.
 ! ... Pereiro et al. (2019).
-! ... The atmospheric term only applies near the surface, thus
-! ... the use of the surface flag.
+! ... The atmospheric term only applies at depths shallower than WindDepth.
 ! ...
-logical                                          :: surface = .True.
-real(dp)                                         :: A11     = 0.0_dp
-real(dp)                                         :: A12     = 0.0_dp
-real(dp)                                         :: A21     = 0.0_dp
-real(dp)                                         :: A22     = 0.0_dp
+real(dp)                                         :: WindDepth = 0.0D0
+real(dp)                                         :: A11       = 0.0_dp
+real(dp)                                         :: A12       = 0.0_dp
+real(dp)                                         :: A21       = 0.0_dp
+real(dp)                                         :: A22       = 0.0_dp
 
 ! ... Water speed fraction (alpha)
 ! ... Dragg-related term. It also allows simulating when
@@ -141,6 +159,8 @@ character(len=maxlen)                            :: trajectory_name = 'alm.nc'  
 character(len=maxlen)                            :: trajectory_final = 'end.dat'  ! Traj final
 character(len=maxlen)                            :: output_units=''
 character(len=maxlen)                            :: output_calendar=''
+character(len=maxlen), dimension(:), allocatable :: Table_filename
+integer, dimension(:), allocatable               :: Table_iu
 integer                                          :: output_nfloats
 integer                                          :: output_record = 0
 integer                                          :: output_format = 0 !0=nc, 1=ascii
@@ -155,6 +175,8 @@ integer                                          :: output_uid
 integer                                          :: output_vid
 integer                                          :: output_wid
 integer                                          :: output_did
+integer                                          :: output_tempid
+integer                                          :: output_psalid
 integer                                          :: output_rid
 integer                                          :: output_xoid
 integer                                          :: output_yoid
@@ -167,12 +189,36 @@ real(dp)                                         :: output_missing = -999.0D0
 
 ! ... Analytical density
 ! ... water_visc: Kinematic viscosity [m2/s] = Dynamic viscosity / rho
-! ... water_rho: Water density kg/m3
+! ... model_value_rho: Water density kg/m3
 ! ...
-logical                                          :: model_buoyancy = .False.
+logical                                          :: Particle_buoyant = .False.
 integer                                          :: water_density_method=-1
 real(dp)                                         :: water_visc = 1D-6 ! m2/s
-real(dp)                                         :: water_rho  = 1020.0D0 !kg/m3
+real(dp)                                         :: model_value_rho  = 1026.0D0 !kg/m3
+
+! ... Linear Equation of State
+! ... Simplified EOS (S-EOS) from NEMO ocean model
+! ...
+logical                                          :: model_density = .False.
+logical                                          :: WithEOS  = .False.
+real(dp)                                         :: EOS_rho0 = 1026.0D0   ! kg/m3
+real(dp)                                         :: EOS_a0   = 1.6550D-1  ! therm. expan.
+real(dp)                                         :: EOS_b0   = 7.6554D-1  ! halin. expan.
+real(dp)                                         :: EOS_lam1 = 5.9520D-2  ! T2 cabbeling
+real(dp)                                         :: EOS_lam2 = 5.4914D-4  ! S2 cabbeling
+real(dp)                                         :: EOS_nu   = 2.4341D-3  ! TS cabbeling
+real(dp)                                         :: EOS_mu1  = 1.4970D-4  ! T thermobaric
+real(dp)                                         :: EOS_mu2  = 1.1090D-5  ! S thermobaric
+
+! ... Diel Vertical Migration
+! ...
+logical                                          :: Particle_dvm = .False.
+real(dp)                                         :: dvm_zday     = 0.0D0
+real(dp)                                         :: dvm_znight   = 0.0D0
+real(dp)                                         :: dvm_tvm      =  6.0D0*3600.0D0 ! Six hours
+real(dp)                                         :: dvm_tdawn    =  7.0D0*3600.0D0 ! 7 am
+real(dp)                                         :: dvm_tdusk    = 19.0D0*3600.0D0 ! 7 pm
+real(dp)                                         :: dvm_w        = 0.0D0           ! Speed
 
 contains
 ! ...
@@ -201,20 +247,17 @@ contains
 
     ! ... Local variables
     ! ...
-    real(dp) f1,f2,ff,a1,a2
+    real(dp) f1,f2,ff,a1,a2,wx,wy,tt
     real(dp) t1,t2
-    real(dp) veps,vx,vy,vz,rhok,wok
+    real(dp) veps,vx,vy,vz,tk,sk,rhok,wok
+
+    if (verb.ge.4) write(*,*) 'RHS time, xo  : ', t, xo
 
     if (noise_model_1) then
       ! ... Horizontal noise
       veps = randn()
       vx = noise_V1*veps*sin(dpi*veps)
       vy = noise_V1*veps*cos(dpi*veps)
-      !veps = randn()
-      !vx = noise_V1*veps
-      !veps = randn()
-      !vy = noise_V1*veps
-      ! ... Vertical noise
       veps = randn()
       vz = noise_W1*veps
     else
@@ -222,75 +265,80 @@ contains
       vy = 0.0D0
       vz = 0.0D0
     endif
-    if (verb.ge.4) write(*,*) 'vx, vy, vz : ', vx, vy, vz
+    if (verb.ge.4) write(*,*) 'RHS Noise model 1 : ', vx, vy, vz
 
     dxdt(:) = 0.0D0
 
     ! ... Zonal advection:
     ! ...
     if (Uadv) then
-      if (alpha(1).eq.0) then
-        dxdt(1) = vx
+      if (model_fixed_ou) then
+        dxdt(1) = alpha(1)*model_value_ou
+      else if (alpha(1).eq.0) then
+        dxdt(1) = 0.0D0
       else
-        IOU = GOU%locate(xo)
-        if (verb.ge.4) write(*,*) 'IOU : ', IOU
-        if (GOU%Stationary) then
-          ff  = GOU%interpol(OUrhs(:,:,:,1),xo,IOU,SingleLayer)
-        else
-          t1 = GOU%t(GOU%rec1)
-          t2 = GOU%t(GOU%rec2)
-          f1 = GOU%interpol(OUrhs(:,:,:,1),xo,IOU,SingleLayer)
-          f2 = GOU%interpol(OUrhs(:,:,:,2),xo,IOU,SingleLayer)
-          ff = f1 + (f2-f1)*(model_time-t1)/(t2-t1)
-        endif
-        dxdt(1) = alpha(1)*ff + vx
+        ff = time_interpol(GOU,OUrhs,t,xo)
+        if (verb.ge.4) write(*,*) 'RHS ou : ', ff
+!        IOU = GOU%locate(xo)
+!        if (verb.ge.4) write(*,*) 'RHS IOU : ', IOU
+!        if (GOU%Stationary) then
+!          ff  = GOU%interpol(OUrhs(:,:,:,1),xo,IOU,SingleLayer)
+!        else
+!          t1 = GOU%trec1
+!          t2 = GOU%trec2
+!          f1 = GOU%interpol(OUrhs(:,:,:,1),xo,IOU,SingleLayer)
+!          f2 = GOU%interpol(OUrhs(:,:,:,2),xo,IOU,SingleLayer)
+!          ff = f1 + (f2-f1)*(t-t1)/(t2-t1)
+!        endif
+        dxdt(1) = alpha(1)*ff
       endif
-    else
-      dxdt(1) = vx
     endif
+    dxdt(1) = dxdt(1) + vx
 
     ! ... Meridional advection
     ! ...
     if (Vadv) then
-      if (alpha(2).eq.0) then
-        dxdt(2) = vy
+      if (model_fixed_ov) then
+        dxdt(2) = alpha(2)*model_value_ov
+      else if (alpha(2).eq.0) then
+        dxdt(2) = 0.0D0
       else
-        IOV = GOV%locate(xo)
-        if (verb.ge.4) write(*,*) 'IOV : ', IOV
-        if (GOV%Stationary) then
-          ff  = GOV%interpol(OVrhs(:,:,:,1),xo,IOV,SingleLayer)
-        else
-          t1 = GOV%t(GOV%rec1)
-          t2 = GOV%t(GOV%rec2)
-          f1 = GOV%interpol(OVrhs(:,:,:,1),xo,IOV,SingleLayer)
-          f2 = GOV%interpol(OVrhs(:,:,:,2),xo,IOV,SingleLayer)
-          ff = f1 + (f2-f1)*(model_time-t1)/(t2-t1)
-          !print*, 'IOV: ', IOV
-          !print*, GOV%x1(IOV(1)), GOV%y1(IOV(2))
-          !print*, 'f1, f2, ff : ', f1, f2, ff
-        endif
-        dxdt(2) = alpha(2)*ff + vy
+        ff = time_interpol(GOV,OVrhs,t,xo)
+        if (verb.ge.4) write(*,*) 'RHS ov : ', ff
+        !IOV = GOV%locate(xo)
+        !if (verb.ge.4) write(*,*) 'RHS IOV : ', IOV
+        !if (GOV%Stationary) then
+        !  ff  = GOV%interpol(OVrhs(:,:,:,1),xo,IOV,SingleLayer)
+        !else
+        !  t1 = GOV%trec1
+        !  t2 = GOV%trec2
+        !  f1 = GOV%interpol(OVrhs(:,:,:,1),xo,IOV,SingleLayer)
+        !  f2 = GOV%interpol(OVrhs(:,:,:,2),xo,IOV,SingleLayer)
+        !  ff = f1 + (f2-f1)*(t-t1)/(t2-t1)
+        !endif
+        dxdt(2) = alpha(2)*ff
       endif
-    else
-      dxdt(2) = vy
     endif
+    dxdt(2) = dxdt(2) + vy
 
     ! ... Vertical advection
     ! ...
     if (Wadv) then
-      if (alpha(3).eq.0) then
+      if (model_fixed_ow) then
+        dxdt(3) = alpha(3)*model_value_ow + vz
+      else if (alpha(3).eq.0) then
         dxdt(3) = vz
       else
         IOW = GOW%locate(xo)
-        if (verb.ge.4) write(*,*) 'IOW : ', IOW
+        if (verb.ge.4) write(*,*) 'RHS IOW : ', IOW
         if (GOW%Stationary) then
           ff  = GOW%interpol(OWrhs(:,:,:,1),xo,IOW,SingleLayer)
         else
-          t1 = GOW%t(GOW%rec1)
-          t2 = GOW%t(GOW%rec2)
+          t1 = GOW%trec1
+          t2 = GOW%trec2
           f1 = GOW%interpol(OWrhs(:,:,:,1),xo,IOW,SingleLayer)
           f2 = GOW%interpol(OWrhs(:,:,:,2),xo,IOW,SingleLayer)
-          ff = f1 + (f2-f1)*(model_time-t1)/(t2-t1)
+          ff = f1 + (f2-f1)*(t-t1)/(t2-t1)
         endif
         dxdt(3) = alpha(3)*ff + vz
       endif
@@ -300,18 +348,18 @@ contains
 
     ! ... Add, if requested, a buoyancy term:
     ! ...
-    if (model_buoyancy) then
+    if (Particle_buoyant) then
       select case (water_density_method)
       case (0)
         ! ... Density is constant
         ! ... 
-        rhok = water_rho
+        rhok = model_value_rho
       case (1)
         ! ... Density is a function of z and latitude
         ! ... 
         rhok = analytical_rho(xo(3),rad2deg*xo(2))
       case (2)
-        ! ... Density comes from a file
+        ! ... Density comes from a RHO file
         ! ... 
         IOR = GOR%locate(xo)
         if (GOR%Stationary) then
@@ -321,21 +369,80 @@ contains
           t2 = GOR%t(GOR%rec2)
           f1 = GOR%interpol(ORrhs(:,:,:,1),xo,IOR,SingleLayer)
           f2 = GOR%interpol(ORrhs(:,:,:,2),xo,IOR,SingleLayer)
-          rhok = f1 + (f2-f1)*(model_time-t1)/(t2-t1)
+          rhok = f1 + (f2-f1)*(t-t1)/(t2-t1)
         endif
+      case (3)
+        ! ... Density comes from a TEMP file
+        ! ... 
+        tk = time_interpol(GOT,OTrhs,t,xo)
+        sk = 0.D0
+        rhok = eos(tk,sk,abs(xo(3)))
+        if (verb.ge.4) write(*,*) 'RHS Temperature, density: ', tk, rhok
+      case (4)
+        ! ... Density comes from a TEMP and PSAL files
+        ! ... 
+        tk = time_interpol(GOT,OTrhs,t,xo)
+        sk = time_interpol(GOS,OSrhs,t,xo)
+        rhok = eos(tk,sk,abs(xo(3)))
+        if (verb.ge.4) write(*,*) 'RHS ot, os, or: ', tk, sk, rhok
       end select
-      wok = emergence(FLTk,rhok)
-      if (verb.ge.4) write(*,*) 'water_rho, emergence vel: ', rhok, wok
+
+      ! ... Emergence velocity
+      ! ...
+      wok = emergence_model(FLTk,rhok)
+      if (verb.ge.4) write(*,*) 'RHS pr, or, wok: ', FLT%Pdens, rhok, wok
       dxdt(3) = dxdt(3) + wok
     endif
 
-    if (winds.and.surface) then
-      ! Time interpolation of winds required !
-      !a1     = GAU%hinterpol(AUrhs(:,:,ll),x(1),x(2))
-      !a2     = GAV%hinterpol(AVrhs(:,:,ll),x(1),x(2))
-      dxdt(1) = dxdt(1) +  A11*a1 + A12*a2
-      dxdt(2) = dxdt(2) +  A21*a1 + A22*a2
+    if (Particle_dvm) then
+      wok =  dvm_model(xo,t)
+      if (verb.ge.4) write(*,*) 'RHS particle motility: ', wok
+      dxdt(3) = dxdt(3) + wok
     endif
+
+    ! ... Z is 0 at the surface and negative downwards
+    ! ...
+    if (winds.and.xo(3).ge.WindDepth) then
+      if (model_fixed_au) then
+        a1 = model_value_au
+      else
+        IAU = GAU%locate(xo)
+        if (verb.ge.4) write(*,*) 'RHS IAU : ', IAU
+        if (GAU%Stationary) then
+          a1  = GAU%interpol(AUrhs(:,:,:,1),xo,IAU,SingleLayer=.True.)
+        else
+          t1 = GAU%trec1
+          t2 = GAU%trec2
+          f1 = GAU%interpol(AUrhs(:,:,:,1),xo,IAU,SingleLayer=.True.)
+          f2 = GAU%interpol(AUrhs(:,:,:,2),xo,IAU,SingleLayer=.True.)
+          a1 = f1 + (f2-f1)*(t-t1)/(t2-t1)
+        endif
+      endif
+      if (model_fixed_av) then
+        a2 = model_value_av
+      else
+        IAV = GAV%locate(xo)
+        if (verb.ge.4) write(*,*) 'RHS IAV : ', IAV
+        if (GAV%Stationary) then
+          a2  = GAV%interpol(AVrhs(:,:,:,1),xo,IAV,SingleLayer=.True.)
+        else
+          t1 = GAV%trec1
+          t2 = GAV%trec2
+          f1 = GAV%interpol(AVrhs(:,:,:,1),xo,IAV,SingleLayer=.True.)
+          f2 = GAV%interpol(AVrhs(:,:,:,2),xo,IAV,SingleLayer=.True.)
+          a2 = f1 + (f2-f1)*(t-t1)/(t2-t1)
+        endif
+      endif
+      wx = A11*a1 + A12*a2
+      wy = A21*a1 + A22*a2
+      if (verb.ge.4) then
+        write(*,*) 'RHS Wind components,   a1, a2 : ', a1, a2
+        write(*,*) 'RHS Wind contribution, Wx, Wy : ', wx, wy
+      endif
+      dxdt(1) = dxdt(1) +  wx
+      dxdt(2) = dxdt(2) +  wy
+    endif
+    if (verb.ge.5) write(*,*) 'RHS dxdt : ', dxdt
 
   end function RHS
   ! ...
@@ -345,90 +452,71 @@ contains
 
     type(type_date)                         :: datemin,datemax
     integer i,j,k
-    real(dp) critical_size,yave,rhok
+    real(dp) critical_size,yave,rhok,dx,vmax
+    real(dp) ww(ndims)
 
     if (reverse) model_sign = -1.0D0
 
+    Uadv = model_fixed_ou.or.WithOU
+    Vadv = model_fixed_ov.or.WithOV
+    Wadv = model_fixed_ow.or.WithOW
+    Udrv = model_fixed_au.or.WithAU
+    Vdrv = model_fixed_av.or.WithAV
+    if (Udrv.neqv.Vdrv) call crash('Incompatible wind forcing options')
+
+    ! ... Model time integration parameters 
+    ! ...
     model_tini = alm_tini
     model_tfin = alm_tfin
     model_tlen = nint(model_tfin - model_tini)
+    model_dt   = model_sign*model_dt
     if (mod(model_tlen,model_dt).ne.0) call crash('Simulation length not a multiple of time step.')
-    model_nsteps = nint(model_tlen/model_dt) - 1
+    model_nsteps = nint(model_tlen/model_dt)
 
     model_dini = num2date(model_tini,units=model_time_units,calendar=model_time_calendar)
     model_dfin = num2date(model_tfin,units=model_time_units,calendar=model_time_calendar)
 
-    !if (minval([GOU%nt,GOV%nt,GOW%nt]).eq.1) Stationary = .True.
+    ! ... Propagate the info about the forcing field being a climatology
+    ! ...
+    GOU%Climatology = OUClim
+    GOV%Climatology = OVClim
+    GOW%Climatology = OWClim
+    GAU%Climatology = AUClim
+    GAV%Climatology = AVClim
 
-    if (WithOU) then
-      Uadv = .True.
+    !if (model_fixed_ou) GOU%Stationay = .True.
+    !if (model_fixed_ov) GOV%Stationay = .True.
+    !if (model_fixed_ow) GOW%Stationay = .True.
+    !if (model_fixed_au) GAU%Stationay = .True.
+    !if (model_fixed_av) GAV%Stationay = .True.
+
+    if (WithOU.and..not.model_fixed_ou) then
       allocate (OUrhs(GOU%nx,GOU%ny,GOU%nz,2))
-      GOU%rec1 = locate(GOU%t,model_tini) 
-      if ((GOU%rec1.lt.1.or.GOU%rec1.ge.GOU%nt)) call crash ('U time not bracketed')
-      if (GOU%nt.eq.1.or.GOU%Stationary) then
-        GOU%rec2 = GOU%rec1
-      else
-        GOU%rec2 = min(GOU%rec1+1,GOU%nt)
-      endif
-      OUrhs(:,:,:,1) = GOU%read3D(GOU%varid,step=GOU%rec1,missing_value=0.0D0,verbose=verb.ge.3)
-      OUrhs(:,:,:,2) = GOU%read3D(GOU%varid,step=GOU%rec2,missing_value=0.0D0,verbose=verb.ge.3)
+      call get_forcing('OU',GOU,model_tini,model_dini,0.0D0,OUrhs)
     endif
 
-    if (WithOV) then
-      Vadv = .True.
+    if (WithOV.and..not.model_fixed_ov) then
       allocate (OVrhs(GOV%nx,GOV%ny,GOV%nz,2))
-      GOV%rec1 = locate(GOV%t,model_tini) 
-      if ((GOV%rec1.lt.1.or.GOV%rec1.ge.GOV%nt)) call crash ('V time not bracketed')
-      if (GOV%nt.eq.1.or.GOV%Stationary) then
-        GOV%rec2 = GOV%rec1
-      else
-        GOV%rec2 = min(GOV%rec1+1,GOV%nt)
-      endif
-      OVrhs(:,:,:,1) = GOV%read3D(GOV%varid,step=GOV%rec1,missing_value=0.0D0,verbose=verb.ge.3)
-      OVrhs(:,:,:,2) = GOV%read3D(GOV%varid,step=GOV%rec2,missing_value=0.0D0,verbose=verb.ge.3)
+      call get_forcing('OV',GOV,model_tini,model_dini,0.0D0,OVrhs)
     endif
 
-    if (WithOW) then
-      Wadv = .True.
+    if (WithOW.and..not.model_fixed_ow) then
       allocate (OWrhs(GOW%nx,GOW%ny,GOW%nz,2))
-      GOW%rec1 = locate(GOW%t,model_tini) 
-      if ((GOW%rec1.lt.1.or.GOW%rec1.ge.GOW%nt)) call crash ('W time not bracketed')
-      if (GOW%nt.eq.1.or.GOW%Stationary) then
-        GOW%rec2 = GOW%rec1
-      else
-        GOW%rec2 = min(GOW%rec1+1,GOW%nt)
-      endif
-      OWrhs(:,:,:,1) = GOW%read3D(GOW%varid,step=GOW%rec1,missing_value=0.0D0,verbose=verb.ge.3)
-      OWrhs(:,:,:,2) = GOW%read3D(GOW%varid,step=GOW%rec2,missing_value=0.0D0,verbose=verb.ge.3)
+      call get_forcing('OW',GOW,model_tini,model_dini,0.0D0,OWrhs)
     endif
 
     if (WithOT) then
       allocate (OTrhs(GOT%nx,GOT%ny,GOT%nz,2))
-      GOT%rec1 = locate(GOT%t,model_tini) 
-      if ((GOT%rec1.lt.1.or.GOT%rec1.ge.GOT%nt)) call crash ('T time not bracketed')
-      if (GOT%nt.eq.1.or.GOT%Stationary) then
-        GOT%rec2 = GOT%rec1
-      else
-        GOT%rec2 = min(GOT%rec1+1,GOT%nt)
-      endif
-      OTrhs(:,:,:,1) = GOT%read3D(GOT%varid,step=GOT%rec1,verbose=verb.ge.3)
-      OTrhs(:,:,:,2) = GOT%read3D(GOT%varid,step=GOT%rec2,verbose=verb.ge.3)
+      call get_forcing('OT',GOT,model_tini,model_dini,0.0D0,OTrhs)
     endif
 
     if (WithOS) then
       allocate (OSrhs(GOS%nx,GOS%ny,GOS%nz,2))
-      GOS%rec1 = locate(GOS%t,model_tini) 
-      if ((GOS%rec1.lt.1.or.GOS%rec1.ge.GOS%nt)) call crash ('S time not bracketed')
-      if (GOS%nt.eq.1.or.GOS%Stationary) then
-        GOS%rec2 = GOS%rec1
-      else
-        GOS%rec2 = min(GOS%rec1+1,GOS%nt)
-      endif
-      OSrhs(:,:,:,1) = GOS%read3D(GOS%varid,step=GOS%rec1,verbose=verb.ge.3)
-      OSrhs(:,:,:,2) = GOS%read3D(GOS%varid,step=GOS%rec2,verbose=verb.ge.3)
+      call get_forcing('OS',GOS,model_tini,model_dini,0.0D0,OSrhs)
     endif
 
     if (WithOR) then
+      stop 'recode'
       allocate (ORrhs(GOR%nx,GOR%ny,GOR%nz,2))
       GOR%rec1 = locate(GOR%t,model_tini) 
       if ((GOR%rec1.lt.1.or.GOR%rec1.ge.GOR%nt)) call crash ('R time not bracketed')
@@ -442,6 +530,7 @@ contains
     endif
 
     if (WithOC) then
+      stop 'recode'
       allocate (OCrhs(GOC%nx,GOC%ny,GOC%nz,2))
       GOC%rec1 = locate(GOC%t,model_tini) 
       if ((GOC%rec1.lt.1.or.GOC%rec1.ge.GOC%nt)) call crash ('C time not bracketed')
@@ -454,31 +543,57 @@ contains
       OCrhs(:,:,:,2) = GOC%read3D(GOC%varid,step=GOC%rec2,verbose=verb.ge.3)
     endif
 
-    if (WithAU) then
+    if (WithAU.and..not.model_fixed_au) then
       allocate (AUrhs(GAU%nx,GAU%ny,1,2))
-      GAU%rec1 = locate(GAU%t,model_tini) 
-      if ((GAU%rec1.lt.1.or.GAU%rec1.ge.GAU%nt)) call crash ('AU time not bracketed')
-      if (GAU%nt.eq.1.or.GAU%Stationary) then
-        GAU%rec2 = GAU%rec1
-      else
-        GAU%rec2 = min(GAU%rec1+1,GAU%nt)
-      endif
-      AUrhs(:,:,1,1) = GAU%read2D(GAU%varid,step=GAU%rec1,missing_value=0.0D0)
-      AUrhs(:,:,1,2) = GAU%read2D(GAU%varid,step=GAU%rec2,missing_value=0.0D0)
+      call get_forcing('AU',GAU,model_tini,model_dini,0.0D0,AUrhs)
     endif
 
-    if (WithAV) then
+    if (WithAV.and..not.model_fixed_av) then
       allocate (AVrhs(GAV%nx,GAV%ny,1,2))
-      GAV%rec1 = locate(GAV%t,model_tini) 
-      if ((GAV%rec1.lt.1.or.GAV%rec1.ge.GAV%nt)) call crash ('AV time not bracketed')
-      if (GAV%nt.eq.1.or.GAV%Stationary) then
-        GAV%rec2 = GAV%rec1
-      else
-        GAV%rec2 = min(GAV%rec1+1,GAV%nt)
-      endif
-      AVrhs(:,:,1,1) = GAV%read2D(GAV%varid,step=GAV%rec1,missing_value=0.0D0)
-      AVrhs(:,:,1,2) = GAV%read2D(GAV%varid,step=GAV%rec2,missing_value=0.0D0)
+      call get_forcing('AV',GAV,model_tini,model_dini,0.0D0,AVrhs)
     endif
+
+    !print*, 'OUrhs: ', OUrhs(13,14,1,:)
+    !print*, 'OVrhs: ', OVrhs(13,14,1,:)
+    !print*, 'AUrhs: ', AUrhs(13,14,1,:)
+    !print*, 'AVrhs: ', AVrhs(13,14,1,:)
+    !ww(1) = GAU%x1(13)
+    !ww(2) = GAU%y1(14)
+    !ww(3) = GAU%z(1)
+    !ww(1) = deg2rad*3.0
+    !ww(2) = deg2rad*41.0
+    !print*, rad2deg*ww
+    !IAU = GAU%locate(ww)
+    !print*, GAU%interpol(AUrhs(:,:,:,2),ww,IAU,.True.)
+    !print*, IAU
+    !stop '555555'
+
+    ! ... Stability criteria
+    ! ...
+    if (GOU%Cartesian) then
+      dx = (GOU%xmax-GOU%xmin)/(GOU%nx-1)          ! meters
+    else
+      dx = Rearth*(GOU%xmax-GOU%xmin)/(GOU%nx-1)   ! meters
+    endif
+    if (model_fixed_au) then
+      vmax = model_value_au
+    else
+      vmax = maxval(OUrhs(:,:,1,1))                ! meters / seconds
+    endif
+    if (dx.lt.vmax*model_dt) call crash('ERROR: U*dt > dx  -  Reduce dt')
+
+    if (GOV%Cartesian) then
+      dx = (GOV%xmax-GOV%xmin)/(GOV%nx-1)          ! meters
+    else
+      dx = Rearth*(GOV%xmax-GOV%xmin)/(GOV%nx-1)   ! meters
+    endif
+    if (model_fixed_av) then
+      vmax = model_value_av
+    else
+      vmax = maxval(OVrhs(:,:,1,1))                ! meters / seconds
+    endif
+    if (dx.lt.vmax*model_dt) call crash('ERROR: V*dt > dx  -  Reduce dt')
+
 
     if (SingleLayer) Wadv = .False.
 
@@ -505,12 +620,12 @@ contains
    
     ! ... Get the "typical" water density.
     ! ... if water_density_method .le. 0, then it is the
-    ! ... value in water_rho.
+    ! ... value in model_value_rho.
     ! ..
-    if (model_buoyancy) then
+    if (model_density) then
       if (water_density_method.eq.1) then
         yave = 0.5D0*(alm_ymin+alm_ymax)*rad2deg
-        water_rho = 0.0D0
+        model_value_rho = 0.0D0
         if (verb.ge.3) then
           write(*,*)
           write(*,*) '   Z         rho(z) '
@@ -518,23 +633,33 @@ contains
         endif
         do k=1,GOU%Nz
           rhok = analytical_rho(GOU%z(k),yave)
-          water_rho = water_rho + rhok
+          model_value_rho = model_value_rho + rhok
           if (verb.ge.3) write(*,*) GOU%z(k), rhok
         enddo
-        water_rho = water_rho / GOU%Nz
+        model_value_rho = model_value_rho / GOU%Nz
       else if (water_density_method.eq.2) then
         print*, 'WARNING: This needs to be calculated !!!!'
         yave = 0.5D0*(alm_ymin+alm_ymax)*rad2deg
-        water_rho = 0.0D0
+        model_value_rho = 0.0D0
         do k=1,GOU%Nz
-          water_rho = water_rho + analytical_rho(GOU%z(k),yave)
+          model_value_rho = model_value_rho + analytical_rho(GOU%z(k),yave)
         enddo
-        water_rho = water_rho / GOU%Nz
+        model_value_rho = model_value_rho / GOU%Nz
       endif
+    endif
+
+    ! ... Diel Vertical Movement
+    ! ...
+    if (Particle_dvm) then
+      dvm_zday   = -abs(dvm_zday)
+      dvm_znight = -abs(dvm_znight)
+      dvm_w      = (dvm_znight - dvm_zday)/dvm_tvm
     endif
 
     if (verb.ge.1) then
       write(*,*)
+      write(*,*) 'Verbosity level  : ', verb
+      write(*,*) 
       write(*,*) 'Simulation period: '
       if (model_sign.gt.0) then
         write(*,*) 'Forward model'
@@ -547,38 +672,88 @@ contains
       write(*,*) 'Number steps  : ', model_nsteps
       write(*,*) 'Saving period : ', save_period
       write(*,*) 'Advection XYZ : ', Uadv, Vadv, Wadv
+      if (OUClim) then
+        write(*,*) 'Advection X   : Climatological'
+      else if (model_fixed_ou) then
+        write(*,*) 'Advection X   : Constant'
+      else if (Uadv) then
+        write(*,*) 'Advection X   : Interannual'
+      endif
+      if (OVClim) then
+        write(*,*) 'Advection Y   : Climatological'
+      else if (model_fixed_ov) then
+        write(*,*) 'Advection Y   : Constant'
+      else if (Vadv) then
+        write(*,*) 'Advection Y   : Interannual'
+      endif
+      if (OWClim) then
+        write(*,*) 'Advection Z   : Climatological'
+      else if (model_fixed_ow) then
+        write(*,*) 'Advection Z   : Constant'
+      else if (Wadv) then
+        write(*,*) 'Advection Z   : Interannual'
+      endif
 
-      if (model_buoyancy) then
-        write(*,*) 'Model buoyancy activated'
-        write(*,*) 'Water kinematic viscosity : ', water_visc
+      if (model_density) then
+        write(*,*) 'Tracking water density activated'
+        write(*,*) 'Using Equation of State   : ', WithEOS
         write(*,*) 'Water density method      : ', water_density_method
-        write(*,*) 'Reference Water density   : ', water_rho
+      else
+        write(*,*) 'Tracking water density not activated'
+      endif
+
+      if (Particle_buoyant) then
+        write(*,*) 'Particle buoyant activated'
+        write(*,*) 'Water kinematic viscosity : ', water_visc
+        if (water_density_method.eq.0.or.water_density_method.eq.1) &
+          write(*,*) 'Reference Water density   : ', model_value_rho
         write(*,*) 'Particle density          : ', Release_rho
         write(*,*) 'Particle diameter         : ', Release_size
-        if (Release_rho.lt.water_rho) then
+        if (Release_rho.lt.model_value_rho) then
           ! ... Maximum drop sizes are claculated by Aravamudan et al. (1982)
           ! ... Break up for oil on rough seas - simplified models and step-by
           ! ... step calculations. US Coast Guard Report CG-D-28-82
           ! ... US Department of Transportation, Washington DC.
           ! ...
-          critical_size = 9.52D0*(water_visc/gravity)**(2.D0/3.D0)/(1.0D0-Release_rho/water_rho)**(1.0D0/3.0D0)
+          critical_size = 9.52D0*(water_visc/gravity)**(2.D0/3.D0)/(1.0D0-Release_rho/model_value_rho)**(1.0D0/3.0D0)
           write(*,*) 'Maximum Particle diameter : ', critical_size
           !if (Release_size.gt.critical_size) call crash('Particle size > Minumum allowed size')
         endif
       else
-        write(*,*) 'Model buoyancy not activated'
+        write(*,*) 'Particle not buoyant'
+      endif
+      if (Particle_dvm) then
+        write(*,*) 'Particle DVM activated'
+        write(*,*) 'Particle Day depth        : ', dvm_zday
+        write(*,*) 'Particle night depth      : ', dvm_znight
+        write(*,*) 'Particle travelling time  : ', dvm_tvm
+        write(*,*) 'Particle vertical speed   : ', dvm_w
+      else
+        write(*,*) 'Particle DVM not activated'
       endif
 
       write(*,*) 'Wind forcing  : ', Winds
       write(*,*) 'Noise model 0 : ', noise_model_0
       write(*,*) 'Noise model 1 : ', noise_model_1
-      if (Uadv) write(*,*) 'Zonal velocity record pointers     : ', GOU%rec1, GOU%rec2
-      if (Vadv) write(*,*) 'Meridional velocity record pointers: ', GOV%rec1, GOV%rec2
-      if (Wadv) write(*,*) 'Vertical velocity record pointers  : ', GOW%rec1, GOW%rec2
-      if (WithAU) write(*,*) 'Zonal wind record pointers         : ', GAU%rec1, GAU%rec2
-      if (WithAV) write(*,*) 'Meridional wind record pointers    : ', GAV%rec1, GAV%rec2
+      if (Uadv.and..not.model_fixed_ou) &
+         write(*,*) 'Zonal velocity record pointers     : ', GOU%rec1, GOU%rec2
+      if (Vadv.and..not.model_fixed_ov) &
+         write(*,*) 'Meridional velocity record pointers: ', GOV%rec1, GOV%rec2
+      if (Wadv.and..not.model_fixed_ow) &
+         write(*,*) 'Vertical velocity record pointers  : ', GOW%rec1, GOW%rec2
+      if (WithOT) &
+         write(*,*) 'Ocean temperature record pointers  : ', GOT%rec1, GOT%rec2
+      if (WithOS) &
+         write(*,*) 'Ocean salinity record pointers     : ', GOS%rec1, GOS%rec2
+      if (Winds) then
+        if (.not.model_fixed_au) &
+           write(*,*) 'Zonal wind record pointers         : ', GAU%rec1, GAU%rec2
+        if (.not.model_fixed_av) &
+           write(*,*) 'Meridional wind record pointers    : ', GAV%rec1, GAV%rec2
+      endif
     endif
 
+    !stop '8888'
     return
 
   end subroutine model_ini
@@ -589,17 +764,38 @@ contains
 
     ! ... Local variables
     ! ...
-    integer i,j,k,ii,jj,kk,ll,ifloat,float_status
+    logical OUupdate,OVupdate,OWupdate,AUupdate,AVupdate
+    logical OTupdate,OSupdate
+    integer i,j,k,ii,jj,kk,ll,ifloat,float_status,iu
     real(dp) veps,dx,dy,dz
     real(dp), dimension(ndims)                   :: xo,xn,un
 
+    
+    ! ... Flags to keep updating forcing fields
+    ! ...
+    OUupdate = WithOU.and..not.GOU%Stationary.and..not.model_fixed_ou
+    OVupdate = WithOV.and..not.GOV%Stationary.and..not.model_fixed_ov
+    OWupdate = WithOW.and..not.GOW%Stationary.and..not.model_fixed_ow
+    AUupdate = WithAU.and..not.GAU%Stationary.and..not.model_fixed_au
+    AVupdate = WithAV.and..not.GAV%Stationary.and..not.model_fixed_av
+    OTupdate = WithOT.and..not.GOT%Stationary
+    OSupdate = WithOS.and..not.GOS%Stationary
+    if (verb.ge.3) then
+      write(*,*) 'OU update: ', OUupdate
+      write(*,*) 'OV update: ', OVupdate
+      write(*,*) 'OW update: ', OWupdate
+      if (WithOT) write(*,*) 'OT update: ', OTupdate
+      if (WithOS)  write(*,*) 'OS update: ', OSupdate
+      write(*,*) 'AU update: ', AUupdate
+      write(*,*) 'AV update: ', AVupdate
+    endif
 
     ! ... First record:
     ! ...
     model_time = model_tini 
     do ifloat=1,Nfloats
       FLT(ifloat)%to = model_tini + FLT(ifloat)%to    ! FLT%to seconds since model_tini
-      if (model_time.ge.FLT(ifloat)%to) then
+      if (model_sign*model_time.ge.model_sign*FLT(ifloat)%to) then
         if (verb.ge.2) write(*,*) 'Initial step releasing for float ', ifloat
         FLT(ifloat)%released = .True.
         FLT(ifloat)%floating = .True.
@@ -609,6 +805,37 @@ contains
         FLT(ifloat)%z        = FLT(ifloat)%zo
         FLT(ifloat)%dist     = 0.0D0
         FLT(ifloat)%tlast    = model_tini
+        xn = [FLT(ifloat)%x,FLT(ifloat)%y,FLT(ifloat)%z]
+        if (WithOT) then
+          FLT(ifloat)%Wtemp  = time_interpol(GOT,OTrhs,model_time,xn)
+        endif
+        if (WithOS) then
+          FLT(ifloat)%Wpsal  = time_interpol(GOS,OSrhs,model_time,xn)
+        endif
+        if (model_density) then
+          select case (water_density_method)
+          case (0)
+            ! ... Density is constant
+            ! ... 
+            FLT(ifloat)%Wdens = model_value_rho
+          case (1)
+            ! ... Density is a function of z and latitude
+            ! ... 
+            FLT(ifloat)%Wdens = analytical_rho(abs(xn(3)),rad2deg*xn(2))
+          case (2)
+            ! ... Density comes from a RHO file
+            ! ... 
+            FLT(ifloat)%Wdens  = time_interpol(GOR,ORrhs,model_time,xn)
+          case (3)
+            ! ... Density comes from TEMP
+            ! ... 
+            FLT(ifloat)%Wdens = eos(FLT(ifloat)%Wtemp,35.0D0,abs(xn(3)))
+          case (4)
+            ! ... Density comes from TEMP and PSAL
+            ! ... 
+            FLT(ifloat)%Wdens = eos(FLT(ifloat)%Wtemp,FLT(ifloat)%Wpsal,abs(xn(3)))
+          end select
+        endif
       endif
     enddo
     call trajectory_write(model_time,verb.ge.2) 
@@ -617,17 +844,27 @@ contains
     if (verb.ge.1) write(*,*) 'Running model ...'
     do model_step=1,model_nsteps
 
-      model_time = model_tini + (model_step-1)*model_dt
+      model_time = anint(model_tini + (model_step-1)*model_dt)
       model_date = num2date(Reference_time+model_time,model_time_units,model_time_calendar)
+      model_daysec = anint(model_date%hour*3600.0D0 + model_date%minute*60.0D0 + model_date%second)
 
-      if (verb.ge.2) write(*,*) 'step, time, date :: ', model_step, model_time, model_date%iso()
+      if (verb.ge.2) write(*,*) 'step, time, date, secs :: ', model_step, model_time, &
+                                                              model_date%iso(), model_daysec
+
+      if (OUupdate) call get_forcing('OU',GOU,model_time,model_date,0.0D0,OUrhs)
+      if (OVupdate) call get_forcing('OV',GOV,model_time,model_date,0.0D0,OVrhs)
+      if (OWupdate) call get_forcing('OW',GOW,model_time,model_date,0.0D0,OWrhs)
+      if (AUupdate) call get_forcing('AU',GAU,model_time,model_date,0.0D0,AUrhs)
+      if (AVupdate) call get_forcing('AV',GAV,model_time,model_date,0.0D0,AVrhs)
+      if (OTupdate) call get_forcing('OT',GOT,model_time,model_date,0.0D0,OTrhs)
+      if (OSupdate) call get_forcing('OS',GOS,model_time,model_date,0.0D0,OSrhs)
 
       do ifloat=1,Nfloats
 
         ! ... First chek if released or going to be released
         ! ...
         if (.NOT.FLT(ifloat)%released) then
-          if (model_time.ge.FLT(ifloat)%to) then
+          if (model_sign*model_time.ge.model_sign*FLT(ifloat)%to) then
             if (verb.ge.2) write(*,*) 'Releasing float ', ifloat
             FLT(ifloat)%released = .True.
             FLT(ifloat)%floating = .True.
@@ -637,46 +874,91 @@ contains
             FLT(ifloat)%z        = FLT(ifloat)%zo
             FLT(ifloat)%dist     = 0.0D0
             FLT(ifloat)%tlast    = model_time
+            xn = [FLT(ifloat)%x,FLT(ifloat)%y,FLT(ifloat)%z]
+            if (WithOT) then
+              FLT(ifloat)%Wtemp     = time_interpol(GOT,OTrhs,model_time,xn) 
+            endif
+            if (WithOS) then
+              FLT(ifloat)%Wpsal     = time_interpol(GOS,OSrhs,model_time,xn)
+            endif
+            if (model_density) then
+              select case (water_density_method)
+              case (0)
+                ! ... Density is constant
+                ! ... 
+                FLT(ifloat)%Wdens = model_value_rho
+              case (1)
+                ! ... Density is a function of z and latitude
+                ! ... 
+                FLT(ifloat)%Wdens = analytical_rho(abs(xn(3)),rad2deg*xn(2))
+              case (2)
+                ! ... Density comes from a RHO file
+                ! ... 
+                FLT(ifloat)%Wdens  = time_interpol(GOR,ORrhs,model_time,xn)
+              case (3)
+                ! ... Density comes from TEMP
+                ! ... 
+                FLT(ifloat)%Wdens = eos(FLT(ifloat)%Wtemp,35.0D0,abs(xn(3)))
+              case (4)
+                ! ... Density comes from TEMP and PSAL
+                ! ... 
+                FLT(ifloat)%Wdens = eos(FLT(ifloat)%Wtemp,FLT(ifloat)%Wpsal,abs(xn(3)))
+              end select
+            endif
           endif
         endif
 
         if (FLT(ifloat)%floating) then
 
           FLTk = FLT(ifloat)
+          xo = [FLT(ifloat)%x, FLT(ifloat)%y, FLT(ifloat)%z ]
+
+          ! ... Check the dawn and dusk time. It should be expected that these
+          ! ... values remain constant during a single time step.
+          ! ...
+          if (Particle_dvm) then
+            call SunRise_and_SunSet (rad2deg*xo(1),rad2deg*xo(2),model_date,dvm_tdawn,dvm_tdusk)
+          endif
+
 
           ! ... Runge - Kutta
           ! ....................................................
-          xo = [FLT(ifloat)%x, FLT(ifloat)%y, FLT(ifloat)%z ]
           call rk(xo,model_time,model_dt,un,xn)
           ! ....................................................
 
+          ! ... Check float status:
+          ! ...
+          float_status = point_type(xn(1),xn(2),xn(3))  ! = 1, floating inside
+                                                        ! = 0, stranded on land
+                                                        ! = -1, outside the domain
           if (verb.ge.3) then
             write(*,*) 'Float: ', ifloat
             write(*,*) '   xo: ', xo
             write(*,*) '   un: ', un
             write(*,*) '   xn: ', xn
+            write(*,*) ' stat: ', float_status
           endif
-
-          FLT(ifloat)%x = xn(1)
-          FLT(ifloat)%y = xn(2)
-          FLT(ifloat)%z = xn(3)
-          FLT(ifloat)%u = un(1)
-          FLT(ifloat)%v = un(2)
-          FLT(ifloat)%w = un(3)
-          ! ...................
-
-          dx = 0.001D0*Rearth*cos(xo(2))*(xn(1)-xo(1))
-          dy = 0.001D0*Rearth*(xn(2)-xo(2))
-          FLT(ifloat)%dist = FLT(ifloat)%dist + sqrt(dx*dx+dy*dy)
-
-          !float_status =  check_float_status(xn)
-          float_status = point_type(xn(1),xn(2),xn(3))  ! = 1, floating inside
-                                                        ! = 0, stranded on land
-                                                        ! = -1, outside the domain
 
           select case (float_status)
             case (1)
-              FLT(ifloat)%tlast = model_time
+            ! ................... The particle is floating inside the domain
+            ! ................... Values are updated
+              FLT(ifloat)%x = xn(1)
+              FLT(ifloat)%y = xn(2)
+              FLT(ifloat)%z = xn(3)
+              FLT(ifloat)%u = un(1)
+              FLT(ifloat)%v = un(2)
+              FLT(ifloat)%w = un(3)
+              if (Spherical) then
+                dx = 0.001D0*Rearth*cos(xo(2))*(xn(1)-xo(1))
+                dy = 0.001D0*Rearth*(xn(2)-xo(2))
+              else
+                dx = xn(1)-xo(1)
+                dy = xn(2)-xo(2)
+              endif
+              FLT(ifloat)%dist  = FLT(ifloat)%dist + sqrt(dx*dx+dy*dy)
+              FLT(ifloat)%tlast = model_time + model_dt
+            ! ...................
             case (0) 
               if (verb.ge.2) write(*,*) 'Particle stranded on land: ', ifloat
               FLT(ifloat)%floating = .False.
@@ -692,24 +974,218 @@ contains
         !xo = xn
       enddo
 
-      model_time = model_time + model_sign*model_dt
+      model_time = model_time + model_dt
 
       if (mod(model_step,save_frequency).eq.0) then
-        !if (verb.ge.2) write(*,*) "Saving trajectory position"
+        ! ...
+        ! ... If requested, calculate the temp, psal and density of the 
+        ! ... water at the particle position 
+        ! ...
+        do ifloat=1,Nfloats
+          xn = [FLT(ifloat)%x, FLT(ifloat)%y, FLT(ifloat)%z ]
+          if (WithOT) then
+            FLT(ifloat)%Wtemp  = time_interpol(GOT,OTrhs,model_time,xn)
+          endif
+          if (WithOS) then
+            FLT(ifloat)%Wpsal  = time_interpol(GOS,OSrhs,model_time,xn)
+          endif
+          if (model_density) then
+            select case (water_density_method)
+            case (0)
+              ! ... Density is constant
+              ! ... 
+              FLT(ifloat)%Wdens = model_value_rho
+            case (1)
+              ! ... Density is a function of z and latitude
+              ! ... 
+              FLT(ifloat)%Wdens = analytical_rho(abs(xn(3)),rad2deg*xn(2))
+            case (2)
+              ! ... Density comes from a RHO file
+              ! ... 
+              FLT(ifloat)%Wdens  = time_interpol(GOR,ORrhs,model_time,xn)
+            case (3)
+              ! ... Density comes from TEMP
+              ! ... 
+              FLT(ifloat)%Wdens = eos(FLT(ifloat)%Wtemp,35.0D0,abs(xn(3)))
+            case (4)
+              ! ... Density comes from TEMP and PSAL
+              ! ... 
+              FLT(ifloat)%Wdens = eos(FLT(ifloat)%Wtemp,FLT(ifloat)%Wpsal,abs(xn(3)))
+            end select
+          endif
+        enddo
         call trajectory_write(model_time,verb.ge.2)
       endif
 
-      if (WithOU.and..not.GOU%Stationary) call forcing_update('OU',GOU,model_time,OUrhs)
-      if (WithOV.and..not.GOV%Stationary) call forcing_update('OV',GOV,model_time,OVrhs)
-      if (WithOW.and..not.GOW%Stationary) call forcing_update('OW',GOW,model_time,OWrhs)
-      if (WithAU.and..not.GAU%Stationary) call forcing_update('AU',GAU,model_time,AUrhs)
-      if (WithAV.and..not.GAV%Stationary) call forcing_update('AV',GAU,model_time,AVrhs)
-
 
     enddo
+
+    ! ... Saving the las position
+    ! ...
+    iu = unitfree()
+    open(iu,file=trajectory_final,status='unknown')
+    do ifloat=1,Nfloats
+      model_time = FLT(ifloat)%tlast
+      model_date = num2date(Reference_time+model_time,model_time_units,model_time_calendar)
+      write(iu,'(F9.4,2X,F9.4,2X,F6.1,2X,A)') FLT(ifloat)%x*rad2deg, &
+                                              FLT(ifloat)%y*rad2deg, &
+                                              abs(FLT(ifloat)%z), &
+                                              model_date%iso()
+    enddo
+    close(iu)
+
     if (verb.ge.1) write(*,*) 'Done !'
 
   end subroutine model_run
+  ! ...
+  ! ===================================================================
+  ! ...
+  subroutine get_forcing(label,G,time,date,missing,f)
+
+    character(len=2), intent(in)                         :: label
+    type(type_ncgrid), intent(inout)                     :: G
+    real(dp), intent(in)                                 :: time
+    type(type_date), intent(in)                          :: date
+    real(dp), intent(in)                                 :: missing
+    real(dp), dimension(G%nx,G%ny,G%nz,2), intent(inout) :: f
+
+    ! ... Local variables
+    ! ...
+    integer d1,m1,y1,d2,m2,y2
+    real(dp) rd
+
+    ! ... Check if initial call
+    ! ...
+    if (G%rec1.lt.0) then
+      if (verb.ge.5) write(*,*) 'get_forcing initial call for ', label, ' time: ', time
+      ! .....................................................
+      ! ...                  Initial call                 ...
+      ! .....................................................
+      if (G%Climatology) then
+        rd = date%day + (date%hour*3600.0D0+date%minute*60.0D0+date%second)/86400.0D0
+        y1 = date%year
+        m1 = date%month
+        if (rd.lt.HalfMonth(date%month)) then
+          y2 = y1
+          m2 = m1
+          m1 = m1 - 1
+          if (m1.eq.0) then
+            y1 = y1 - 1
+            m1 = 12
+          endif
+        else
+          y2 = y1
+          m2 = m1 + 1
+          if (m2.eq.13) then
+            y2 = y2 + 1
+            m2 = 1
+          endif
+        endif
+        G%rec1 = m1
+        call G%drec1%is(y1,m1,1,0,0,0,model_time_calendar)
+        G%trec1 = anint(date2num(G%drec1,units=model_time_units) + (HalfMonth(m1)-1)*86400.0D0)
+        G%rec2 = m2
+        call G%drec2%is(y2,m2,1,0,0,0,model_time_calendar)
+        G%trec2 = anint(date2num(G%drec2,units=model_time_units) + (HalfMonth(m2)-1)*86400.0D0)
+      else
+        if (G%nt.eq.1) then
+          G%rec1 = 1
+          G%rec2 = 1
+        else
+          G%rec1 = locate(G%t,time)
+          if ((G%rec1.lt.1.or.G%rec1.ge.G%nt)) call crash (label//' time not bracketed')
+          if (G%Stationary) then
+            G%rec2 = G%rec1
+          else
+            G%rec2 = min(G%rec1+1,G%nt)
+          endif
+        endif
+        G%trec1 = G%t(G%rec1)
+        G%trec2 = G%t(G%rec2)
+      endif
+      if (verb.ge.5) write(*,*) 'rec1 and rec 2: ', G%rec1, G%rec2
+      f(:,:,:,1) = G%read3D(G%varid,step=G%rec1,missing_value=missing,verbose=verb.ge.3)
+      f(:,:,:,2) = G%read3D(G%varid,step=G%rec2,missing_value=missing,verbose=verb.ge.3)
+
+
+    else if (.not.G%Stationary) then
+      ! .....................................................
+      ! ...                  Update fields                ...
+      ! .....................................................
+      if (G%Climatology) then
+        if (reverse) then                 ! Backward model
+          if (time.lt.G%trec1) then
+            m1 = G%drec1%month
+            y1 = G%drec1%year
+            y2 = y1
+            m2 = m1
+            m1 = m1 - 1
+            if (m1.eq.0) then
+              y1 = y1 - 1
+              m1 = 12
+            endif
+            G%rec2  = m2
+            G%trec2 = G%trec1
+            G%drec2 = G%drec1
+            G%rec1  = m1
+            call G%drec1%is(y1,m1,1,0,0,0,model_time_calendar)
+            G%trec1 = anint(date2num(G%drec1,units=model_time_units)+(HalfMonth(m1)-1)*86400.0D0)
+            f(:,:,:,2) = f(:,:,:,1)
+            f(:,:,:,1) = G%read3D(G%varid,step=G%rec1,missing_value=missing,verbose=verb.ge.3)
+            if (verb.ge.1) write(*,'(T2,"Backward bracket ",A2," update:",I2," - ",I2)') &
+                           label, G%rec1, G%rec2
+          endif
+        else                                   ! Forward model
+          if (time.gt.G%trec2) then
+            m2 = G%drec2%month
+            y2 = G%drec2%year
+            y1 = y2
+            m1 = m2
+            m2 = m2 + 1
+            if (m2.eq.13) then
+              y2 = y2 + 1
+              m2 = 1
+            endif
+            G%rec1  = m1
+            G%trec1 = G%trec2
+            G%drec1 = G%drec2
+            G%rec2  = m2
+            call G%drec2%is(y2,m2,1,0,0,0,model_time_calendar)
+            G%trec2 = anint(date2num(G%drec2,units=model_time_units)+(HalfMonth(m2)-1)*86400.0D0)
+            f(:,:,:,1) = f(:,:,:,2)
+            f(:,:,:,2) = G%read3D(G%varid,step=G%rec2,missing_value=missing,verbose=verb.ge.3)
+            if (verb.ge.1) write(*,'(T2,"Forward bracket ",A2," update:",I2," - ",I2)') &
+                           label, G%rec1, G%rec2
+          endif
+        endif
+      else
+        if (reverse) then
+          if (time.le.G%t(G%rec1)) then
+            G%rec2 = G%rec1
+            G%rec1 = G%rec1 - 1
+            if (verb.ge.1) write(*,'(T2,"Backward bracket ",A2," update:",F12.0," - ",F12.0)') &
+                           label, G%t(G%rec1), G%t(G%rec2)
+            f(:,:,:,2) = f(:,:,:,1)
+            f(:,:,:,1) = G%read3D(G%varid,step=G%rec1,missing_value=missing,verbose=verb.ge.3)
+          endif
+        else
+          if (time.ge.G%t(G%rec2)) then
+            G%rec1 = G%rec2
+            G%rec2 = G%rec2 + 1
+            if (verb.ge.2) write(*,'(T2,"Forward bracket ",A2," update:",F12.0," - ",F12.0)') &
+                           label, G%t(G%rec1), G%t(G%rec2)
+            f(:,:,:,1) = f(:,:,:,2)
+            f(:,:,:,2) = G%read3D(G%varid,step=G%rec2,missing_value=missing,verbose=verb.ge.3)
+          endif
+        endif
+        G%trec1 = G%t(G%rec1)
+        G%trec2 = G%t(G%rec2)
+      endif
+    endif
+
+    return 
+        
+  end subroutine get_forcing
   ! ...
   ! ===================================================================
   ! ...
@@ -724,7 +1200,7 @@ contains
       ! ... First call !
       ! ...
       G%rec1 = locate(G%t,time) 
-      if ((G%rec1.lt.1.or.G%rec1.ge.G%nt)) call crash ('G time not bracketed')
+      if ((G%rec1.lt.1.or.G%rec1.ge.G%nt)) call crash (label//' time not bracketed')
       if (G%Stationary) then
         G%rec2 = G%rec1
       else
@@ -736,10 +1212,10 @@ contains
       ! ... Update fields
       ! ...
       if (reverse) then
-        if (time.lt.G%t(G%rec1)) then
+        if (time.le.G%t(G%rec1)) then
           G%rec2 = G%rec1
           G%rec1 = G%rec1 - 1
-          if (verb.ge.1) write(*,'(T2,"Backward bracket ",A2," update:",F9.0," - ",F9.0)') &
+          if (verb.ge.1) write(*,'(T2,"Backward bracket ",A2," update:",F12.0," - ",F12.0)') &
                          label, G%t(G%rec1), G%t(G%rec2)
           f(:,:,:,2) = f(:,:,:,1)
           f(:,:,:,1) = G%read3D(G%varid,step=G%rec1,missing_value=0.0D0)
@@ -748,7 +1224,7 @@ contains
         if (time.ge.G%t(G%rec2)) then
           G%rec1 = G%rec2
           G%rec2 = G%rec2 + 1
-          if (verb.ge.2) write(*,'(T2,"Forward bracket ",A2," update:",F9.0," - ",F9.0)') &
+          if (verb.ge.2) write(*,'(T2,"Forward bracket ",A2," update:",F12.0," - ",F12.0)') &
                          label, G%t(G%rec1), G%t(G%rec2)
           f(:,:,:,1) = f(:,:,:,2)
           f(:,:,:,2) = G%read3D(G%varid,step=G%rec2,missing_value=0.0D0)
@@ -758,63 +1234,6 @@ contains
     endif
 
   end subroutine forcing_update
-
-
-  subroutine forcing_update0(time)
-  ! ... Check if a new time bracketed is required
-  ! ...
-    real(dp), intent(in)                         :: time
-
-    if (WithOU) then
-      ! ..................................................
-      ! .................................................. OCE U
-      ! ..................................................
-      if (GOU%rec1.lt.0) then
-        ! ... First call !
-        ! ...
-        GOU%rec1 = locate(GOU%t,time) 
-        if ((GOU%rec1.lt.1.or.GOU%rec1.ge.GOU%nt)) call crash ('U time not bracketed')
-        if (GOU%Stationary) then
-          GOU%rec2 = GOU%rec1
-        else
-          GOU%rec2 = GOU%rec1 + 1
-        endif
-        OUrhs(:,:,:,1) = GOU%read3D(GOU%varid,step=GOU%rec1,missing_value=0.0D0)
-        OUrhs(:,:,:,2) = GOU%read3D(GOU%varid,step=GOU%rec2,missing_value=0.0D0)
-      else if (.not.GOU%Stationary) then
-        ! ... Update fields
-        ! ...
-        if (reverse) then
-          if (time.lt.GOU%t(GOU%rec1)) then
-            GOU%rec2 = GOU%rec1
-            GOU%rec1 = GOU%rec1 - 1
-            if (verb.ge.1) write(*,'(T2,"Backward bracket U update:",F9.0," - ",F9.0)') &
-                           GOU%t(GOU%rec1), GOU%t(GOU%rec2)
-            OUrhs(:,:,:,2) = OUrhs(:,:,:,1)
-            OUrhs(:,:,:,1) = GOU%read3D(GOU%varid,step=GOU%rec1,missing_value=0.0D0)
-          endif
-        else
-          if (time.ge.GOU%t(GOU%rec2)) then
-            GOU%rec1 = GOU%rec2
-            GOU%rec2 = GOU%rec2 + 1
-            if (verb.ge.2) write(*,'(T2,"Forward bracket U update:",F9.0," - ",F9.0)') &
-                           GOU%t(GOU%rec1), GOU%t(GOU%rec2)
-            OUrhs(:,:,:,1) = OUrhs(:,:,:,2)
-            OUrhs(:,:,:,2) = GOU%read3D(GOU%varid,step=GOU%rec2,missing_value=0.0D0)
-          endif
-        endif
-
-      endif
-    endif
-
-  end subroutine forcing_update0
-
-
-
-
-
-
-
   ! ...
   ! ===================================================================
   ! ...
@@ -852,9 +1271,9 @@ contains
 
     ! ... Local variables
     ! ...
-    integer err,i,natts
-    character(len=10) ext
+    integer err,i,natts,iu
     character(len=1000) lcom
+    character(len=maxlen) path,base,ext,afile
 
 
     trajectory_name = trim(filename)
@@ -877,12 +1296,15 @@ contains
       output_format = 1                   ! Ascii
     endif
 
+    if (verb.ge.3) write(*,*) 'TRAJECTORY_CREATE, Nfloats, output_format: ', Nfloats, output_format
+
     if (output_format.eq.0) then
       ! ... Netcdf output format
       ! ...
       err = NF90_CREATE(filename,NF90_CLOBBER,output_id);             call check()
       err = NF90_DEF_DIM(output_id,'floats',Nfloats,output_nid);      call check()
       err = NF90_DEF_DIM(output_id,'time',NF90_UNLIMITED,output_idl); call check()
+
 
       err = NF90_DEF_VAR(output_id,'release_lon',NF90_DOUBLE,(/output_nid/),output_xoid)
       call check()
@@ -965,6 +1387,33 @@ contains
       err = NF90_PUT_ATT(output_id,output_did,'_FillValue',sngl(missing))
       call check()
 
+      if (WithOT) then
+        err = NF90_DEF_VAR(output_id,'water_temp',NF90_REAL,(/output_nid,output_idl/),output_tempid)
+        call check()
+        err = NF90_PUT_ATT(output_id,output_tempid,'units','degrees_C')
+        call check()
+        err = NF90_PUT_ATT(output_id,output_tempid,'_FillValue',sngl(missing))
+        call check()
+      endif
+
+      if (WithOS) then
+        err = NF90_DEF_VAR(output_id,'water_psal',NF90_REAL,(/output_nid,output_idl/),output_psalid)
+        call check()
+        err = NF90_PUT_ATT(output_id,output_psalid,'units','psu')
+        call check()
+        err = NF90_PUT_ATT(output_id,output_psalid,'_FillValue',sngl(missing))
+        call check()
+      endif
+
+      if (model_density) then
+        err = NF90_DEF_VAR(output_id,'water_dens',NF90_REAL,(/output_nid,output_idl/),output_rid)
+        call check()
+        err = NF90_PUT_ATT(output_id,output_rid,'units','kg m-3')
+        call check()
+        err = NF90_PUT_ATT(output_id,output_rid,'_FillValue',sngl(missing))
+        call check()
+      endif
+
       err = NF90_DEF_VAR(output_id,'exitcode',NF90_INT,(/output_nid/),output_status)
       call check()
       err = NF90_PUT_ATT(output_id,output_status,'long_name','Float status at the end of the simulation')
@@ -974,15 +1423,63 @@ contains
       err = NF90_PUT_ATT(output_id,output_status,"is2",'float was stranded')
       call check()
 
-      if (model_buoyancy) then
-        err = NF90_PUT_ATT(output_id,0,'Buoyancy','Activated')
-        err = NF90_PUT_ATT(output_id,0,'Water_viscosity',Water_visc)
+
+      err = NF90_PUT_ATT(output_id,0,'Version',VERSION)
+      err = NF90_PUT_ATT(output_id,0,'Date',now%iso())
+      err = NF90_PUT_ATT(output_id,0,'rk_order',rk_order)
+      err = NF90_PUT_ATT(output_id,0,'model_dt',model_dt)
+
+      if (Winds) then
+        err = NF90_PUT_ATT(output_id,0,'Wind_forcing','True')
+        err = NF90_PUT_ATT(output_id,0,'WindDepth',WindDepth)
+        err = NF90_PUT_ATT(output_id,0,'A11',A11)
+        err = NF90_PUT_ATT(output_id,0,'A12',A12)
+        err = NF90_PUT_ATT(output_id,0,'A21',A21)
+        err = NF90_PUT_ATT(output_id,0,'A22',A22)
+      else
+        err = NF90_PUT_ATT(output_id,0,'Wind_forcing','False')
+      endif
+
+      if (WithOT) then
+        err = NF90_PUT_ATT(output_id,0,'water_temp','True')
+      else
+        err = NF90_PUT_ATT(output_id,0,'water_temp','False')
+      endif
+      if (WithOS) then
+        err = NF90_PUT_ATT(output_id,0,'water_psal','True')
+      else
+        err = NF90_PUT_ATT(output_id,0,'water_psal','False')
+      endif
+ 
+      if (model_density) then
+        err = NF90_PUT_ATT(output_id,0,'water_dens','True')
+        if (WithEOS) then
+          err = NF90_PUT_ATT(output_id,0,'WithEOS','True')
+        else
+          err = NF90_PUT_ATT(output_id,0,'WithEOS','False')
+        endif
         err = NF90_PUT_ATT(output_id,0,'Water_density_method',water_density_method)
-        err = NF90_PUT_ATT(output_id,0,'Reference_Water_density',water_rho)
+        if (water_density_method.eq.0.or.water_density_method.eq.1) &
+          err = NF90_PUT_ATT(output_id,0,'Reference_Water_density',model_value_rho)
+        err = NF90_PUT_ATT(output_id,0,'EOS_rho0',EOS_rho0)
+        err = NF90_PUT_ATT(output_id,0,'EOS_a0',EOS_a0)
+        err = NF90_PUT_ATT(output_id,0,'EOS_b0',EOS_b0)
+        err = NF90_PUT_ATT(output_id,0,'EOS_lam1',EOS_lam1)
+        err = NF90_PUT_ATT(output_id,0,'EOS_lam2',EOS_lam2)
+        err = NF90_PUT_ATT(output_id,0,'EOS_nu',EOS_nu)
+        err = NF90_PUT_ATT(output_id,0,'EOS_mu1',EOS_mu1)
+        err = NF90_PUT_ATT(output_id,0,'EOS_mu2',EOS_mu2)
+      else
+        err = NF90_PUT_ATT(output_id,0,'water_dens','False')
+      endif
+
+      if (Particle_buoyant) then
+        err = NF90_PUT_ATT(output_id,0,'Particle_buoyant','True')
+        err = NF90_PUT_ATT(output_id,0,'Water_viscosity',Water_visc)
         err = NF90_PUT_ATT(output_id,0,'Particle_size',Release_size)
         err = NF90_PUT_ATT(output_id,0,'Particle_density',Release_rho)
       else
-        err = NF90_PUT_ATT(output_id,0,'Buoyancy','No activated')
+        err = NF90_PUT_ATT(output_id,0,'Particle_buoyant','False')
       endif
 
       call get_commandline(lcom)
@@ -1002,17 +1499,21 @@ contains
     else
       ! ... ASCII output format
       ! ...
-      output_id = unitfree()
-      open(output_id,file=filename,status='unknown')
-      rewind(output_id)
-      write(output_id,*) '# ALM ASCII trajectory'
-      write(output_id,*) '# Nfloats '
-      write(output_id,*) '# time '
-      write(output_id,*) '# x(1), x(2),  ... x(Nfloats)'
-      write(output_id,*) '# y(1), y(2),  ... y(Nfloats)'
-      write(output_id,*) '# z(1), z(2),  ... z(Nfloats)'
-      write(output_id,*) output_nfloats
-
+      allocate(table_filename(Nfloats))
+      allocate(table_iu(Nfloats))
+      call filename_split(filename,path,base,ext)
+      do i=1,Nfloats
+        write(afile,'(T1,A,A,I4.4,A)') trim(path),trim(base)//'.',i,'.'//trim(ext)
+        iu = unitfree()
+        Table_filename(i) = trim(afile)
+        Table_iu(i) = iu
+        open(iu,file=afile,status='unknown')
+        rewind(iu)
+        write(iu,'(T1,A)') '# ALM ASCII trajectory'
+        write(iu,'(T1,A)') '# Version: ' // trim(VERSION)
+        write(iu,'(T1,A)') '# Date                  lon      lat      depth    &
+          &u       v      w         temp     psal   dens       dist'
+      enddo
 
     endif
 
@@ -1033,8 +1534,10 @@ contains
     ! ... Local variables
     ! ...
     logical verb
-    integer i,err
-    real(dp) time_out(1), xx(Nfloats)
+    integer i,err,iu
+    type(type_Date) date
+    real(dp) time_out(1), xx(Nfloats),axx(10)
+    character(len=maxlen) fmt
 
     if (present(verbose)) then
       verb = verbose
@@ -1046,116 +1549,144 @@ contains
 
     if (verb) write(*,*) 'Saving record ', output_record, ' at time ', time
 
-    ! ... Time
-    ! ...
-    time_out(1) = time
-    err = NF90_PUT_VAR(output_id,output_timeid,time_out,[output_record],[1])
-    call cdf_error(err,'Error writing trajectory time')
-
-
-    ! ... Longitude
-    ! ...
-    xx(:) = output_missing
-    do i=1,Nfloats
-      if (FLT(i)%released) xx(i) = FLT(i)%x*rad2deg
-    enddo
-
     if (output_format.eq.0) then
+
+      ! ... Time
+      ! ...
+      time_out(1) = time
+      err = NF90_PUT_VAR(output_id,output_timeid,time_out,[output_record],[1])
+      call cdf_error(err,'Error writing trajectory time')
+
+
+      ! ... Longitude
+      ! ...
+      xx(:) = output_missing
+      do i=1,Nfloats
+        if (FLT(i)%released) xx(i) = FLT(i)%x*rad2deg
+      enddo
       err = NF90_PUT_VAR(output_id,output_lonid,xx,[1,output_record],[Nfloats,1])
       call cdf_error(err,'Error writing trajectory longitude')
-    else if (output_format.eq.1) then
-      write(output_id,*) xx
-    endif
 
-    ! ... Latitude
-    ! ...
-    xx(:) = output_missing
-    do i=1,Nfloats
-      if (FLT(i)%released) xx(i) = FLT(i)%y*rad2deg
-    enddo
-
-    if (output_format.eq.0) then
+      ! ... Latitude
+      ! ...
+      xx(:) = output_missing
+      do i=1,Nfloats
+        if (FLT(i)%released) xx(i) = FLT(i)%y*rad2deg
+      enddo
       err = NF90_PUT_VAR(output_id,output_latid,xx,[1,output_record],[Nfloats,1])
       call cdf_error(err,'Error writing trajectory latitude')
-    else if (output_format.eq.1) then
-      write(output_id,*) xx
-    endif
 
-    ! ... Depth
-    ! ...
-    xx(:) = output_missing
-    do i=1,Nfloats
-      if (FLT(i)%released) xx(i) = abs(FLT(i)%z)
-    enddo
-
-    if (output_format.eq.0) then
+      ! ... Depth
+      ! ...
+      xx(:) = output_missing
+      do i=1,Nfloats
+        if (FLT(i)%released) xx(i) = abs(FLT(i)%z)
+      enddo
       err = NF90_PUT_VAR(output_id,output_zid,xx,[1,output_record],[Nfloats,1])
       call cdf_error(err,'Error writing trajectory depth')
-    else if (output_format.eq.1) then
-      write(output_id,*) xx
-    endif
 
-    if (output_record.gt.1) then
-
-      ! ... U
+      ! ... Velocity values are specified at the previus step:
       ! ...
-      xx(:) = output_missing
-      do i=1,Nfloats
-        if (FLT(i)%released) xx(i) = FLT(i)%u
-      enddo
-  
-      if (output_format.eq.0) then
+      if (output_record.gt.1) then
+
+        ! ... U
+        ! ...
+        xx(:) = output_missing
+        do i=1,Nfloats
+          if (FLT(i)%released) xx(i) = FLT(i)%u
+        enddo
         err = NF90_PUT_VAR(output_id,output_uid,xx,[1,output_record-1],[Nfloats,1])
         call cdf_error(err,'Error writing trajectory zonal velocity')
-      else if (output_format.eq.1) then
-        write(output_id,*) xx
-      endif
 
-      ! ... V
-      ! ...
-      xx(:) = output_missing
-      do i=1,Nfloats
-        if (FLT(i)%released) xx(i) = FLT(i)%v
-      enddo
-  
-      if (output_format.eq.0) then
+        ! ... V
+        ! ...
+        xx(:) = output_missing
+        do i=1,Nfloats
+          if (FLT(i)%released) xx(i) = FLT(i)%v
+        enddo
         err = NF90_PUT_VAR(output_id,output_vid,xx,[1,output_record-1],[Nfloats,1])
         call cdf_error(err,'Error writing trajectory meridional velocity')
-      else if (output_format.eq.1) then
-        write(output_id,*) xx
+
+        ! ... W
+        ! ...
+        xx(:) = output_missing
+        do i=1,Nfloats
+          if (FLT(i)%released) xx(i) = FLT(i)%w
+        enddo
+        err = NF90_PUT_VAR(output_id,output_wid,xx,[1,output_record-1],[Nfloats,1])
+        call cdf_error(err,'Error writing trajectory vertical velocity')
+
       endif
 
-      ! ... W
+      ! ... Distance
       ! ...
       xx(:) = output_missing
       do i=1,Nfloats
-        if (FLT(i)%released) xx(i) = FLT(i)%w
+        if (FLT(i)%released) xx(i) = abs(FLT(i)%dist)
       enddo
-  
-      if (output_format.eq.0) then
-        err = NF90_PUT_VAR(output_id,output_wid,xx,[1,output_record-1],[Nfloats,1])
-        call cdf_error(err,'Error writing trajectory vertical velocity')
-      else if (output_format.eq.1) then
-        write(output_id,*) xx
-      endif
-
-
-    endif
-
-    ! ... Distance
-    ! ...
-    xx(:) = output_missing
-    do i=1,Nfloats
-      if (FLT(i)%released) xx(i) = abs(FLT(i)%dist)
-    enddo
-
-    if (output_format.eq.0) then
       err = NF90_PUT_VAR(output_id,output_did,xx,[1,output_record],[Nfloats,1])
       call cdf_error(err,'Error writing trajectory distance')
-    else if (output_format.eq.1) then
-      write(output_id,*) xx
-    endif
 
+      ! ... Temperature
+      ! ...
+      if (WithOT) then
+        xx(:) = output_missing
+        do i=1,Nfloats
+          if (FLT(i)%released) xx(i) = FLT(i)%Wtemp
+        enddo
+        err = NF90_PUT_VAR(output_id,output_tempid,xx,[1,output_record],[Nfloats,1])
+        call cdf_error(err,'Error writing water temperature')
+      endif
+
+      ! ... Salinity
+      ! ...
+      if (WithOS) then
+        xx(:) = output_missing
+        do i=1,Nfloats
+          if (FLT(i)%released) xx(i) = FLT(i)%Wpsal
+        enddo
+        err = NF90_PUT_VAR(output_id,output_psalid,xx,[1,output_record],[Nfloats,1])
+        call cdf_error(err,'Error writing water salinity')
+      endif
+
+      ! ... Water density
+      ! ...
+      if (model_density) then
+        xx(:) = output_missing
+        do i=1,Nfloats
+          if (FLT(i)%released) xx(i) = FLT(i)%Wdens
+        enddo
+        err = NF90_PUT_VAR(output_id,output_rid,xx,[1,output_record],[Nfloats,1])
+        call cdf_error(err,'Error writing water density')
+      endif
+
+  else
+
+    ! ... Write ASCII files
+    ! ...
+    date = num2date(Reference_time+time,model_time_units,model_time_calendar)
+
+    do i=1,Nfloats
+      iu = table_iu(i)
+      axx(:) = output_missing
+      if (FLT(i)%released) then
+        axx( 1) = rad2deg*FLT(i)%x
+        axx( 2) = rad2deg*FLT(i)%y
+        axx( 3) = abs(FLT(i)%z)
+        axx( 4) = FLT(i)%u
+        axx( 5) = FLT(i)%v
+        axx( 6) = FLT(i)%v
+        axx( 7) = FLT(i)%Wtemp
+        axx( 8) = FLT(i)%Wpsal
+        axx( 9) = FLT(i)%Wdens
+        axx(10) = FLT(i)%dist
+      endif
+      fmt = '(A20,2(1X,F9.4),1X,F6.1,2(1X,F7.3),1X,G9.2,3(1X,F8.3),1X,F6.1)'
+      write(iu,fmt) trim(date%iso()), axx
+ 
+    enddo
+
+  endif
 
   end subroutine trajectory_write
   ! ...
@@ -1190,8 +1721,10 @@ contains
       call cdf_error(err,'while closing output NetCDF trajectory file.')
       if (verb.ge.1) write(*,*) 'Successfully closed NetCDF file ',trim(trajectory_name)
     else
-      close(output_id)
-      if (verb.ge.1) write(*,*) 'Successfully closed ASCII file ',trim(trajectory_name)
+      do i=1,Nfloats
+        close(Table_iu(i))
+        if (verb.ge.1) write(*,*) 'Successfully closed ASCII file ',trim(Table_filename(i))
+      enddo
     endif
 
   end subroutine trajectory_close
@@ -1256,28 +1789,21 @@ contains
     else if (rk_order.eq.5) then
 
       u1 = RHS(xo,to)
-      !print*, 'u1 : ', u1
 
       x2 = displacement(xo,u1,dt14)
       u2 = RHS(x2,to+dt14)
-      !print*, 'u2 : ', u2
-
 
       x3 = displacement(xo,0.5D0*(u1+u2),dt14)
       u3 = RHS(x3,to+dt14)
-      !print*, 'u3 : ', u3
 
       x4 = displacement(xo,2.0D0*u3-u2,dt12)
       u4 = RHS(x4,to+dt12)
-      !print*, 'u4 : ', u4
 
       x5 = displacement(xo,0.25D0*(u1+3.0_dp*u4),dt34)
       u5 = RHS(x5,to+dt34)
-      !print*, 'u5 : ', u5
 
       x6 = displacement(xo,(-3.0_dp*u1+2.0_dp*u2+12.0_dp*u3-12.0_dp*u4+8.0_dp*u5)/7.0_dp,dt)
       u6 = RHS(x6,to+dt)
-      !print*, 'u6 : ', u6
 
       un = (7.0_dp*u1 + 32.0_dp*u3 + 12.0_dp*u4 + 32.0_dp*u5 + 7.0_dp*u6)/90.0_dp
       
@@ -1400,7 +1926,7 @@ contains
   ! ...
   ! =====================================================================
   ! ...
-  function emergence(F,rw) result (wo)
+  function emergence_model(F,rw) result (wo)
 
     type(type_float), intent(in)                 :: F
     real(dp), intent(in)                         :: rw
@@ -1418,9 +1944,9 @@ contains
     ! ... Diameter_s = Sphere diameter (size)
     ! ... mu_m/rho_m = Kinematic viscosity      ! m2 s-1
     ! ...
-    wo = gravity*F%size*F%size*(1.0D0-F%rho/rw)/18.0D0/water_visc
+    wo = gravity*F%Psize*F%Psize*(1.0D0-F%Pdens/rw)/18.0D0/water_visc
 
-  end function emergence
+  end function emergence_model
   ! ...
   ! =====================================================================
   ! ...
@@ -1446,6 +1972,91 @@ contains
     Qswh  = max(0.0D0,Solar0*(sin(lat)*sin(delta)+cos(lat)*cos(delta)*cos(Ha)))
 
   end function Qswh
+  ! ...
+  ! =====================================================================
+  ! ...
+  real(dp) function eos(T,S,Z)
+  ! ... Simplified equation of state
+  ! ... linear case function of T only: rn_alpha<>0, other coefficients = 0
+  ! ... linear eos function of T and S: rn_alpha and rn_beta<>0, other coefficients=0
+  ! ... Vallis like equation: use default values of coefficients
+  ! ... From NEMO 4.2.0
+
+    real(dp), intent(in)                         :: T
+    real(dp), intent(in)                         :: S
+    real(dp), intent(in)                         :: Z
+
+    ! ... Local variables
+    ! ...
+    real(dp) Ta,Sa,da
+
+    Ta = T - 10.0D0
+    Sa = S - 35.0D0
+    da = -EOS_a0*(1.0D0 + 0.5D0*EOS_lam1*Ta + EOS_mu1*z)*Ta + &
+          EOS_b0*(1.0D0 - 0.5D0*EOS_lam2*Sa - EOS_mu2*z)*Sa - &
+          EOS_nu*Ta*Sa
+    eos = EOS_rho0 + da
+
+    return
+  end function eos
+  ! ...
+  ! =====================================================================
+  ! ...
+  function time_interpol (G,F,t,xo) result(ff)
+
+    type(type_ncgrid), intent(in)                        :: G
+    real(dp), dimension(G%nx,G%ny,G%nz,2), intent(in)    :: F
+    real(dp), intent(in)                                 :: t
+    real(dp), dimension(ndims), intent(in)               :: xo
+    real(dp)                                             :: ff
+
+    ! ... Local variables
+    ! ...
+    integer, dimension(ndims)                            :: P
+    real(dp) f1,f2,t1,t2
+
+
+    P = G%locate(xo)
+    if (G%Stationary) then
+      ff  = G%interpol(F(:,:,:,1),xo,P,SingleLayer)
+    else
+      t1 = G%trec1
+      t2 = G%trec2
+      f1 = G%interpol(F(:,:,:,1),xo,P,SingleLayer)
+      f2 = G%interpol(F(:,:,:,2),xo,P,SingleLayer)
+      ff = f1 + (f2-f1)*(t-t1)/(t2-t1)
+    endif
+
+  end function time_interpol
+  ! ...
+  ! =====================================================================
+  ! ...
+  function dvm_model(xo,t) result(wo)
+
+    real(dp), dimension(ndims), intent(in)       :: xo
+    real(dp), intent(in)                         :: t
+    real(dp)                                     :: wo
+
+    ! ... Local variables
+    ! ...
+    !type(type_date) date
+    !real(dp) lon,lat,z,tday,tdawn,tdusk
+    !
+    !lon = rad2deg*xo(1); lat = rad2deg*xo(1); z = xo(3)
+    !date = num2date(Reference_time+t,model_time_units,model_time_calendar)
+    !tday = anint(date%hour*3600.0D0 + date%minute*60.0D0 + date%second)
+    !call SunRise_and_SunSet (lon,lat,date,tdawn,tdusk)
+    !tday = model_daysec
+
+    if ((model_daysec.ge.dvm_tdawn).and.(model_daysec.le.dvm_tdawn+dvm_tvm)) then
+      wo = -dvm_w
+    else if ((model_daysec.ge.dvm_tdusk).and.(model_daysec.le.dvm_tdusk+dvm_tvm)) then 
+      wo = dvm_w
+    else
+      wo = 0.0D0
+    endif
+    
+  end function dvm_model
   ! ...
   ! =====================================================================
   ! ...

@@ -34,6 +34,10 @@ integer                                          :: lineargs_nargs = 0
 integer, dimension(:), allocatable               :: lineargs_used
 character(len=maxlen), dimension(:), allocatable :: lineargs_val
 
+interface linearg
+  module procedure argflg,argflt,argint,arglst,argdbl
+end interface linearg
+
 
 contains
 ! ...
@@ -112,7 +116,7 @@ n = len_trim(label)
 
 do k=1,lineargs_nargs
  if (lineargs_used(k).EQ.0) then
- if (lineargs_val(k)(:n).EQ.label(:n)) then 
+ if (uppercase(lineargs_val(k)(:n)).eq.uppercase(label(:n))) then 
   lineargs_used(k) = 1
   flag = .True.
   return
@@ -144,7 +148,7 @@ if (flag) return
 n = len_trim(label)
 DO k=1,lineargs_nargs
  if (lineargs_used(k).EQ.0) then
- if (lineargs_val(k)(:n).EQ.label(:n)) then
+ if (uppercase(lineargs_val(k)(:n)).eq.uppercase(label(:n))) then 
   if (k+1.GT.lineargs_nargs) call crash('Invalid option')
   if (lineargs_used(k+1).EQ.1) then
     write(6,*) 'Option ',TRIM(lineargs_val(k+1)),' already used.'
@@ -183,7 +187,7 @@ if (flag) return
 n = len_trim(label)
 DO k=1,lineargs_nargs
  if (lineargs_used(k).EQ.0) then
- if (lineargs_val(k)(:n).EQ.label(:n)) then
+ if (uppercase(lineargs_val(k)(:n)).eq.uppercase(label(:n))) then 
   if (k+1.GT.lineargs_nargs) call crash('Invalid option')
   if (lineargs_used(k+1).EQ.1) then
     write(6,*) 'Option ',TRIM(lineargs_val(k+1)),' already used.'
@@ -207,7 +211,7 @@ subroutine argstr (label,flag,val)
 
 character(len=*), intent(in)        :: label
 logical, intent(inout)              :: flag
-character(LEN=*), intent(out)       :: val
+character(LEN=*), intent(inout)     :: val
 
 integer n,k
 
@@ -216,7 +220,7 @@ n = len_trim(label)
 
 DO k=1,lineargs_nargs
  if (lineargs_used(k).EQ.0) then
- if (lineargs_val(k)(:n).EQ.label(:n)) then
+ if (uppercase(lineargs_val(k)(:n)).eq.uppercase(label(:n))) then 
   if (k+1.GT.lineargs_nargs) call crash ('Invalid option')
   if (lineargs_used(k+1).EQ.1) then
     write(6,*) 'Option ',TRIM(lineargs_val(k+1)),' already used.'
@@ -240,30 +244,43 @@ subroutine arglst (label,flag,list)
 
 character(LEN=*), intent(in)        :: label
 logical, intent(inout)              :: flag
-character(LEN=*), intent(out)       :: list
+character(LEN=*), intent(inout)     :: list
 
 integer n,j,k
+character(len=len(list)) mylist
+character(len=maxlen) word
 
 if (flag) return
 
+mylist = list
 list = ''
 n = len_trim(label)
 
-DO k=1,lineargs_nargs
+do k=1,lineargs_nargs
  if (lineargs_used(k).EQ.0) then
- if (lineargs_val(k)(:n).EQ.label(:n)) then
+ if (uppercase(lineargs_val(k)(:n)).eq.uppercase(label(:n))) then 
   if (k+1.GT.lineargs_nargs) call crash('Invalid option')
   flag = .True.
   lineargs_used(k) = 1
-  DO j=1,lineargs_nargs-k
-    if (lineargs_val(k+j)(1:1).EQ.'-') EXIT
-    call strcat (list,lineargs_val(k+j))
-    lineargs_used(k+j) = 1
+
+  ! ... Read arguments until the end or till the first -XXXX option
+  ! ...
+  do j=k+1,lineargs_nargs
+    if (lineargs_val(j)(1:1).EQ.'-') EXIT
+    if (len_trim(list).eq.0) then
+      list = compress(lineargs_val(j))
+    else
+      word = compress(lineargs_val(j))
+      list = trim(list)//' '//trim(word)
+    endif
+    lineargs_used(j) = 1
   enddo
   return
  endif
  endif
 enddo
+
+if (.not.flag) list = mylist
 
 return
 end subroutine arglst
@@ -286,7 +303,7 @@ if (flag) return
 n = len_trim(label)
 DO k=1,lineargs_nargs
  if (lineargs_used(k).EQ.0) then
- if (lineargs_val(k)(:n).EQ.label(:n)) then
+ if (uppercase(lineargs_val(k)(:n)).eq.uppercase(label(:n))) then
   if (k+1.GT.lineargs_nargs) call crash('Invalid option')
   if (lineargs_used(k+1).EQ.1) then
     write(6,*) 'Option ',TRIM(lineargs_val(k+1)),' already used.'

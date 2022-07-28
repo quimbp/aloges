@@ -45,12 +45,13 @@ type type_float
   real(dp)                                       :: speed  = 0.0D0 ! velocity module (m/s)
   real(dp)                                       :: tlast  = 0.0D0 ! Last floating time  (s)
   real(dp)                                       :: dist = 0.0D0   ! travelled distance (km)
-  real(dp)                                       :: temp = 0.0D0   ! temperature
-  real(dp)                                       :: psa  = 0.0D0   ! salinity
-  real(dp)                                       :: rho  = 0.0D0   ! density
-  real(dp)                                       :: size = 0.0D0   ! size
-  real(dp)                                       :: C    = 0.0D0   ! tracer concentration
-  real(dp)                                       :: buoy = 0.0D0   ! buoyancy
+  real(dp)                                       :: Pdens = 0.0D0  ! Particle density 
+  real(dp)                                       :: Psize = 0.0D0  ! Particle size
+  real(dp)                                       :: Pbuoy = 0.0D0  ! Particle buoyancy
+  real(dp)                                       :: Wtemp = 0.0D0  ! Water temperature
+  real(dp)                                       :: Wpsal = 0.0D0  ! Water salinity
+  real(dp)                                       :: Wdens  = 0.0D0 ! Water density
+  real(dp)                                       :: Wtrac = 0.0D0  ! Water tracer conc.
 end type type_float
 
 integer                                          :: Nfloats = 0
@@ -71,8 +72,8 @@ real(dp)                                         :: Release_zo      = 0.0D0
 real(dp)                                         :: Release_to      = 0.0D0
 real(dp)                                         :: Release_rho     = 1027.0D0
 real(dp)                                         :: Release_size    = 1D-4 ! 2r
-character(len=maxlen)                            :: Release_file
-character(len=maxlen)                            :: Release_time
+character(len=maxlen)                            :: Release_file    = ''
+character(len=maxlen)                            :: Release_time    = ''
 
 ! ... Release of a random cloud of particles:
 ! ...
@@ -91,7 +92,7 @@ contains
   subroutine float_ini
 
     type(type_date) release_date
-    logical withdate,valid,is_land,wrng
+    logical withdate,valid,is_land,wrngF,wrngR
     integer i,j,k,l,flo
     real(dp) xmin,xmax,ymin,ymax,zmin,zmax,tmin,tmax
     real(dp) xxr,yyr,zzr,ttr
@@ -119,7 +120,7 @@ contains
         ! ...
         release_date = strptime(Release_time)
         release_date%calendar = alm_time_calendar
-        Release_to = date2num(release_date,units=alm_time_units) - alm_tini
+        Release_to = anint(date2num(release_date,units=alm_time_units) - alm_tini)
       endif
     else
       Release_to = 0.0D0
@@ -210,21 +211,33 @@ contains
     endif 
 
     if (verb.ge.1) then
-      wrng = .False.
-      if (any(FLT(:)%to.lt.0)) wrng = .True.
+      wrngF = .False.
+      wrngR = .False.
+      if (reverse) then 
+        if (any(FLT(:)%to.gt.0)) wrngR = .True.
+      else
+        if (any(FLT(:)%to.lt.0)) wrngF = .True.
+      endif
       write(*,*)
-      write(*,*) 'Floats to be released'
-      if (wrng) write(*,*) '(*) Floats with negative release time will be released at initial time'
+      write(*,*) 'Particles to be released'
+      if (wrngF) write(*,*) '(*) Floats with negative release time will be released at initial time'
+      if (wrngR) write(*,*) '(*) Floats with positive release time will be released at initial time'
       write(*,*) '   lon      lat     depth         date             secs since initial'
       write(*,*) '====================================================================='
       do i=1,Nfloats
         asterix = ' '
-        if (FLT(i)%to.lt.0) asterix = '(*)'
+        if (reverse) then
+          if (FLT(i)%to.gt.0.0D0) asterix = '(*)'
+        else
+          if (FLT(i)%to.lt.0.0D0) asterix = '(*)'
+        endif
         release_date = num2date(FLT(i)%to+alm_tini,alm_time_units,alm_time_calendar)
         write(*,'(F9.3,F9.3,F7.1,3X,A,F9.0,X,A3)') rad2deg*FLT(i)%xo, rad2deg*FLT(i)%yo, &
                                               FLT(i)%zo, release_date%iso(), FLT(i)%to,  &
                                               asterix
       enddo
+      write(*,*)
+      write(*,*) 'Number of particles: ', Nfloats
       write(*,*)
     endif
 
@@ -232,9 +245,13 @@ contains
     ! ... Also include the buoyancy-related values:
     ! ...
     do i=1,Nfloats
-      FLT(i)%to = max(FLT(i)%to,0.0D0)
-      FLT(i)%rho  = release_rho
-      FLT(i)%size = release_size
+      if (reverse) then
+        FLT(i)%to = min(FLT(i)%to,0.0D0)
+      else
+        FLT(i)%to = max(FLT(i)%to,0.0D0)
+      endif
+      FLT(i)%Pdens = Release_rho
+      FLT(i)%Psize = Release_size
     enddo
 
     !stop '99999'
@@ -358,7 +375,7 @@ contains
         if (withdate) then
           rdate = strptime(str)
           rdate%calendar = alm_time_calendar
-          rtime(ii) = date2num(rdate,units=alm_time_units) - alm_tini
+          rtime(ii) = anint(date2num(rdate,units=alm_time_units) - alm_tini)
         else
           rtime(ii) = tt
         endif

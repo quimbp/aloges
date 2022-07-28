@@ -58,9 +58,9 @@ subroutine options
   logical                                        :: WithKH1   = .False.
   logical                                        :: WithKV1   = .False.
   logical                                        :: WithMVmin = .False.
-  logical                                        :: WithAu    = .False.
-  logical                                        :: WithAv    = .False.
-  logical                                        :: WithAw    = .False.
+  logical                                        :: WithAlfa1 = .False.
+  logical                                        :: WithAlfa2 = .False.
+  logical                                        :: WithAlfa3 = .False.
   logical                                        :: WithRx    = .False.
   logical                                        :: WithRy    = .False.
   logical                                        :: WithRz    = .False.
@@ -71,10 +71,17 @@ subroutine options
   logical                                        :: WithA22   = .False.
   logical                                        :: WithVisc  = .False.
   logical                                        :: WithSaveP = .False.
+  logical                                        :: WithWDepth= .False.
+  logical                                        :: WithUterm = .False.
+  logical                                        :: WithVterm = .False.
+  logical                                        :: WithWterm = .False.
+  logical                                        :: WithXterm = .False.
+  logical                                        :: WithYterm = .False.
+  logical                                        :: WithRterm = .False.
+  logical                                        :: WithDVM   = .False.
 
   integer                                        :: na,i
   character(len=maxlen)                          :: word
-  character(len=maxlen)                          :: rhovalue
   character(len=400)                             :: OUlist=''
   character(len=400)                             :: OVlist=''
   character(len=400)                             :: OWlist=''
@@ -84,6 +91,9 @@ subroutine options
   character(len=400)                             :: OClist=''
   character(len=400)                             :: AUlist=''
   character(len=400)                             :: AVlist=''
+  character(len=400)                             :: GRlist=''
+  character(len=400)                             :: uplist=''
+  character(len=400)                             :: DVMlist=''
 
 
     ! ... Fill in the help information
@@ -95,8 +105,8 @@ subroutine options
 
     ! ... Check for help
     ! ...
-    call argflg('-he',fhlp)
-    call argflg('--he',fhlp)
+    call linearg('-he',fhlp)
+    call linearg('--he',fhlp)
 
     if (fhlp) then
       call HLP%write()
@@ -105,71 +115,159 @@ subroutine options
 
     ! ... Verbose level
     ! ...
-    call argint('-verbose',WithVerb,verb)
-    call argint('-verb',WithVerb,verb)
+    call linearg('-verbose',WithVerb,verb)
+    call linearg('-verb',WithVerb,verb)
 
-    call arglst('-OU',WithOU,OUlist)
-    call arglst('-OV',WithOV,OVlist)
-    call arglst('-OW',WithOW,OWlist)
-    call arglst('-OT',WithOT,OTlist)
-    call arglst('-OS',WithOS,OSlist)
-    call arglst('-OR',WithOR,ORlist)
-    call arglst('-OC',WithOC,OClist)
-    call arglst('-AU',WithAU,AUlist)
-    call arglst('-AV',WithAV,AVlist)
+    call linearg('-OU',WithUterm,OUlist)
+    call linearg('-OV',WithVterm,OVlist)
+    call linearg('-OW',WithWterm,OWlist)
+    call linearg('-OR',WithRterm,ORlist)
+    call linearg('-AU',WithXterm,AUlist)
+    call linearg('-AV',WithYterm,AVlist)
 
-    call argflg('-cart',Cartesian)
-    call argflg('-Cart',Cartesian)
-    call argflg('-CART',Cartesian)
+    call linearg('-OT',WithOT,OTlist)
+    call linearg('-OS',WithOS,OSlist)
+    call linearg('-OC',WithOC,OClist)
+    call linearg('-makegrid',WithMakeGrid,GRlist)
+
+    call linearg('-cart',Cartesian)
     Spherical = .not.Cartesian
 
-    OUfilename = 'fakebasin.nc'
-    OUxname    = 'lon'
-    OUyname    = 'lat'
-    OUzname    = 'depth'
-    OUtname    = 'time'
-    OUvname    = 'u'
+    call linearg('-eos',WithEOS)
+    if (WithEOS.and.WithRterm) call crash('Incompatible options -eos and -OR')
+    if (WithEOS.and..not.WithOT) call crash('Option -eos requires at least -OT option')
 
-    OVfilename = 'fakebasin.nc'
-    OVxname    = 'lon'
-    OVyname    = 'lat'
-    OVzname    = 'depth'
-    OVtname    = 'time'
-    OVvname    = 'v'
+    model_density = WithRterm.or.WithEOS
 
-!  OWfilename = 'fakebasin.nc'
-    OWxname    = 'lon'
-    OWyname    = 'lat'
-    OWzname    = 'depth'
-    OWtname    = 'time'
-    OWvname    = 'w'
+    if (count([WithUterm,WithVterm]).ne.2) call crash('Horizontal currents not specified')
+    if (count([WithXterm,WithYterm]).eq.1) call crash('Both wind components are required')
+    if (WithXterm) Winds = .True.
 
     ! ... OU, OV, OW, OT, OS, OR, OC options
     ! ...
-    if (WithOU) then
+    if (WithUterm) then
       OUfilename = token_read(OUlist,'file=')
+      if (len_trim(OUfilename).ne.0) WithOU = .True.
       word = token_read(OUlist,'var='); if (len_trim(word).gt.0) OUvname = trim(word)
       word = token_read(OUlist,'x=');   if (len_trim(word).gt.0) OUxname = trim(word)
       word = token_read(OUlist,'y=');   if (len_trim(word).gt.0) OUyname = trim(word)
       word = token_read(OUlist,'z=');   if (len_trim(word).gt.0) OUzname = trim(word)
       word = token_read(OUlist,'t=');   if (len_trim(word).gt.0) OUtname = trim(word)
+      word = token_read(OUlist,'val=')
+      if (len_trim(word).gt.0) then
+        model_fixed_ou = .True.
+        read(word,*) model_value_ou
+      endif
+      uplist = uppercase(OUlist)
+      if (index(uplist,'CLIM').gt.0) OUClim = .True.
+      if (index(uplist,'CLIM').gt.0) GOU%Climatology = .True.
+      if (count([model_fixed_ou,WithOU]).eq.0) call crash('For -OU, missing file or val tokens')
     endif
-    if (WithOV) then
+
+    if (WithVterm) then
       OVfilename = token_read(OVlist,'file=')
+      if (len_trim(OVfilename).ne.0) WithOV = .True.
       word = token_read(OVlist,'var='); if (len_trim(word).gt.0) OVvname = trim(word)
       word = token_read(OVlist,'x=');   if (len_trim(word).gt.0) OVxname = trim(word)
       word = token_read(OVlist,'y=');   if (len_trim(word).gt.0) OVyname = trim(word)
       word = token_read(OVlist,'z=');   if (len_trim(word).gt.0) OVzname = trim(word)
       word = token_read(OVlist,'t=');   if (len_trim(word).gt.0) OVtname = trim(word)
+      word = token_read(OVlist,'val=')
+      if (len_trim(word).gt.0) then
+        model_fixed_ov = .True.
+        read(word,*) model_value_ov
+      endif
+      uplist = uppercase(OVlist)
+      if (index(uplist,'CLIM').gt.0) OVClim = .True.
+      if (index(uplist,'CLIM').gt.0) GOV%Climatology = .True.
+      if (count([model_fixed_ov,WithOV]).eq.0) call crash('For -OV, missing file or val tokens')
     endif
-    if (WithOW) then
+    
+
+    if (WithWterm) then
       OWfilename = token_read(OWlist,'file=')
+      if (len_trim(OWfilename).ne.0) WithOW = .True.
       word = token_read(OWlist,'var='); if (len_trim(word).gt.0) OWvname = trim(word)
       word = token_read(OWlist,'x=');   if (len_trim(word).gt.0) OWxname = trim(word)
       word = token_read(OWlist,'y=');   if (len_trim(word).gt.0) OWyname = trim(word)
       word = token_read(OWlist,'z=');   if (len_trim(word).gt.0) OWzname = trim(word)
       word = token_read(OWlist,'t=');   if (len_trim(word).gt.0) OWtname = trim(word)
+      if (len_trim(word).gt.0) then
+        model_fixed_ow = .True.
+        read(word,*) model_value_ow
+      endif
+      uplist = uppercase(OWlist)
+      if (index(uplist,'CLIM').gt.0) OWClim = .True.
+      if (index(uplist,'CLIM').gt.0) GOW%Climatology = .True.
+      if (count([model_fixed_ow,WithOW]).eq.0) call crash('For -OW, missing file or val tokens')
     endif
+
+    if (WithXterm) then
+      AUfilename = token_read(AUlist,'file=')
+      if (len_trim(AUfilename).ne.0) WithAU = .True.
+      word = token_read(AUlist,'var='); if (len_trim(word).gt.0) AUvname = trim(word)
+      word = token_read(AUlist,'x=');   if (len_trim(word).gt.0) AUxname = trim(word)
+      word = token_read(AUlist,'y=');   if (len_trim(word).gt.0) AUyname = trim(word)
+      word = token_read(AUlist,'z=');   if (len_trim(word).gt.0) AUzname = trim(word)
+      word = token_read(AUlist,'t=');   if (len_trim(word).gt.0) AUtname = trim(word)
+      word = token_read(AUlist,'val=')
+      if (len_trim(word).gt.0) then
+        model_fixed_au = .True.
+        read(word,*) model_value_au
+      endif
+      uplist = uppercase(AUlist)
+      if (index(uplist,'CLIM').gt.0) AUClim = .True.
+      if (index(uplist,'CLIM').gt.0) GAU%Climatology = .True.
+      if (count([model_fixed_au,WithAU]).eq.0) call crash('For -AU, missing file or val tokens')
+    endif
+
+    if (WithYterm) then
+      AVfilename = token_read(AVlist,'file=')
+      if (len_trim(AVfilename).ne.0) WithAV = .True.
+      word = token_read(AVlist,'var='); if (len_trim(word).gt.0) AVvname = trim(word)
+      word = token_read(AVlist,'x=');   if (len_trim(word).gt.0) AVxname = trim(word)
+      word = token_read(AVlist,'y=');   if (len_trim(word).gt.0) AVyname = trim(word)
+      word = token_read(AVlist,'z=');   if (len_trim(word).gt.0) AVzname = trim(word)
+      word = token_read(AVlist,'t=');   if (len_trim(word).gt.0) AVtname = trim(word)
+      word = token_read(AVlist,'val=')
+      if (len_trim(word).gt.0) then
+        model_fixed_av = .True.
+        read(word,*) model_value_av
+      endif
+      uplist = uppercase(AVlist)
+      if (index(uplist,'CLIM').gt.0) AVClim = .True.
+      if (index(uplist,'CLIM').gt.0) GAV%Climatology = .True.
+      if (count([model_fixed_av,WithAV]).eq.0) call crash('For -AV, missing file or val tokens')
+    endif
+
+    if (WithRterm) then
+      ORfilename = token_read(ORlist,'file=')
+      if (len_trim(ORfilename).ne.0) WithOR = .True.
+      word = token_read(ORlist,'var='); if (len_trim(word).gt.0) ORvname = trim(word)
+      word = token_read(ORlist,'x=');   if (len_trim(word).gt.0) ORxname = trim(word)
+      word = token_read(ORlist,'y=');   if (len_trim(word).gt.0) ORyname = trim(word)
+      word = token_read(ORlist,'z=');   if (len_trim(word).gt.0) ORzname = trim(word)
+      word = token_read(ORlist,'t=');   if (len_trim(word).gt.0) ORtname = trim(word)
+      word = token_read(ORlist,'val=')
+      if (len_trim(word).gt.0) then
+        word = uppercase(word)
+        if (is_numeric(word)) then
+          read(word,*) model_value_rho
+          if (verb.ge.3) write(*,*) 'Constant water density: ', model_value_rho
+          water_density_method = 0
+        else
+          if (verb.ge.3) write(*,*) 'Water density from analytical model'
+          !WithOR = .False.
+          water_density_method = 1
+        endif
+      else if (WithOR) then
+        if (verb.ge.3) write(*,*) 'Water density from file'
+        water_density_method = 2
+      else
+        call crash('Invalid density options')
+      endif
+    endif
+
 
     if (WithOT) then
       OTfilename = token_read(OTlist,'file=')
@@ -187,31 +285,6 @@ subroutine options
       word = token_read(OSlist,'z=');   if (len_trim(word).gt.0) OSzname = trim(word)
       word = token_read(OSlist,'t=');   if (len_trim(word).gt.0) OStname = trim(word)
     endif
-    if (WithOR) then
-      ORfilename = token_read(ORlist,'file=')
-      rhovalue = token_read(ORlist,'value=')
-      if (len_trim(rhovalue).gt.0) then
-        rhovalue = uppercase(rhovalue)
-        if(is_numeric(rhovalue)) then
-          if (verb.ge.3) write(*,*) 'Constant water density: ', trim(rhovalue)
-          WithOR = .False.
-          water_density_method = 0
-          read(rhovalue,*) water_rho
-        else
-          if (verb.ge.3) write(*,*) 'Water density from analytical model'
-          WithOR = .False.
-          water_density_method = 1
-        endif
-      else
-        if (verb.ge.3) write(*,*) 'Water density from file'
-        water_density_method = 2
-        word = token_read(ORlist,'var='); if (len_trim(word).gt.0) ORvname = trim(word)
-        word = token_read(ORlist,'x=');   if (len_trim(word).gt.0) ORxname = trim(word)
-        word = token_read(ORlist,'y=');   if (len_trim(word).gt.0) ORyname = trim(word)
-        word = token_read(ORlist,'z=');   if (len_trim(word).gt.0) ORzname = trim(word)
-        word = token_read(ORlist,'t=');   if (len_trim(word).gt.0) ORtname = trim(word)
-      endif
-    endif
 
     if (WithOC) then
       OCfilename = token_read(OClist,'file=')
@@ -221,105 +294,83 @@ subroutine options
       word = token_read(OClist,'z=');   if (len_trim(word).gt.0) OCzname = trim(word)
       word = token_read(OClist,'t=');   if (len_trim(word).gt.0) OCtname = trim(word)
     endif
-    if (WithAU) then
-      AUfilename = token_read(AUlist,'file=')
-      word = token_read(AUlist,'var='); if (len_trim(word).gt.0) AUvname = trim(word)
-      word = token_read(AUlist,'x=');   if (len_trim(word).gt.0) AUxname = trim(word)
-      word = token_read(AUlist,'y=');   if (len_trim(word).gt.0) AUyname = trim(word)
-      word = token_read(AUlist,'z=');   if (len_trim(word).gt.0) AUzname = trim(word)
-      word = token_read(AUlist,'t=');   if (len_trim(word).gt.0) AUtname = trim(word)
+
+    if (WithMakeGrid) then
+      word = token_read(GRlist,'west='); if (len_trim(word).gt.0) read(word,*) alm_xmin
+      word = token_read(GRlist,'east='); if (len_trim(word).gt.0) read(word,*) alm_xmax
+      word = token_read(GRlist,'south='); if (len_trim(word).gt.0) read(word,*) alm_ymin
+      word = token_read(GRlist,'north='); if (len_trim(word).gt.0) read(word,*) alm_ymax
+      word = token_read(GRlist,'depth='); if (len_trim(word).gt.0) read(word,*) alm_depth
+      word = token_read(GRlist,'dx='); if (len_trim(word).gt.0) read(word,*) alm_dx
+      word = token_read(GRlist,'dy='); if (len_trim(word).gt.0) read(word,*) alm_dy
+      word = token_read(GRlist,'dz='); if (len_trim(word).gt.0) read(word,*) alm_dz
+      alm_zmin = -abs(alm_depth)
+      alm_zmax = 0.0D0
     endif
-    if (WithAV) then
-      AVfilename = token_read(AVlist,'file=')
-      word = token_read(AVlist,'var='); if (len_trim(word).gt.0) AVvname = trim(word)
-      word = token_read(AVlist,'x=');   if (len_trim(word).gt.0) AVxname = trim(word)
-      word = token_read(AVlist,'y=');   if (len_trim(word).gt.0) AVyname = trim(word)
-      word = token_read(AVlist,'z=');   if (len_trim(word).gt.0) AVzname = trim(word)
-      word = token_read(AVlist,'t=');   if (len_trim(word).gt.0) AVtname = trim(word)
-    endif
+       
+    WithClim = .False.
+    if (any([OUClim,OVClim,OWClim,AUClim,AVClim])) WithClim = .True.
 
     ! ... Model crop:
     ! ...
-    call argdbl('-xmin',WithXmin,forcing_xmin)
-    call argdbl('-xmax',WithXmax,forcing_xmax)
-    call argdbl('-ymin',WithYmin,forcing_ymin)
-    call argdbl('-ymax',WithYmax,forcing_ymax)
+    call linearg('-xmin',WithXmin,forcing_xmin)
+    call linearg('-xmax',WithXmax,forcing_xmax)
+    call linearg('-ymin',WithYmin,forcing_ymin)
+    call linearg('-ymax',WithYmax,forcing_ymax)
     if (WithXmin) forcing_xmin = deg2rad*forcing_xmin
     if (WithXmax) forcing_xmax = deg2rad*forcing_xmax
     if (WithYmin) forcing_ymin = deg2rad*forcing_ymin
     if (WithYmax) forcing_ymax = deg2rad*forcing_ymax
 
 
-    call argdbl('-KH0',WithKH0,noise_KH0)
-    call argdbl('-Kh0',WithKH0,noise_KH0)
-    call argdbl('-kh0',WithKH0,noise_KH0)
-    call argdbl('-KV0',WithKV0,noise_KV0)
-    call argdbl('-Kv0',WithKV0,noise_KV0)
-    call argdbl('-kv0',WithKV0,noise_KV0)
-    call argdbl('-KH1',WithKH1,noise_KH1)
-    call argdbl('-Kh1',WithKH1,noise_KH1)
-    call argdbl('-kh1',WithKH1,noise_KH1)
-    call argdbl('-KV1',WithKV1,noise_KV1)
-    call argdbl('-Kv1',WithKV1,noise_KV1)
-    call argdbl('-kv1',WithKV1,noise_KV1)
+    call linearg('-kh0',WithKH0,noise_KH0)
+    call linearg('-kv0',WithKV0,noise_KV0)
+    call linearg('-kh1',WithKH1,noise_KH1)
+    call linearg('-kv1',WithKV1,noise_KV1)
 
     ! ... Velocity factor
     ! ...
-    call argdbl('-au',WithAu,alpha(1))
-    call argdbl('-av',WithAv,alpha(2))
-    call argdbl('-aw',WithAw,alpha(3))
+    call linearg('-alpha1',WithAlfa1,alpha(1))
+    call linearg('-alpha2',WithAlfa2,alpha(2))
+    call linearg('-alpha2',WithAlfa3,alpha(3))
     
     ! ... Trajectory name and final point
     ! ...
-    call argstr('-trajectory',WithTname,trajectory_name)
-    call argstr('-endpos',WithTfnal,trajectory_final)
-    call argint('-saveper',WithSaveP,save_period)
+    call linearg('-trajectory',WithTname,trajectory_name)
+    call linearg('-end',WithTfnal,trajectory_final)
+    call linearg('-saveper',WithSaveP,save_period)
 
     ! ... Pereiro, 2019, minimum thrsthold velovity parameter
     ! ...
-    call argdbl('-velmin',WithMVmin,model_velmin)
+    call linearg('-velmin',WithMVmin,model_velmin)
     model_velmin = max(0.0D0,model_velmin)
 
     ! ... Float release
     ! ...
-    call argstr('-rel',Release_by_file,Release_file)
-    call argdbl('-xo',WithReleaseXo,Release_xo)
-    call argdbl('-yo',WithReleaseYo,Release_yo)
-    call argdbl('-zo',WithReleaseZo,Release_zo)
-    call argstr('-to',WithReleaseTime,Release_time)
-    call argdbl('-ro',WithReleaseRho,Release_rho)
-    call argdbl('-so',WithReleaseSize,Release_size)
-    if (WithReleaseRho.and.water_density_method.lt.0) then
-      call crash('No water density method has been specified.')
+    call linearg('-rel',Release_by_file,Release_file)
+    call linearg('-xo',WithReleaseXo,Release_xo)
+    call linearg('-yo',WithReleaseYo,Release_yo)
+    call linearg('-zo',WithReleaseZo,Release_zo)
+    call linearg('-to',WithReleaseTime,Release_time)
+    call linearg('-ro',WithReleaseRho,Release_rho)
+    call linearg('-so',WithReleaseSize,Release_size)
+
+    if ( WithReleaseRho.or.WithReleaseSize) Particle_buoyant = .True.
+    if (Particle_buoyant) then
+      if (.not.model_density) call crash('Buoyant particle needs density specification')
     endif
 
-    if (water_density_method.ge.0.or. &
-        WithReleaseRho.or. &
-        WithReleaseSize) model_buoyancy = .True.
-
-    call argdbl('-vis',WithVisc,water_visc)
+    call linearg('-vis',WithVisc,water_visc)
 
     ! ... Random floats
     ! ...
-    call argint('-random',WithRandom,Nrandom)
-    call argint('-cloud',WithRandom,Nrandom)
-    call argint('-ensemble',WithRandom,Nrandom)
-    call argdbl('-Rx',WithRx,Radius_x)
-    call argdbl('-RX',WithRx,Radius_x)
-    call argdbl('-rx',WithRx,Radius_x)
-    call argdbl('-rX',WithRx,Radius_x)
-    call argdbl('-Ry',WithRy,Radius_y)
-    call argdbl('-RY',WithRy,Radius_y)
-    call argdbl('-ry',WithRy,Radius_y)
-    call argdbl('-rY',WithRy,Radius_y)
-    call argdbl('-Rz',WithRz,Radius_z)
-    call argdbl('-RZ',WithRz,Radius_z)
-    call argdbl('-rz',WithRz,Radius_z)
-    call argdbl('-rZ',WithRz,Radius_z)
-    call argdbl('-Rt',WithRt,Radius_t)
-    call argdbl('-RT',WithRt,Radius_t)
-    call argdbl('-rt',WithRt,Radius_t)
-    call argdbl('-rT',WithRt,Radius_t)
+    call linearg('-random',WithRandom,Nrandom)
+    call linearg('-cloud',WithRandom,Nrandom)
+    call linearg('-ensemble',WithRandom,Nrandom)
+    call linearg('-rx',WithRx,Radius_x)
+    call linearg('-ry',WithRy,Radius_y)
+    call linearg('-rz',WithRz,Radius_z)
+    call linearg('-rt',WithRt,Radius_t)
 
 
     Release_by_pos = WithReleaseXo .or. WithReleaseYo 
@@ -343,16 +394,17 @@ subroutine options
 
     ! ... Reverse simulation
     ! ...
-    call argflg('-reverse',reverse)
-    call argflg('-backward',reverse)
+    call linearg('-reverse',reverse)
+    call linearg('-backward',reverse)
 
     ! ... Model time step
     ! ...
-    call argdbl('-dt',WithDt,model_dt)
+    call linearg('-dt',WithDt,model_dt)
+    model_dt = anint(model_dt)
 
-    call argstr('-from',WithTini,StrgTini)
-    call argstr('-for',WithTlen,StrgTlen)
-    call argstr('-during',WithTlen,StrgTlen)
+    call linearg('-from',WithTini,StrgTini)
+    call linearg('-for',WithTlen,StrgTlen)
+    call linearg('-during',WithTlen,StrgTlen)
 
 
     ! ... Retrieve user-defined model simulation legth
@@ -362,27 +414,28 @@ subroutine options
         ! ... no units provided. Default units: "days"
         ! ...
         read(StrgTlen,*) UserTlen
-        USerTlen = UserTlen * 86400              ! Convert to seconds
+        USerTlen = anint(UserTlen * 86400)              ! Convert to seconds
       else
         StrgTlen = uppercase(StrgTlen)
         i = index(StrgTlen,'D')
         if (i.gt.0) then
           read(StrgTlen(1:i-1),*) UserTlen
-          USerTlen = UserTlen * 86400            ! Convert to seconds
+          USerTlen = anint(UserTlen * 86400)           ! Convert to seconds
         else 
           i = index(StrgTlen,'H')
           if (i.gt.0) then
             read(StrgTlen(1:i-1),*) UserTlen
-            USerTlen = UserTlen * 3600           ! Convert to seconds
+            USerTlen = anint(UserTlen * 3600)          ! Convert to seconds
           else
             i = index(StrgTlen,'M')
             if (i.gt.0) then
               read(StrgTlen(1:i-1),*) UserTlen
-              USerTlen = UserTlen * 60           ! Convert to seconds
+              USerTlen = anint(UserTlen * 60)          ! Convert to seconds
             else
               i = index(StrgTlen,'S')
               if (i.gt.0) then
                 read(StrgTlen(1:i-1),*) UserTlen ! Already in seconds
+                UserTlen = anint(UserTlen)
               else
                 call crash('Invalid units in simulation length option')
               endif
@@ -392,30 +445,60 @@ subroutine options
       endif
     endif
 
+    ! ... If a climatology field, we require the user to use the options -from and -for
+    ! ...
+    if (WithClim) then
+      if (.not.WithTini.or..not.WithTlen) call crash('Climatology requires options -from and -for')
+    endif
+
     ! ... Wind Response matrix A11, A12, A21, A22:
     ! ...
-    call argdbl('-a11',WithA11,A11)
-    call argdbl('-A11',WithA11,A11)
-    call argdbl('-a12',WithA12,A12)
-    call argdbl('-A12',WithA12,A12)
-    call argdbl('-a21',WithA21,A21)
-    call argdbl('-A21',WithA21,A21)
-    call argdbl('-a22',WithA22,A22)
-    call argdbl('-A22',WithA22,A22)
+    call linearg('-winddepth',WithWDepth,WindDepth)
+    call linearg('-a11',WithA11,A11)
+    call linearg('-a11',WithA11,A11)
+    call linearg('-a12',WithA12,A12)
+    call linearg('-a21',WithA21,A21)
+    call linearg('-a22',WithA22,A22)
+    WindDepth = -abs(WindDepth)
 
+    ! ... Options for the Equation of state
+    ! ... The model can calculate the density of the water, independently of the 
+    ! ... application, or not, of the buoyancy term. The buoyancy term is activated
+    ! ... if the option -ro (for setting the density of the particle). This activates
+    ! ... the flag: Particle_buoyant
+    ! ... The options to track the density are activated via the option -OR or via 
+    ! ... the option -EOS, for using temperature and salinity. If any of these two
+    ! ... are used, it activates the flag model_density.
+    ! ... 
+    if (model_density) then
+      if (WithRterm) then
+        !if (verb.ge.1) write(*,*) 'Density information provided'
+      else 
+        if (WithOS) then
+          water_density_method = 4
+          !if (verb.ge.1) write(*,*) 'Simplified Equation of State'
+        else
+          water_density_method = 3
+          !if (verb.ge.1) write(*,*) 'Linear Temperature Equation of State'
+          EOS_b0   = 0.0D0  ! halin. expan.
+          EOS_lam1 = 0.0D0  ! T2 cabbeling
+          EOS_lam2 = 0.0D0  ! S2 cabbeling
+          EOS_nu   = 0.0D0  ! TS cabbeling
+          EOS_mu1  = 0.0D0  ! T thermobaric
+          EOS_mu2  = 0.0D0  ! S thermobaric
+        endif
+      endif
+    endif
 
-    ! ... Forcing specification flags
+    ! ... Options for Diel Vertical Motion (DVM)
     ! ...
-    if (len_trim(OUfilename).gt.0) WithOU = .True.
-    if (len_trim(OVfilename).gt.0) WithOV = .True.
-    if (len_trim(OWfilename).gt.0) WithOW = .True.
-    if (len_trim(OTfilename).gt.0) WithOT = .True.
-    if (len_trim(OSfilename).gt.0) WithOS = .True.
-    if (len_trim(ORfilename).gt.0) WithOR = .True.
-    if (len_trim(OCfilename).gt.0) WithOW = .True.
-    if (len_trim(AUfilename).gt.0) WithAU = .True.
-    if (len_trim(AVfilename).gt.0) WithAV = .True.
-
+    call linearg('-DVM',WithDVM,DVMlist)
+    if (WithDVM) then
+      Particle_dvm = .True.
+      word = token_read(DVMlist,'zday='); if (len_trim(word).gt.0) read(word,*) dvm_zday 
+      word = token_read(DVMlist,'znight='); if (len_trim(word).gt.0) read(word,*) dvm_znight 
+      word = token_read(DVMlist,'tvm='); if (len_trim(word).gt.0) read(word,*) dvm_tvm
+    endif
 
 
     ! ... Check options

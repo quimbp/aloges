@@ -29,7 +29,9 @@ use module_float
 use module_model
 
 implicit none
-  
+
+call date_now(now)
+ 
 ! ... Initial messaje
 ! ...
 call hello()
@@ -70,7 +72,7 @@ call define_alm_domain()
 if (WithTini) then
   UserDini = strptime(StrgTini)
   UserDini%calendar = trim(model_time_calendar)
-  UserTini = date2num(UserDini,units=model_time_units)
+  UserTini = anint(date2num(UserDini,units=model_time_units))
 else
   UserTini = 0.0D0
 endif
@@ -79,38 +81,38 @@ if (reverse) then
   ! ... Backward model
   ! ...
   if (WithTini) then
-    alm_tini = min(forcing_tmax,UserTini)
+    alm_tini = anint(min(forcing_tmax,UserTini))
   else
     write(*,*) 'WARNING: No user-provided initial date'
     write(*,*) '         Backward Model initial time = Forcing final time.'
-    alm_tini = forcing_tmax
+    alm_tini = anint(forcing_tmax)
   endif
   if (WithTlen) then
-    alm_tfin = max(alm_tini-UserTlen,forcing_tmin)
+    alm_tfin = anint(max(alm_tini-UserTlen,forcing_tmin))
   else
     write(*,*) 'WARNING: No user-provided simulation length'
     write(*,*) '         Backward Model final time = Forcing initial time.'
-    alm_tfin = forcing_tmin
+    alm_tfin = anint(forcing_tmin)
   endif
 else
   ! ... Forward model
   ! ...
   if (WithTini) then
-    alm_tini = max(forcing_tmin,UserTini)
+    alm_tini = anint(max(forcing_tmin,UserTini))
   else
     write(*,*) 'WARNING: No user-provided initial date'
     write(*,*) '         Forward Model initial time = Forcing initial time.'
     alm_tini = forcing_tmin
   endif
   if (WithTlen) then
-    alm_tfin = min(alm_tini+UserTlen,forcing_tmax)
+    alm_tfin = anint(min(alm_tini+UserTlen,forcing_tmax))
   else
     write(*,*) 'WARNING: No user-provided simulation length'
     write(*,*) '         Forward Model final time = Forcing final time.'
     alm_tfin = forcing_tmax
   endif
 endif
-alm_tlen = nint(alm_tfin - alm_tini)
+alm_tlen = anint(alm_tfin - alm_tini)
 
 model_dini = num2date(model_tini,units=model_time_units, &
                       calendar=model_time_calendar)
@@ -255,7 +257,7 @@ contains
     enddo
     enddo
 
-    if (verb.ge.4) then
+    if (verb.ge.6) then
       write(*,*) 'Land-sea mask: 1-Water, 0-Land'
       do k=1,alm_nz
         write(*,*) 'K and depth: ', k, alm_z(k)

@@ -83,6 +83,13 @@ type type_ncgrid
   integer                                        :: file_nz,ka,kb,nz
   integer                                        :: file_nt,la,lb,nt
   integer, dimension(:), pointer                 :: dlen
+  ! ... we introduce the time and dates associated to rec1 and rec2. It is 
+  ! ... evident in most of the cases (i.e. t(rec1) ), however
+  ! ... is less evident in the case of the climatological forcing
+  real(dp)                                       :: trec1 = 0.0D0    ! time(rec1)
+  real(dp)                                       :: trec2 = 0.0D0    ! time(rec2) 
+  type(type_date)                                :: drec1
+  type(type_date)                                :: drec2
   real(dp)                                       :: file_xmin,xmin
   real(dp)                                       :: file_xmax,xmax
   real(dp)                                       :: file_ymin,ymin
@@ -93,9 +100,9 @@ type type_ncgrid
   real(dp)                                       :: file_tmax,tmax
   real(dp)                                       :: Dconversion
   real(dp)                                       :: Rconversion
-  real(dp)                                       :: Xsign = 1.0D0
-  real(dp)                                       :: Ysign = 1.0D0
-  real(dp)                                       :: Zsign = 1.0D0
+  integer                                        :: Xsign = 1
+  integer                                        :: Ysign = 1
+  integer                                        :: Zsign = 1
   real(dp), dimension(:), pointer                :: file_lon1,lon1,x1
   real(dp), dimension(:), pointer                :: file_lat1,lat1,y1
   real(dp), dimension(:,:), pointer              :: file_lon2,lon2,x2
@@ -260,7 +267,7 @@ contains
     GRD%xname = 'NONE'
     if (len_trim(xname).gt.0) then
       ! ... The variable name has been given by the user
-      if (xname.ne.'NONE') then
+      if (xname.ne.'-') then
         err = NF90_INQ_VARID(GRD%fid,xname,i)
         if (err.eq.NF90_NOERR) then
           GRD%idx = i
@@ -287,7 +294,7 @@ contains
     GRD%yname = 'NONE'
     if (len_trim(yname).gt.0) then
       ! ... The variable name has been given by the user
-      if (yname.ne.'NONE') then
+      if (yname.ne.'-') then
         err = NF90_INQ_VARID(GRD%fid,yname,i)
         if (err.eq.NF90_NOERR) then
           GRD%idy = i
@@ -314,7 +321,7 @@ contains
     GRD%zname = 'NONE'
     if (len_trim(zname).gt.0) then
       ! ... The variable name has been given by the user
-      if (zname.ne.'NONE') then
+      if (zname.ne.'-') then
         err = NF90_INQ_VARID(GRD%fid,zname,i)
         if (err.eq.NF90_NOERR) then
           GRD%idz = i
@@ -341,7 +348,7 @@ contains
     GRD%tname = 'NONE'
     if (len_trim(tname).gt.0) then
       ! ... The variable name has been given by the user
-      if (tname.ne.'NONE') then
+      if (tname.ne.'-') then
         err = NF90_INQ_VARID(GRD%fid,tname,i)
         if (err.eq.NF90_NOERR) then
           GRD%idt = i
@@ -600,17 +607,22 @@ contains
       else
         calendar = trim(mycalendar)
       endif
+      call check_calendar(calendar)
       
       do i=1,GRD%nt
         GRD%file_date(i) = num2date(GRD%file_t(i),units=time_units,calendar=calendar)
         GRD%date(i) = num2date(GRD%file_t(i),units=time_units,calendar=calendar)
-        GRD%t(i)    = date2num(GRD%date(i),units=standard_time_units)
+        GRD%t(i)    = anint(date2num(GRD%date(i),units=standard_time_units))
       enddo
       GRD%time_units = trim(time_units)
       GRD%calendar   = trim(calendar)
       GRD%file_tmin = minval(GRD%t)
       GRD%file_tmax = maxval(GRD%t)
     endif
+
+    ! ... Make sure to tag a stationary any field with just a single time record
+    ! ...
+    if (GRD%nt.eq.1) GRD%Stationary = .True.
        
     GRD%xmin = GRD%file_xmin
     GRD%xmax = GRD%file_xmax
@@ -775,6 +787,9 @@ contains
           where(wrk3d.eq.GRD%var(var)%missing_value) GRD%var(var)%mask = 0.0_dp
           deallocate(wrk3d)
 
+        else if (GRD%var(var)%ndims.eq.0) then
+          ! ... Scalar variable. Nothing to do !
+          ! ...
         else
 
           call crash('Error while getting mask. Invalid number of dimensions')
@@ -790,6 +805,10 @@ contains
   ! ...
   subroutine grid_crop(GRD,xmin,xmax,ymin,ymax,tmin,tmax)
 
+    ! ... Horizontal cropping
+    ! ... No cropping on Z dimension
+    ! ... No cropping on T dimension if Climatology
+    ! ...
     class(type_ncgrid), intent(inout)            :: GRD
     real(dp), intent(in)                         :: xmin,xmax
     real(dp), intent(in)                         :: ymin,ymax
@@ -797,7 +816,7 @@ contains
 
     ! ... Local variables
     ! ...
-    integer i,j,io,jo,il,jl,ni,nj
+    integer i,j,ia,ib,ja,jb,nx,ny
     real(dp), dimension(:,:), allocatable        :: tmp2
     real(dp), dimension(:), allocatable          :: tmp1
     type(type_date), dimension(:), allocatable   :: tmpd
@@ -806,179 +825,95 @@ contains
     if (xmax.gt.GRD%xmax) call crash('Domain xmax < Grid xmax')
     if (ymin.lt.GRD%ymin) call crash('Domain ymin < Grid ymin')
     if (ymax.gt.GRD%ymax) call crash('Domain ymax < Grid ymax')
-    if (tmin.lt.GRD%tmin) call crash('Domain tmin < Grid tmin')
-    if (tmax.gt.GRD%tmax) call crash('Domain tmax < Grid tmax')
+
+    if (.not.GRD%Climatology) then
+      if (tmin.lt.GRD%tmin) call crash('Domain tmin < Grid tmin')
+      if (tmax.gt.GRD%tmax) call crash('Domain tmax < Grid tmax')
+    endif
 
 
     ! ... X - Y cropping
     ! ...
-    if (GRD%grid2d) then
-      ! ... 2D-grid
-      ! ...
-      io = -1; jo = -1
-      do j=1,GRD%ny-1
-      do i=1,GRD%nx-1
-        if (GRD%x2(i,j).lt.xmin.and.GRD%x2(i+1,j).ge.xmin.and. &
-            GRD%y2(i,j).lt.ymin.and.GRD%y2(i,j+1).ge.ymin) then
-              io = i
-              jo = j
-              goto 1
-        endif
-      enddo
-      enddo
-      1 continue
-      io = max(io,1); jo = max(jo,1)
+    if (GRD%grid2d) stop 'Crop of 2D grid not yet coded'
+    
 
-      il = GRD%nx+1; jl = GRD%ny+1
-      do j=1,GRD%ny-1
-      do i=1,GRD%nx-1
-        if (GRD%x2(i,j).lt.xmax.and.GRD%x2(i+1,j).ge.xmax.and. &
-            GRD%y2(i,j).lt.ymax.and.GRD%y2(i,j+1).ge.ymax) then
-              il = i + 1
-              jl = j + 1
-              goto 2
-        endif
-      enddo
-      enddo
-      2 continue
-      il = min(il,GRD%nx); jl = min(jl,GRD%ny)
+    ! ................................
+    ! ... 1D-grids
+    ! ................................
 
-      GRD%ia = io; GRD%ib = il; ni = il-io+1; GRD%nx = ni
-      GRD%ja = jo; GRD%jb = jl; nj = jl-jo+1; GRD%ny = nj
-
-      allocate(tmp2(ni,nj))
-
-      do j=jo,jo+nj-1
-      do i=io,io+ni-1
-        tmp2(i-io+1,j-jo+1) = GRD%x2(i,j)
-      enddo
-      enddo
-      deallocate(GRD%x2)
-      allocate(GRD%x2(ni,nj))
-      do j=1,nj
-      do i=1,ni
-        GRD%x2(i,j) = tmp2(i,j)
-      enddo
-      enddo
-
-      do j=jo,jo+nj-1
-      do i=io,io+ni-1
-        tmp2(i-io+1,j-jo+1) = GRD%y2(i,j)
-      enddo
-      enddo
-      deallocate(GRD%y2)
-      allocate(GRD%y2(ni,nj))
-      do j=1,nj
-      do i=1,ni
-        GRD%y2(i,j) = tmp2(i,j)
-      enddo
-      enddo
-
-      deallocate(tmp2)
-
-      GRD%xmin = minval(GRD%x2)
-      GRD%xmax = maxval(GRD%x2)
-      GRD%ymin = minval(GRD%y2)
-      GRD%ymax = maxval(GRD%y2)
-
+                          ! ------ X
+    if (GRD%Xsign.gt.0) then
+      ia = locate(GRD%x1,xmin)
+      ib = locate(GRD%x1,xmax) + 1
+      nx = ib - ia + 1
     else
-      ! ... 1D-grid
-      ! ...
-      io = -1; jo = -1
-      do i=1,GRD%nx-1
-        if (GRD%x1(i).lt.xmin.and.GRD%x1(i+1).ge.xmin) then
-          io = i
-          exit
-        endif
-      enddo
-      do j=1,GRD%ny-1
-        if (GRD%y1(j).lt.ymin.and.GRD%y1(j+1).ge.ymin) then
-          jo = j
-          exit
-        endif
-      enddo
-      io = max(io,1); jo = max(jo,1)
-
-      il = GRD%nx+1; jl = GRD%ny+1
-      do i=1,GRD%nx-1
-        if (GRD%x1(i).lt.xmax.and.GRD%x1(i+1).ge.xmax) then
-          il = i+1
-          exit
-        endif
-      enddo
-      do j=1,GRD%ny-1
-        if (GRD%y1(j).lt.ymax.and.GRD%y1(j+1).ge.ymax) then
-          jl = j+1
-          exit
-        endif
-      enddo
-      il = min(il,GRD%nx); jl = min(jl,GRD%ny)
-
-      GRD%ia = io; GRD%ib = il; ni = il-io+1; GRD%nx = ni
-      GRD%ja = jo; GRD%jb = jl; nj = jl-jo+1; GRD%ny = nj
-
-      allocate(tmp1(max(ni,nj)))
-
-      do i=io,io+ni-1
-        tmp1(i-io+1) = GRD%x1(i)
-      enddo
-      deallocate(GRD%x1)
-      allocate(GRD%x1(ni))
-      do i=1,ni
-        GRD%x1(i) = tmp1(i)
-      enddo
-
-      do j=jo,jo+nj-1
-        tmp1(j-jo+1) = GRD%y1(j)
-      enddo
-      deallocate(GRD%y1)
-      allocate(GRD%y1(nj))
-      do j=1,nj
-        GRD%y1(j) = tmp1(j)
-      enddo
-
-      deallocate(tmp1)
-
-      GRD%xmin = minval(GRD%x1)
-      GRD%xmax = maxval(GRD%x1)
-      GRD%ymin = minval(GRD%y1)
-      GRD%ymax = maxval(GRD%y1)
+      ib = locate(GRD%x1,xmin) + 1
+      ia = locate(GRD%x1,xmax)
+      nx = ib - ia + 1
     endif
 
-    ! ... T cropping
+                          ! ------ Y
+    if (GRD%Ysign.gt.0) then
+      ja = locate(GRD%y1,ymin)
+      jb = locate(GRD%y1,ymax) + 1
+      ny = jb - ja + 1
+    else
+      jb = locate(GRD%y1,ymin) + 1
+      ja = locate(GRD%y1,ymax)
+      ny = jb - ja + 1
+    endif
+
+    GRD%ia = ia; GRD%ib = ib; GRD%nx = nx
+    GRD%ja = ja; GRD%jb = jb; GRD%ny = ny
+
+    allocate(tmp1(max(nx,ny)))
+
+    do i=ia,ia+nx-1
+      tmp1(i-ia+1) = GRD%x1(i)
+    enddo
+    deallocate(GRD%x1)
+    allocate(GRD%x1(nx))
+    do i=1,nx
+      GRD%x1(i) = tmp1(i)
+    enddo
+
+    do j=ja,ja+ny-1
+      tmp1(j-ja+1) = GRD%y1(j)
+    enddo
+    deallocate(GRD%y1)
+    allocate(GRD%y1(ny))
+    do j=1,ny
+      GRD%y1(j) = tmp1(j)
+    enddo
+
+    deallocate(tmp1)
+
+    GRD%xmin = minval(GRD%x1)
+    GRD%xmax = maxval(GRD%x1)
+    GRD%ymin = minval(GRD%y1)
+    GRD%ymax = maxval(GRD%y1)
+
+    if (GRD%Climatology) return
+
+    ! ... T cropping: Only if not climatology
     ! ...
-    io = -1
-    do i=1,GRD%nt-1
-      if (GRD%t(i).lt.tmin.and.GRD%t(i+1).ge.tmin) then
-        io = i
-        exit
-      endif
-    enddo
-    io = max(io,1)
+    ia = max(locate(GRD%t,tmin),1)
+    ib = min(locate(GRD%t,tmax),GRD%nt)
 
-    il = GRD%nt+1
-    do i=1,GRD%nt-1
-      if (GRD%t(i).lt.tmax.and.GRD%t(i+1).ge.tmax) then
-        il = i+1
-        exit
-      endif
-    enddo
-    il = min(il,GRD%nt)
+    GRD%la = ia; GRD%lb = ib; nx = ib-ia+1; GRD%nt = nx
 
-    GRD%la = io; GRD%lb = il; ni = il-io+1; GRD%nt = ni
+    allocate(tmp1(nx))
+    allocate(tmpd(nx))
 
-    allocate(tmp1(ni))
-    allocate(tmpd(ni))
-
-    do i=io,io+ni-1
-      tmp1(i-io+1) = GRD%t(i)
-      tmpd(i-io+1) = GRD%date(i)
+    do i=ia,ia+nx-1
+      tmp1(i-ia+1) = GRD%t(i)
+      tmpd(i-ia+1) = GRD%date(i)
     enddo
     deallocate(GRD%t)
     deallocate(GRD%date)
-    allocate(GRD%t(ni))
-    allocate(GRD%date(ni))
-    do i=1,ni
+    allocate(GRD%t(nx))
+    allocate(GRD%date(nx))
+    do i=1,nx
       GRD%t(i) = tmp1(i)
       GRD%date(i) = tmpd(i)
     enddo
@@ -988,8 +923,6 @@ contains
 
     ! ... Update selected bounds
     ! ...
-    GRD%zmin = minval(GRD%z)
-    GRD%zmax = maxval(GRD%z)
     GRD%tmin = minval(GRD%t)
     GRD%tmax = maxval(GRD%t)
 
@@ -1027,11 +960,15 @@ contains
     else
       write(*,*) 'Horizontal grid  : 1D '
     endif
-    if (GRD%time_arbitrary) then
-      write(*,*) 'Time units       : seconds '
+    if (GRD%Climatology) then
+      write(*,*) 'Time series      : Climatology'
     else
-      write(*,*) 'Time units       : '//trim(GRD%time_units)
-      write(*,*) 'Time calendar    : '//trim(GRD%calendar)
+      if (GRD%time_arbitrary) then
+        write(*,*) 'Time units       : seconds '
+      else
+        write(*,*) 'Time units       : '//trim(GRD%time_units)
+        write(*,*) 'Time calendar    : '//trim(GRD%calendar)
+      endif
     endif
 
 
@@ -1051,18 +988,24 @@ contains
 !    write(*,*) 'East  (deg, rad) : ', GRD%Rconversion*GRD%file_xmax,GRD%file_xmax
 !    write(*,*) 'South (deg, rad) : ', GRD%Rconversion*GRD%file_ymin,GRD%file_ymin
 !    write(*,*) 'North (deg, rad) : ', GRD%Rconversion*GRD%file_ymax,GRD%file_ymax
-    if (GRD%time_arbitrary) then
-      write(*,*) 'Initial time     : ', GRD%file_tmin
-      write(*,*) 'Final   time     : ', GRD%file_tmax
+    if (GRD%Climatology) then
+        write(*,*) 'Initial month    :    ', 'January'
+        write(*,*) 'Final   month    :    ', 'December'
     else
-      di = GRD%file_date(1)
-      df = GRD%file_date(GRD%nt)
-      write(*,*) 'Initial date     :    ', trim(di%iso())
-      write(*,*) 'Final   date     :    ', trim(df%iso())
+      if (GRD%time_arbitrary) then
+        write(*,*) 'Initial time     : ', GRD%file_tmin
+        write(*,*) 'Final   time     : ', GRD%file_tmax
+      else
+        di = GRD%file_date(1)
+        df = GRD%file_date(GRD%nt)
+        write(*,*) 'Initial date     :    ', trim(di%iso())
+        write(*,*) 'Final   date     :    ', trim(df%iso())
+      endif
     endif
     write(*,*) 
     write(*,*) '== Selected region == '
     write(*,*) 'Nx, Ny, Nz, Nt   : ', GRD%Nx, GRD%Ny, GRD%nz, GRD%nt
+    write(*,*) 'ia, ja, ka, la   : ', GRD%ia, GRD%ja, GRD%ka, GRD%la
     if (GRD%Cartesian) then
       write(*,*) 'X(1)  - X(Nx)    : ', GRD%Rconversion*GRD%xmin,GRD%Rconversion*GRD%xmax
       write(*,*) 'Y(1)  - Y(Ny)    : ', GRD%Rconversion*GRD%ymin,GRD%Rconversion*GRD%ymax
@@ -1075,14 +1018,19 @@ contains
 !    write(*,*) 'East  (deg, rad) : ', GRD%Rconversion*GRD%xmax,GRD%xmax
 !    write(*,*) 'South (deg, rad) : ', GRD%Rconversion*GRD%ymin,GRD%ymin
 !    write(*,*) 'North (deg, rad) : ', GRD%Rconversion*GRD%ymax,GRD%ymax
-    if (GRD%time_arbitrary) then
-      write(*,*) 'Initial time     : ', GRD%tmin
-      write(*,*) 'Final   time     : ', GRD%tmax
+    if (GRD%Climatology) then
+        write(*,*) 'Initial month    :    ', 'January'
+        write(*,*) 'Final   month    :    ', 'December'
     else
-      di = GRD%date(1)
-      df = GRD%date(GRD%nt)
-      write(*,*) 'Initial date     :    ', trim(di%iso())
-      write(*,*) 'Final   date     :    ', trim(df%iso())
+      if (GRD%time_arbitrary) then
+        write(*,*) 'Initial time     : ', GRD%tmin
+        write(*,*) 'Final   time     : ', GRD%tmax
+      else
+        di = GRD%date(1)
+        df = GRD%date(GRD%nt)
+        write(*,*) 'Initial date     :    ', trim(di%iso())
+        write(*,*) 'Final   date     :    ', trim(df%iso())
+      endif
     endif
     write(*,*)
 
@@ -1090,137 +1038,29 @@ contains
   ! ...
   ! ==================================================================
   ! ...
-  function grid_locate(GRD,xo,IND0) result(IND)
+  function grid_locate(GRD,xo) result(IND)
 
     class(type_ncgrid), intent(in)                       :: GRD
     real(dp), dimension(:), intent(in)                   :: xo
-    integer, dimension(size(xo)), intent(in), optional   :: IND0
     integer, dimension(size(xo))                         :: IND
 
     ! ... Local variables
     ! ...
     integer ndim,i,j,k
-    logical apply_update
 
     ndim = size(xo)
-    if (ndim.lt.2.or.ndim.gt.4) call crash('Invalid number of dimensions in grid_locate')
 
-    if (present(IND0)) then
-      apply_update = .True.
-    else
-      apply_update = .False.
-    endif
+    if (GRD%grid2d) stop 'Not coded yet'
 
-    if (apply_update) then
-
-      i = IND0(1)
-      j = IND0(2)
-      if (ndim.eq.3) k = IND0(3)
-     
-      if (GRD%grid2d) then
-
-      else
-        if (i.gt.1) then
-          do while(GRD%Xsign*xo(1).lt.GRD%Xsign*GRD%x1(i))
-            i = i - 1
-          enddo
-        endif
-        if (j.gt.1) then
-          do while(GRD%Ysign*xo(2).lt.GRD%Ysign*GRD%y1(j))
-            j = j - 1
-          enddo
-        endif
-        if (i.lt.GRD%nx-1) then
-          do while(GRD%Xsign*xo(1).ge.GRD%Xsign*GRD%x1(i+1))
-            i = i + 1
-          enddo
-        endif
-        if (j.lt.GRD%ny-1) then
-          do while(GRD%Ysign*xo(2).ge.GRD%Ysign*GRD%y1(j+1))
-            j = j + 1
-          enddo
-        endif
-
+    ! ... For 1D grids
+    ! ...
+    IND(1) = max(locate(GRD%x1,xo(1)),1)
+    if (ndim.ge.2) then
+      IND(2) = max(locate(GRD%y1,xo(2)),1)
+      if (ndim.ge.3) then
+        IND(3) = max(locate(GRD%z,xo(3)),1)
       endif
-
-      IND(1) = i
-      IND(2) = j
-
-      if (ndim.eq.3) then
-        if (k.gt.1) then
-          do while(GRD%Zsign*xo(3).lt.GRD%Zsign*GRD%z(k))
-            k = k - 1
-          enddo
-        endif
-        if (k.lt.GRD%nz-1) then
-          do while(GRD%Zsign*xo(3).ge.GRD%Zsign*GRD%z(k+1))
-            k = k + 1
-          enddo
-        endif
-        IND(3) = k
-      endif
-
-
-    else
-      IND(:) = -1
-
-      if (GRD%grid2d) then
-      
-        do j=1,GRD%ny
-        do i=1,GRD%nx
-          if ((GRD%Xsign*GRD%x2(i,j).gt.GRD%Xsign*xo(1)).and.(GRD%Ysign*GRD%y2(i,j).gt.GRD%Ysign*xo(2))) then
-            IND(1) = i-1
-            IND(2) = j-1
-            goto 1
-          endif
-        enddo
-        enddo
- 1      continue
-      else
-        if (GRD%Xsign*xo(1).lt.GRD%Xsign*GRD%x1(GRD%nx)) then
-          do i=1,GRD%nx
-            if (GRD%Xsign*GRD%x1(i).gt.GRD%Xsign*xo(1)) then
-              IND(1) = i-1
-              exit
-            endif
-          enddo
-        else if (GRD%Xsign*xo(1).gt.GRD%Xsign*GRD%x1(GRD%nx)) then
-          IND(1) = GRD%nx
-        else
-          IND(1) = GRD%nx - 1
-        endif
-        
-        if (GRD%Ysign*xo(2).lt.GRD%Ysign*GRD%y1(GRD%ny)) then
-          do j=1,GRD%ny
-            if (GRD%Ysign*GRD%y1(j).gt.GRD%Ysign*xo(2)) then
-              IND(2) = j-1
-              exit
-            endif
-          enddo
-        else if (GRD%Ysign*xo(2).gt.GRD%Ysign*GRD%y1(GRD%ny)) then
-          IND(2) = GRD%ny
-        else
-          IND(2) = GRD%ny - 1
-        endif
-
-      endif
- 
-
-      if (ndim.eq.3) then
-        if (GRD%Zsign*xo(3).gt.GRD%Zsign*GRD%z(GRD%nz)) then
-          IND(3) = GRD%nz
-        else
-          do k=1,GRD%nz
-            !if (GRD%Zsign*GRD%z(k).le.GRD%Zsign*xo(3)) then
-            if (GRD%z(k).le.xo(3)) then
-              IND(3) = k
-              exit
-            endif
-          enddo
-        endif
-      endif
-
-    endif
+    endif 
 
   end function grid_locate
   ! ...
@@ -1274,6 +1114,8 @@ contains
       t = (xo(1)-x1)/(x2-x1)
       u = (xo(2)-y1)/(y2-y1)
       !print*, 't, u = ', t, u
+      !print*, 'i1, j1, k1: ', i1, j1, k1
+      !print*, 'i2, j2, k2: ', i2, j2, k2
       F1 = (1.0D0-t)*(1.0D0-u)*F(i1,j1,k1) + &
                    t*(1.0D0-u)*F(i2,j2,k1) + &
                            t*u*F(i3,j3,k1) + &
@@ -1282,7 +1124,7 @@ contains
     else
       ! ... The interpolation point is no longer and
       ! ... interior point. 
-      stop 'Ngoods'
+      stop 'Not an interior point in grid_interpol'
       F1 = 0.0D0
       if (Good1) F1 = F1 + F(i1,j1,k1)
       if (Good2) F1 = F1 + F(i2,j2,k1)
@@ -1384,7 +1226,13 @@ contains
   else if (GRD%var(Varid)%ndims.EQ.3) then
     ! ... Read 3-Dim :
     ! ...
-    err = NF90_GET_VAR(GRD%fid,Varid,F,(/GRD%ia,GRD%ja,GRD%ka/),(/GRD%nx,GRD%ny,GRD%nz/))
+    if (GRD%idl.lt.0) then
+      err = NF90_GET_VAR(GRD%fid,Varid,F,(/GRD%ia,GRD%ja,GRD%ka/),(/GRD%nx,GRD%ny,GRD%nz/))
+    else if (GRD%idk.lt.0) then
+      err = NF90_GET_VAR(GRD%fid,Varid,F,(/GRD%ia,GRD%ja,l/),(/GRD%nx,GRD%ny,1/))
+    else
+      call crash('in GRID_READ3D. Unknown what the three dimensions are')
+    endif
     call cdf_error(err,'Reading three dimensional field in GRID_READ3D')
 
   else if (GRD%var(Varid)%ndims.EQ.4) then

@@ -25,7 +25,6 @@
 ! - cdf_error                                                              !
 ! - compress                                                               !
 ! - crash                                                                  !
-! - daily_insolation                                                       !
 ! - filename_split                                                         !
 ! - get_commandline                                                        !
 ! - is_numeric                                                             !
@@ -216,70 +215,6 @@ contains
     stop 1
 
   end subroutine crash
-  ! ...
-  ! ===================================================================
-  ! ...
-  real(dp) function daily_insolation(lat,day) result(Qsw)
-
-  ! ... Estimate solar longitude from calendar day
-  ! ... 
-    real(dp), intent(in)                         :: lat   ! Latitude in radians
-    real(dp), intent(in)                         :: day   ! Day of year: 1 - 365.25
-
-    ! ... Local variables
-    ! ...
-    real(dp), parameter                          :: S0   = 1365.2D0    ! W/m2
-    real(dp), parameter                          :: Ecc  = 0.017236D0  ! Eccentricity
-    real(dp), parameter                          :: Peri = deg2rad*281.37D0  ! Long. perihelion (rad)
-    real(dp), parameter                          :: Obli = deg2rad*23.446D0    ! Obliquity
-    real(dp), parameter                          :: Year = 365.2422D0  ! Days per year
-
-    real(dp) delta_lambda,beta,wrk,lambda_lon,delta,Ho
-    real(dp) coszen
-
-    ! ... Get solar longitude (in radians) from calendar day
-    ! ... Calendar is referenced to the vernal equinox (21 March), day 81
-    ! ...
-    delta_lambda = 2.0D0*pi*(day - 81.0D0)/Year
-    beta = sqrt(1-Ecc*Ecc)
-    wrk = -2.0D0*((0.500D0*Ecc + 0.125D0*Ecc**3)*(1.0D0+beta)*sin(-Peri) - &
-                   0.250D0*Ecc*Ecc*(0.50D0+beta)*sin(-2.0D0*Peri) + &
-                   0.125D0*Ecc**3*(1.0D0/3.0D0+beta)*sin(-3.0D0*Peri)) &
-          + delta_lambda
-    lambda_lon = wrk + Ecc*((2.0D0-0.25*Ecc*Ecc)*sin(wrk-Peri) + &
-                            1.25D0*Ecc*sin(2.0D0*(wrk-Peri)) + &
-                            (13.0D0/12.0D0)*Ecc*Ecc*sin(3.0D0*(wrk-Peri)))
-
-    ! ... Declination angle of the sun:
-    ! ...
-    delta = asin(sin(Obli)*sin(lambda_lon))
-
-    ! ... Ho, hour angle at sunrise / sunset
-    ! ...
-    if (abs(delta)-hpi+abs(lat).lt.0.0D0) then
-      ! ... There is sunset/sunrise
-      ! ...
-      Ho = acos(-tan(lat)*tan(delta))
-    else
-      ! ... Check if all day or night
-      ! ...
-      if (lat*delta.gt.0.0D0) then
-        Ho = pi
-      else
-        Ho = 0.0D0
-      endif
-    endif
-
-    ! ... Integral from sunrise to sunset:
-    ! ...
-    coszen = Ho*sin(lat)*sin(delta) + cos(lat)*cos(delta)*sin(Ho)   
-
-    ! ... Compute insolation:
-    ! ...
-    Qsw = S0/pi*coszen*(1.0D0+Ecc*cos(lambda_lon-Peri))**2/(1.0D0-Ecc**2)**2
-    
-
-  end function daily_insolation
   ! ...
   ! ===================================================================
   ! ...
@@ -725,12 +660,12 @@ contains
     ! ... Local variables
     ! ...
     integer plen,ip,iw,ic
-    character(len=len(line)) lline
+    character(len=len(line)+1) lline
 
     lline = compress(line)
     plen = len_trim(prompt)
 
-    ip = index(line,' '//prompt)
+    ip = index(line,prompt)
     if (ip.le.0) then
       ans = ''
       return
