@@ -575,8 +575,8 @@ contains
     else
       dx = Rearth*(GOU%xmax-GOU%xmin)/(GOU%nx-1)   ! meters
     endif
-    if (model_fixed_au) then
-      vmax = model_value_au
+    if (model_fixed_ou) then
+      vmax = model_value_ou
     else
       vmax = maxval(OUrhs(:,:,1,1))                ! meters / seconds
     endif
@@ -587,8 +587,8 @@ contains
     else
       dx = Rearth*(GOV%xmax-GOV%xmin)/(GOV%nx-1)   ! meters
     endif
-    if (model_fixed_av) then
-      vmax = model_value_av
+    if (model_fixed_ov) then
+      vmax = model_value_ov
     else
       vmax = maxval(OVrhs(:,:,1,1))                ! meters / seconds
     endif
