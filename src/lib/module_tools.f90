@@ -681,6 +681,15 @@ contains
     ! ...
     lline = adjustl(lline)
 
+    ! ... Check if vector
+    ! ...
+    if (lline(1:1).eq.'[') then
+      ip = index(lline,']') 
+      if (ip.le.0) call crash('Invalid toke vector')
+      ans = lline(1:ip)
+      return
+    endif
+
     ! ... Check for the first white space or the end of line:
     ! ...
     iw = index(lline,' ') - 1
@@ -709,6 +718,36 @@ contains
     endif
 
   end function token_read
+  ! ...
+  ! ===================================================================
+  ! ...
+  function ReadVector(string) result(A)
+
+    character(len=*), intent(in)                 :: string
+    real(dp), dimension(:), allocatable          :: A
+
+    ! ... Local variables
+    ! ...
+    integer i,n
+    character(len=len(string)) att
+    character(len=maxlen) word
+
+    if (allocated(A)) deallocate(A)
+
+    att = trim(string)
+    att = line_replace(att,',',' ')
+    att = line_replace(att,'[',' ')
+    att = line_replace(att,']',' ')
+
+    n = numwords(att)
+    allocate(A(n))
+
+    do i=1,n
+      call line_word(att,i,word)
+      read(word,*) A(i)
+    enddo
+
+  end function ReadVector
   ! ...
   ! ===================================================================
   ! ...

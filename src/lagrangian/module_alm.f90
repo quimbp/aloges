@@ -36,6 +36,11 @@ character(len=*), parameter                      :: AUTHOR  = 'Joaquim Ballabrer
 ! ...
 integer, parameter                               :: ndims = 3      ! Lagrangian model dimensions
 
+! ... Missing value
+! ...
+real(dp), parameter                              :: missing = -999.0D0
+
+
 ! ... Metrics
 ! ...
 logical                                          :: Cartesian = .False.

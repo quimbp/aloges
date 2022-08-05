@@ -27,6 +27,7 @@ use module_options
 use module_forcing
 use module_float
 use module_model
+use module_fitting
 
 implicit none
 
@@ -46,8 +47,7 @@ call options()
 ! ...
 call open_forcing()
 
-
-! ... Set the initial and final time
+! ... Set the alm_time_units and alm_time_calendar:
 ! ...
 alm_time_units = trim(forcing_time_units)
 alm_time_calendar = trim(forcing_time_calendar)
@@ -55,12 +55,6 @@ alm_time_calendar = trim(forcing_time_calendar)
 model_time_units = trim(forcing_time_units)
 model_time_calendar = trim(forcing_time_calendar)
 
-
-! ... Set a universal frid and land-sea mask to expedite 
-! ... the calculation if a floater is in the free-moving
-! ... water or in land
-! ...
-call define_alm_domain()
 
 
 ! ... Check the user-specified initial and final dates
@@ -120,6 +114,21 @@ model_dfin = num2date(model_tfin,units=model_time_units, &
                       calendar=model_time_calendar)
 
 
+if (option_fitting) then
+  ! ... If this option is requested, the program goes to the
+  ! ... fitting module and the program ends there.
+  ! ...
+  call model_fitting()
+  stop 'Fitting done!'
+endif
+
+
+! ... Set a universal frid and land-sea mask to expedite 
+! ... the calculation if a floater is in the free-moving
+! ... water or in land
+! ...
+call define_alm_domain()
+
 ! ... Initialize model
 ! ...
 call model_ini()
@@ -132,7 +141,7 @@ if (Nfloats.eq.0) call crash('No valid floats')
 
 ! ... Create output trajectory file
 ! ...
-call trajectory_create(trajectory_name,Nfloats,output_missing)
+call trajectory_create(trajectory_name,Nfloats)
 
 
 ! ... Run the model 

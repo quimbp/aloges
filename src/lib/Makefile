@@ -34,7 +34,8 @@ INC = $(CDFINC)
 
 TARGET = ../../lib/libaloges.a
 OBJ = module_types.o module_constants.o module_math.o module_tools.o \
-      module_time.o module_grid.o module_lineargs.o module_help.o
+      module_time.o module_grid.o module_lineargs.o module_help.o \
+      module_minpack.o
 
 all: $(OBJ) $(LIBDIR) $(INCDIR) aloges.mod
 	rm -f $(TARGET)
@@ -51,6 +52,7 @@ clean:
 	if test -d $(INCDIR); then rm -f $(INCDIR)module_grid.mod; fi
 	if test -d $(INCDIR); then rm -f $(INCDIR)module_lineargs.mod; fi
 	if test -d $(INCDIR); then rm -f $(INCDIR)module_help.mod; fi
+	if test -d $(INCDIR); then rm -f $(INCDIR)module_minpack.mod; fi
 	if test -d $(INCDIR); then rm -f $(INCDIR)aloges.mod; fi
 
 $(INCDIR):
@@ -84,6 +86,9 @@ module_lineargs.o: module_types.o module_constants.o module_tools.o module_linea
 
 module_help.o: module_types.o module_constants.o module_tools.o module_help.f90
 	$(FC) -c $(FFLAGS) $(INC) module_help.f90
+
+module_minpack.o: module_types.o module_minpack.f90
+	$(FC) -c $(FFLAGS) $(INC) module_minpack.f90
 
 aloges.mod: $(OBJ)
 	$(FC) -c $(FFLAGS) $(INC) aloges.f90

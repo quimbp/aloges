@@ -31,6 +31,7 @@ use module_time
 use module_grid
 use module_lineargs
 use module_help
+use module_minpack
 
 implicit none
 

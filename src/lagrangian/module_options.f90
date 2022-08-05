@@ -33,6 +33,7 @@ use module_alm
 use module_forcing
 use module_float
 use module_model
+use module_fitting
 
 implicit none
 
@@ -81,6 +82,7 @@ subroutine options
   logical                                        :: WithDVM   = .False.
 
   integer                                        :: na,i
+  real(dp), dimension(:), allocatable            :: AAA
   character(len=maxlen)                          :: word
   character(len=400)                             :: OUlist=''
   character(len=400)                             :: OVlist=''
@@ -93,7 +95,9 @@ subroutine options
   character(len=400)                             :: AVlist=''
   character(len=400)                             :: GRlist=''
   character(len=400)                             :: uplist=''
+  character(len=400)                             :: WDlist=''
   character(len=400)                             :: DVMlist=''
+  character(len=400)                             :: FITlist=''
 
 
     ! ... Fill in the help information
@@ -322,7 +326,7 @@ subroutine options
     if (WithYmin) forcing_ymin = deg2rad*forcing_ymin
     if (WithYmax) forcing_ymax = deg2rad*forcing_ymax
 
-
+    call linearg('-mu',noise_mult,noise_mu)
     call linearg('-kh0',WithKH0,noise_KH0)
     call linearg('-kv0',WithKV0,noise_KV0)
     call linearg('-kh1',WithKH1,noise_KH1)
@@ -339,6 +343,7 @@ subroutine options
     call linearg('-trajectory',WithTname,trajectory_name)
     call linearg('-end',WithTfnal,trajectory_final)
     call linearg('-saveper',WithSaveP,save_period)
+    if ((trajectory_final.eq.'NONE').or.(trajectory_final.eq.'NULL')) trajectory_final = ''
 
     ! ... Pereiro, 2019, minimum thrsthold velovity parameter
     ! ...
@@ -378,18 +383,6 @@ subroutine options
     if (Release_by_file.and.Release_by_pos) then
       call crash('Incompatible release options')
     endif
-    if (Release_by_pos) then
-      !if (.not.WithReleaseXo) call crash('Option -xo required')
-      !if (.not.WithReleaseYo) call crash('Option -yo required')
-    endif
-    if (option_model) then
-      if (.not.Release_by_file.and. &
-          .not.WithRandom.and. &
-          .not.Release_by_pos) call crash('Missing release information')
-    else 
-      if (.not.Release_by_file) call crash('Missing release information')
-    endif
-
     !SingleLayer = .True.
 
     ! ... Reverse simulation
@@ -453,12 +446,22 @@ subroutine options
 
     ! ... Wind Response matrix A11, A12, A21, A22:
     ! ...
-    call linearg('-winddepth',WithWDepth,WindDepth)
-    call linearg('-a11',WithA11,A11)
-    call linearg('-a11',WithA11,A11)
-    call linearg('-a12',WithA12,A12)
-    call linearg('-a21',WithA21,A21)
-    call linearg('-a22',WithA22,A22)
+    call linearg('-Winddriven',WindDriven,WDlist)
+    if (WindDriven) then
+      word = token_read(WDlist,'alpha='); if (len_trim(word).gt.0) read(word,*) WDriven_alpha
+      word = token_read(WDlist,'beta='); if (len_trim(word).gt.0) read(word,*) WDriven_beta
+      WindDepth = 0.0D0
+      if (verb.ge.4) write(*,*) 'WDriven_alpha, WDriven_beta : ', WDriven_alpha, WDriven_beta
+      if (verb.ge.4) write(*,*) 'WindDepth : ', WindDepth
+    else
+      call linearg('-winddepth',WithWDepth,WindDepth)
+      call linearg('-a11',WithA11,A11)
+      call linearg('-a11',WithA11,A11)
+      call linearg('-a12',WithA12,A12)
+      call linearg('-a21',WithA21,A21)
+      call linearg('-a22',WithA22,A22)
+    endif
+
     WindDepth = -abs(WindDepth)
 
     ! ... Options for the Equation of state
@@ -498,6 +501,77 @@ subroutine options
       word = token_read(DVMlist,'zday='); if (len_trim(word).gt.0) read(word,*) dvm_zday 
       word = token_read(DVMlist,'znight='); if (len_trim(word).gt.0) read(word,*) dvm_znight 
       word = token_read(DVMlist,'tvm='); if (len_trim(word).gt.0) read(word,*) dvm_tvm
+    endif
+
+
+    ! ... Fitting options
+    ! ...
+    call linearg('-fitting',option_fitting,FITlist)
+
+    if (option_fitting) then
+      option_model = .False.
+
+      ! ... Error messages
+      ! ...
+      if (.not.WithTname) call crash('Model fitting requires option -trajectory')
+
+      ! ... Warning messages
+      ! ...
+      if (reverse) then
+        if (verb.ge.2) write(*,*) 'WARNING: Overriding option -reverse'
+        reverse = .False.
+      endif
+
+      word = token_read(FITlist,'vmin='); if (len_trim(word).gt.0) read(word,*) fit_vmin
+      word = token_read(FITlist,'vmax='); if (len_trim(word).gt.0) read(word,*) fit_vmax
+      word = token_read(FITlist,'out='); if (len_trim(word).gt.0)  read(word,*) fit_fout
+      word = token_read(FITlist,'first=')
+      if (len_trim(word).gt.0)  then
+        AAA = ReadVector(trim(word))
+        if (size(AAA).ne.5) call crash('Incompatible number of initial parameters')
+        fit_FGp1 = AAA(1)
+        fit_FGp2 = AAA(2)
+        fit_FGp3 = AAA(3)
+        fit_FGp4 = AAA(4)
+        fit_FGp5 = AAA(5)
+      endif
+      word = token_read(FITlist,'adjust=')
+      if (len_trim(word).gt.0)  then
+        AAA = ReadVector(trim(word))
+        if (size(AAA).ne.5) call crash('Incompatible number of initial parameters')
+        if (AAA(1).ge.0.5) then
+          fit_dop1 = 1.0D0
+        else
+          fit_dop1 = 0.0D0
+        endif
+        if (AAA(2).ge.0.5) then
+          fit_dop2 = 1.0D0
+        else
+          fit_dop2 = 0.0D0
+        endif
+        if (AAA(3).ge.0.5) then
+          fit_dop3 = 1.0D0
+        else
+          fit_dop3 = 0.0D0
+        endif
+        if (AAA(4).ge.0.5) then
+          fit_dop4 = 1.0D0
+        else
+          fit_dop4 = 0.0D0
+        endif
+        if (AAA(5).ge.0.5) then
+          fit_dop5 = 1.0D0
+        else
+          fit_dop5 = 0.0D0
+        endif
+      endif
+    
+    endif
+
+    if (option_model) then
+      if (.not.Release_by_file.and. &
+          .not.WithRandom.and. &
+          .not.Release_by_pos) call crash('Missing release information')
     endif
 
 

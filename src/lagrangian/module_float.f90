@@ -37,14 +37,14 @@ type type_float
   logical                                        :: floating = .False.
   logical                                        :: indomain = .False.
   logical                                        :: surface  = .False.
-  real(dp)                                       :: xo,yo,zo,to    ! position and time initial
-  real(dp)                                       :: x,y,z,t        ! position and time
-  real(dp)                                       :: u = 0.0D0      ! x-velocity (m/s)
-  real(dp)                                       :: v = 0.0D0      ! y-velocity (m/s)
-  real(dp)                                       :: w = 0.0D0      ! z-velocity (m/s)
-  real(dp)                                       :: speed  = 0.0D0 ! velocity module (m/s)
-  real(dp)                                       :: tlast  = 0.0D0 ! Last floating time  (s)
-  real(dp)                                       :: dist = 0.0D0   ! travelled distance (km)
+  real(dp)                                       :: xo,yo,zo,to   ! position and time initial
+  real(dp)                                       :: x,y,z,t       ! position and time
+  real(dp)                                       :: u = 0.0D0     ! x-velocity (m/s)
+  real(dp)                                       :: v = 0.0D0     ! y-velocity (m/s)
+  real(dp)                                       :: w = 0.0D0     ! z-velocity (m/s)
+  real(dp)                                       :: speed = 0.0D0 ! velocity module (m/s)
+  real(dp)                                       :: tlast = 0.0D0 ! Last floating time  (s)
+  real(dp)                                       :: dist  = 0.0D0  ! travelled distance (km)
   real(dp)                                       :: Pdens = 0.0D0  ! Particle density 
   real(dp)                                       :: Psize = 0.0D0  ! Particle size
   real(dp)                                       :: Pbuoy = 0.0D0  ! Particle buoyancy

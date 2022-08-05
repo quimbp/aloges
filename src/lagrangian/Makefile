@@ -36,7 +36,8 @@ INC = -I$(INCDIR) $(CDFINC)
 LIB = -L$(LIBDIR) -laloges $(CDFLIB)
 
 TARGET = alm
-OBJ = module_alm.o module_forcing.o module_float.o module_model.o module_options.o 
+OBJ = module_alm.o module_forcing.o module_float.o module_model.o module_options.o \
+      module_fitting.o
 
 all: $(BINDIR) $(TARGET) $(OBJ) main.f90
 
@@ -69,5 +70,8 @@ module_float.o: module_float.f90
 module_model.o: module_model.f90
 	$(FC) -c $(FFLAGS) $(INC) module_model.f90
 
-module_options.o: module_forcing.o module_float.o module_model.o module_options.f90
+module_fitting.o: module_fitting.f90
+	$(FC) -c $(FFLAGS) $(INC) module_fitting.f90
+
+module_options.o: module_forcing.o module_float.o module_model.o module_fitting.o module_options.f90
 	$(FC) -c $(FFLAGS) $(INC) module_options.f90

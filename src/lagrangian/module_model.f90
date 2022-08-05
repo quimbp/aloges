@@ -111,6 +111,17 @@ real(dp)                                         :: A12       = 0.0_dp
 real(dp)                                         :: A21       = 0.0_dp
 real(dp)                                         :: A22       = 0.0_dp
 
+! ... Wind-driven current regression to local winds
+! ...       U_wd = beta * exp (alpha*j) * (Windx + j Windy)
+! ... It has sense when superposed to a geostrophic ocean current.
+! ... Poulain et al. 2009, JAOT, 26, 1144 - 1156
+! ... DOI: 10.1175/2008JTECHO618.1
+! ...
+logical                                          :: WindDriven = .False.
+real(dp)                                         :: WDriven_alpha = 0.0D0
+real(dp)                                         :: WDriven_beta  = 0.0D0
+
+
 ! ... Water speed fraction (alpha)
 ! ... Dragg-related term. It also allows simulating when
 ! ... drifter is driven only by the wind (alpha = 0.0).
@@ -130,9 +141,10 @@ real(dp), dimension(12) :: HalfMonth = [16.5D0,15.0D0,16.5D0,16.0D0,16.5D0,16.0D
 
 ! ... Random Walk subgrid parameterization
 ! ...
+logical                                          :: noise_mult    = .False.
 logical                                          :: noise_model_0 = .False.
 logical                                          :: noise_model_1 = .False.
-real(dp)                                         :: noise_mu
+real(dp)                                         :: noise_mu  = 0.0D0
 real(dp)                                         :: noise_KH0 = 0.0D0
 real(dp)                                         :: noise_KV0 = 0.0D0
 real(dp)                                         :: noise_V0  = 0.0D0
@@ -155,7 +167,7 @@ integer                                          :: save_frequency
 
 ! ... Output files
 ! ...
-character(len=maxlen)                            :: trajectory_name = 'alm.nc'  ! Traj
+character(len=2000)                              :: trajectory_name = 'alm.nc'  ! Traj
 character(len=maxlen)                            :: trajectory_final = 'end.dat'  ! Traj final
 character(len=maxlen)                            :: output_units=''
 character(len=maxlen)                            :: output_calendar=''
@@ -184,7 +196,6 @@ integer                                          :: output_zoid
 integer                                          :: output_toid
 integer                                          :: output_status
 integer                                          :: output_kid
-real(dp)                                         :: output_missing = -999.0D0
 
 
 ! ... Analytical density
@@ -247,7 +258,7 @@ contains
 
     ! ... Local variables
     ! ...
-    real(dp) f1,f2,ff,a1,a2,wx,wy,tt
+    real(dp) f1,f2,ff,a1,a2,wx,wy,tt,uo,vo,wo
     real(dp) t1,t2
     real(dp) veps,vx,vy,vz,tk,sk,rhok,wok
 
@@ -265,86 +276,54 @@ contains
       vy = 0.0D0
       vz = 0.0D0
     endif
-    if (verb.ge.4) write(*,*) 'RHS Noise model 1 : ', vx, vy, vz
+    if (verb.ge.5) write(*,*) 'RHS Noise model 1 : ', vx, vy, vz
 
+    uo = 0.0D0; vo = 0.0D0; wo = 0.0D0
     dxdt(:) = 0.0D0
 
     ! ... Zonal advection:
     ! ...
     if (Uadv) then
       if (model_fixed_ou) then
-        dxdt(1) = alpha(1)*model_value_ou
+        uo = alpha(1)*model_value_ou
       else if (alpha(1).eq.0) then
-        dxdt(1) = 0.0D0
+        uo = 0.0D0
       else
-        ff = time_interpol(GOU,OUrhs,t,xo)
-        if (verb.ge.4) write(*,*) 'RHS ou : ', ff
-!        IOU = GOU%locate(xo)
-!        if (verb.ge.4) write(*,*) 'RHS IOU : ', IOU
-!        if (GOU%Stationary) then
-!          ff  = GOU%interpol(OUrhs(:,:,:,1),xo,IOU,SingleLayer)
-!        else
-!          t1 = GOU%trec1
-!          t2 = GOU%trec2
-!          f1 = GOU%interpol(OUrhs(:,:,:,1),xo,IOU,SingleLayer)
-!          f2 = GOU%interpol(OUrhs(:,:,:,2),xo,IOU,SingleLayer)
-!          ff = f1 + (f2-f1)*(t-t1)/(t2-t1)
-!        endif
-        dxdt(1) = alpha(1)*ff
+        uo = time_interpol(GOU,OUrhs,t,xo)
+        uo = alpha(1)*uo
       endif
+      dxdt(1) = uo + vx
     endif
-    dxdt(1) = dxdt(1) + vx
 
     ! ... Meridional advection
     ! ...
     if (Vadv) then
       if (model_fixed_ov) then
-        dxdt(2) = alpha(2)*model_value_ov
+        vo = alpha(2)*model_value_ov
       else if (alpha(2).eq.0) then
-        dxdt(2) = 0.0D0
+        vo = 0.0D0
       else
-        ff = time_interpol(GOV,OVrhs,t,xo)
-        if (verb.ge.4) write(*,*) 'RHS ov : ', ff
-        !IOV = GOV%locate(xo)
-        !if (verb.ge.4) write(*,*) 'RHS IOV : ', IOV
-        !if (GOV%Stationary) then
-        !  ff  = GOV%interpol(OVrhs(:,:,:,1),xo,IOV,SingleLayer)
-        !else
-        !  t1 = GOV%trec1
-        !  t2 = GOV%trec2
-        !  f1 = GOV%interpol(OVrhs(:,:,:,1),xo,IOV,SingleLayer)
-        !  f2 = GOV%interpol(OVrhs(:,:,:,2),xo,IOV,SingleLayer)
-        !  ff = f1 + (f2-f1)*(t-t1)/(t2-t1)
-        !endif
-        dxdt(2) = alpha(2)*ff
+        vo = time_interpol(GOV,OVrhs,t,xo)
+        vo = alpha(2)*vo
       endif
+      dxdt(2) = vo + vy
     endif
-    dxdt(2) = dxdt(2) + vy
 
     ! ... Vertical advection
     ! ...
     if (Wadv) then
       if (model_fixed_ow) then
-        dxdt(3) = alpha(3)*model_value_ow + vz
+        wo = alpha(3)*model_value_ow 
       else if (alpha(3).eq.0) then
-        dxdt(3) = vz
+        wo = 0.0D0
       else
-        IOW = GOW%locate(xo)
-        if (verb.ge.4) write(*,*) 'RHS IOW : ', IOW
-        if (GOW%Stationary) then
-          ff  = GOW%interpol(OWrhs(:,:,:,1),xo,IOW,SingleLayer)
-        else
-          t1 = GOW%trec1
-          t2 = GOW%trec2
-          f1 = GOW%interpol(OWrhs(:,:,:,1),xo,IOW,SingleLayer)
-          f2 = GOW%interpol(OWrhs(:,:,:,2),xo,IOW,SingleLayer)
-          ff = f1 + (f2-f1)*(t-t1)/(t2-t1)
-        endif
-        dxdt(3) = alpha(3)*ff + vz
+        wo = time_interpol(GOW,OWrhs,t,xo)
+        wo = alpha(3)*wo
       endif
-    else
-      dxdt(3) = vz
+      dxdt(3) = wo + vz
     endif
+
+    if (verb.ge.4) write(*,*) 'RHS u : ', uo, vo, wo
 
     ! ... Add, if requested, a buoyancy term:
     ! ...
@@ -406,32 +385,12 @@ contains
       if (model_fixed_au) then
         a1 = model_value_au
       else
-        IAU = GAU%locate(xo)
-        if (verb.ge.4) write(*,*) 'RHS IAU : ', IAU
-        if (GAU%Stationary) then
-          a1  = GAU%interpol(AUrhs(:,:,:,1),xo,IAU,SingleLayer=.True.)
-        else
-          t1 = GAU%trec1
-          t2 = GAU%trec2
-          f1 = GAU%interpol(AUrhs(:,:,:,1),xo,IAU,SingleLayer=.True.)
-          f2 = GAU%interpol(AUrhs(:,:,:,2),xo,IAU,SingleLayer=.True.)
-          a1 = f1 + (f2-f1)*(t-t1)/(t2-t1)
-        endif
+        a1 = time_interpol(GAU,AUrhs,t,xo)
       endif
       if (model_fixed_av) then
         a2 = model_value_av
       else
-        IAV = GAV%locate(xo)
-        if (verb.ge.4) write(*,*) 'RHS IAV : ', IAV
-        if (GAV%Stationary) then
-          a2  = GAV%interpol(AVrhs(:,:,:,1),xo,IAV,SingleLayer=.True.)
-        else
-          t1 = GAV%trec1
-          t2 = GAV%trec2
-          f1 = GAV%interpol(AVrhs(:,:,:,1),xo,IAV,SingleLayer=.True.)
-          f2 = GAV%interpol(AVrhs(:,:,:,2),xo,IAV,SingleLayer=.True.)
-          a2 = f1 + (f2-f1)*(t-t1)/(t2-t1)
-        endif
+        a2 = time_interpol(GAV,AVrhs,t,xo)
       endif
       wx = A11*a1 + A12*a2
       wy = A21*a1 + A22*a2
@@ -553,21 +512,6 @@ contains
       call get_forcing('AV',GAV,model_tini,model_dini,0.0D0,AVrhs)
     endif
 
-    !print*, 'OUrhs: ', OUrhs(13,14,1,:)
-    !print*, 'OVrhs: ', OVrhs(13,14,1,:)
-    !print*, 'AUrhs: ', AUrhs(13,14,1,:)
-    !print*, 'AVrhs: ', AVrhs(13,14,1,:)
-    !ww(1) = GAU%x1(13)
-    !ww(2) = GAU%y1(14)
-    !ww(3) = GAU%z(1)
-    !ww(1) = deg2rad*3.0
-    !ww(2) = deg2rad*41.0
-    !print*, rad2deg*ww
-    !IAU = GAU%locate(ww)
-    !print*, GAU%interpol(AUrhs(:,:,:,2),ww,IAU,.True.)
-    !print*, IAU
-    !stop '555555'
-
     ! ... Stability criteria
     ! ...
     if (GOU%Cartesian) then
@@ -607,13 +551,8 @@ contains
     noise_V0 = sqrt(2.0D0*noise_KH0/abs(model_dt))   ! 
     noise_V1 = sqrt(2.0D0*noise_KH1/abs(model_dt))
 
-!   if (Wadv) then
-      noise_W0 = sqrt(2.0D0*noise_KV0/abs(model_dt))   ! 
-      noise_W1 = sqrt(2.0D0*noise_KV1/abs(model_dt))
-!   else
-!     noise_W0 = 0.0D0
-!     noise_W1 = 0.0D0
-!   endif
+    noise_W0 = sqrt(2.0D0*noise_KV0/abs(model_dt))   ! 
+    noise_W1 = sqrt(2.0D0*noise_KV1/abs(model_dt))
 
     if (noise_V0+noise_W0.gt.0.0D0) noise_model_0 = .True.
     if (noise_V1+noise_W1.gt.0.0D0) noise_model_1 = .True.
@@ -655,6 +594,16 @@ contains
       dvm_znight = -abs(dvm_znight)
       dvm_w      = (dvm_znight - dvm_zday)/dvm_tvm
     endif
+
+    ! ... Wind driven model  U = beta*exp(alpha*j) * W
+    ! ... ou = beta* (cos(alpha)*au - sin(alpha)*av)
+    ! ... ov = beta* (sin(alpha)*au - cos(alpha)*av)
+    ! ...
+    if (WindDriven) then
+      A11 = WDriven_beta*cos(deg2rad*WDriven_alpha); A22 = A11
+      A21 = WDriven_beta*sin(deg2rad*WDriven_alpha); A12 = -A21
+    endif
+
 
     if (verb.ge.1) then
       write(*,*)
@@ -732,9 +681,18 @@ contains
         write(*,*) 'Particle DVM not activated'
       endif
 
-      write(*,*) 'Wind forcing  : ', Winds
-      write(*,*) 'Noise model 0 : ', noise_model_0
-      write(*,*) 'Noise model 1 : ', noise_model_1
+      write(*,*) 'Wind forcing           : ', Winds
+      write(*,*) 'Wind driven model      : ', WindDriven
+      if (WindDriven) then
+        write(*,*) 'Wind driven alpha      : ', WDriven_alpha
+        write(*,*) 'Wind driven beta       : ', WDriven_beta
+      endif
+      write(*,*) 'A11, A12               : ', A11, A12
+      write(*,*) 'A21, A22               : ', A21, A22
+
+      write(*,*) 'Muliplicative noise    : ', noise_mu
+      write(*,*) 'Additive noise model 0 : ', noise_model_0
+      write(*,*) 'Additive noise model 1 : ', noise_model_1
       if (Uadv.and..not.model_fixed_ou) &
          write(*,*) 'Zonal velocity record pointers     : ', GOU%rec1, GOU%rec2
       if (Vadv.and..not.model_fixed_ov) &
@@ -842,7 +800,10 @@ contains
 
 
     if (verb.ge.1) write(*,*) 'Running model ...'
+
+    ! --------------------------  steps
     do model_step=1,model_nsteps
+    ! --------------------------
 
       model_time = anint(model_tini + (model_step-1)*model_dt)
       model_date = num2date(Reference_time+model_time,model_time_units,model_time_calendar)
@@ -860,6 +821,7 @@ contains
       if (OSupdate) call get_forcing('OS',GOS,model_time,model_date,0.0D0,OSrhs)
 
       do ifloat=1,Nfloats
+      ! ------------------ floats
 
         ! ... First chek if released or going to be released
         ! ...
@@ -918,6 +880,7 @@ contains
           ! ...
           if (Particle_dvm) then
             call SunRise_and_SunSet (rad2deg*xo(1),rad2deg*xo(2),model_date,dvm_tdawn,dvm_tdusk)
+            if (verb.ge.4) write(*,*) 'DVM: tdawn, tdusk (hours): ', dvm_tdawn/3600.0D0, dvm_tdusk/3600.0D0
           endif
 
 
@@ -970,8 +933,7 @@ contains
 
         endif
 
-        !print '(I5,F10.0,3F9.4)', model_step, model_time, xn
-        !xo = xn
+      ! ------------------ floats
       enddo
 
       model_time = model_time + model_dt
@@ -1018,21 +980,25 @@ contains
       endif
 
 
-    enddo
+    ! --------------------------  steps
+    enddo                            
+    ! --------------------------
 
     ! ... Saving the las position
     ! ...
-    iu = unitfree()
-    open(iu,file=trajectory_final,status='unknown')
-    do ifloat=1,Nfloats
-      model_time = FLT(ifloat)%tlast
-      model_date = num2date(Reference_time+model_time,model_time_units,model_time_calendar)
-      write(iu,'(F9.4,2X,F9.4,2X,F6.1,2X,A)') FLT(ifloat)%x*rad2deg, &
-                                              FLT(ifloat)%y*rad2deg, &
-                                              abs(FLT(ifloat)%z), &
-                                              model_date%iso()
-    enddo
-    close(iu)
+    if (len_trim(trajectory_final).gt.0) then
+      iu = unitfree()
+      open(iu,file=trajectory_final,status='unknown')
+      do ifloat=1,Nfloats
+        model_time = FLT(ifloat)%tlast
+        model_date = num2date(Reference_time+model_time,model_time_units,model_time_calendar)
+        write(iu,'(F9.4,2X,F9.4,2X,F6.1,2X,A)') FLT(ifloat)%x*rad2deg, &
+                                                FLT(ifloat)%y*rad2deg, &
+                                                abs(FLT(ifloat)%z), &
+                                                model_date%iso()
+      enddo
+      close(iu)
+    endif
 
     if (verb.ge.1) write(*,*) 'Done !'
 
@@ -1263,11 +1229,10 @@ contains
   !                     TRAJECTORY FILE SUBROUTINES
   ! ===================================================================
   ! ...
-  subroutine trajectory_create(filename,Nfloats,missing)
+  subroutine trajectory_create(filename,Nfloats)
 
     character(len=*), intent(in)               :: filename
     integer, intent(in)                        :: Nfloats
-    real(dp), intent(in)                       :: missing
 
     ! ... Local variables
     ! ...
@@ -1278,7 +1243,6 @@ contains
 
     trajectory_name = trim(filename)
     output_nfloats = Nfloats
-    output_missing = missing
     output_record = 0
 
     ! ... Check for extension
@@ -1499,6 +1463,7 @@ contains
     else
       ! ... ASCII output format
       ! ...
+      call get_commandline(lcom)
       allocate(table_filename(Nfloats))
       allocate(table_iu(Nfloats))
       call filename_split(filename,path,base,ext)
@@ -1510,9 +1475,15 @@ contains
         open(iu,file=afile,status='unknown')
         rewind(iu)
         write(iu,'(T1,A)') '# ALM ASCII trajectory'
+        write(iu,'(T1,A)') '# -------------------------------------------------&
+                        &--------------------------------------------------------'
         write(iu,'(T1,A)') '# Version: ' // trim(VERSION)
-        write(iu,'(T1,A)') '# Date                  lon      lat      depth    &
-          &u       v      w         temp     psal   dens       dist'
+        write(iu,'(T1,A)') '# Runtime: ' // now%iso()
+        write(iu,'(T1,A)') '# Command line: ' // trim(lcom)
+        write(iu,'(T1,A)') '# -------------------------------------------------&
+                        &--------------------------------------------------------'
+        write(iu,'(T1,A)') '#  lon      lat      depth         date            &
+    &u        v         w        temp     psal     dens     dist  S'
       enddo
 
     endif
@@ -1534,7 +1505,7 @@ contains
     ! ... Local variables
     ! ...
     logical verb
-    integer i,err,iu
+    integer i,err,iu,code
     type(type_Date) date
     real(dp) time_out(1), xx(Nfloats),axx(10)
     character(len=maxlen) fmt
@@ -1560,7 +1531,7 @@ contains
 
       ! ... Longitude
       ! ...
-      xx(:) = output_missing
+      xx(:) = missing
       do i=1,Nfloats
         if (FLT(i)%released) xx(i) = FLT(i)%x*rad2deg
       enddo
@@ -1569,7 +1540,7 @@ contains
 
       ! ... Latitude
       ! ...
-      xx(:) = output_missing
+      xx(:) = missing
       do i=1,Nfloats
         if (FLT(i)%released) xx(i) = FLT(i)%y*rad2deg
       enddo
@@ -1578,7 +1549,7 @@ contains
 
       ! ... Depth
       ! ...
-      xx(:) = output_missing
+      xx(:) = missing
       do i=1,Nfloats
         if (FLT(i)%released) xx(i) = abs(FLT(i)%z)
       enddo
@@ -1591,7 +1562,7 @@ contains
 
         ! ... U
         ! ...
-        xx(:) = output_missing
+        xx(:) = missing
         do i=1,Nfloats
           if (FLT(i)%released) xx(i) = FLT(i)%u
         enddo
@@ -1600,7 +1571,7 @@ contains
 
         ! ... V
         ! ...
-        xx(:) = output_missing
+        xx(:) = missing
         do i=1,Nfloats
           if (FLT(i)%released) xx(i) = FLT(i)%v
         enddo
@@ -1609,7 +1580,7 @@ contains
 
         ! ... W
         ! ...
-        xx(:) = output_missing
+        xx(:) = missing
         do i=1,Nfloats
           if (FLT(i)%released) xx(i) = FLT(i)%w
         enddo
@@ -1620,7 +1591,7 @@ contains
 
       ! ... Distance
       ! ...
-      xx(:) = output_missing
+      xx(:) = missing
       do i=1,Nfloats
         if (FLT(i)%released) xx(i) = abs(FLT(i)%dist)
       enddo
@@ -1630,7 +1601,7 @@ contains
       ! ... Temperature
       ! ...
       if (WithOT) then
-        xx(:) = output_missing
+        xx(:) = missing
         do i=1,Nfloats
           if (FLT(i)%released) xx(i) = FLT(i)%Wtemp
         enddo
@@ -1641,7 +1612,7 @@ contains
       ! ... Salinity
       ! ...
       if (WithOS) then
-        xx(:) = output_missing
+        xx(:) = missing
         do i=1,Nfloats
           if (FLT(i)%released) xx(i) = FLT(i)%Wpsal
         enddo
@@ -1652,7 +1623,7 @@ contains
       ! ... Water density
       ! ...
       if (model_density) then
-        xx(:) = output_missing
+        xx(:) = missing
         do i=1,Nfloats
           if (FLT(i)%released) xx(i) = FLT(i)%Wdens
         enddo
@@ -1668,21 +1639,38 @@ contains
 
     do i=1,Nfloats
       iu = table_iu(i)
-      axx(:) = output_missing
+      axx(:) = missing
       if (FLT(i)%released) then
         axx( 1) = rad2deg*FLT(i)%x
         axx( 2) = rad2deg*FLT(i)%y
         axx( 3) = abs(FLT(i)%z)
         axx( 4) = FLT(i)%u
         axx( 5) = FLT(i)%v
-        axx( 6) = FLT(i)%v
+        axx( 6) = FLT(i)%w
         axx( 7) = FLT(i)%Wtemp
         axx( 8) = FLT(i)%Wpsal
         axx( 9) = FLT(i)%Wdens
         axx(10) = FLT(i)%dist
       endif
-      fmt = '(A20,2(1X,F9.4),1X,F6.1,2(1X,F7.3),1X,G9.2,3(1X,F8.3),1X,F6.1)'
-      write(iu,fmt) trim(date%iso()), axx
+
+      if (FLT(i)%released) then
+        if (FLT(i)%indomain) then
+          if (FLT(i)%floating) then
+            code = 0
+          else
+            code = 2
+          endif
+        else
+          code = 1
+        endif
+      else
+        code = -1
+      endif
+
+      !fmt = '(T1,A20,2(1X,F9.4),1X,F6.1,X,2(1X,F7.3),1X,G9.2,3(F8.3,X),F6.1)'
+      !write(iu,fmt) trim(date%iso()), axx
+      fmt = '(T1,2(F9.4,1X),F6.1,X,A20,2(F9.3),1X,G10.3,3(F8.3,X),F7.1,I3)'
+      write(iu,fmt) axx(1:3), trim(date%iso()), axx(4:), code
  
     enddo
 
@@ -1824,6 +1812,11 @@ contains
       un(:) = 0.0D0
       xn(:) = xo(:)
     else
+      if (noise_mult) then
+        veps = (1.0 + noise_mu*randn())
+        if (verb.ge.4) write(*,*) 'RK Multiplicative noise: ', veps
+        un(:) = veps*un(:)
+      endif
       if (noise_model_0) then
         ! ... Horizontal noise
         ! ... Sergei A. Lonin: Lagrangian Model for Oil Spill Diffusion at Sea
@@ -1836,14 +1829,12 @@ contains
         ! ... Vertical noise
         veps = randn()
         vz = noise_W0*veps
+        if (verb.ge.4) write(*,*) 'RK Additive noise: ', vx, vy, vz
         un(1) = un(1) + vx
         un(2) = un(2) + vy
         un(3) = un(3) + vz
       endif
-      !print*, 'un : ', un
       xn = displacement(xo,un,dt)
-      !print*, 'xo: ', xo
-      !print*, 'xn: ', xn
     endif
 
   end subroutine rk
@@ -1859,28 +1850,30 @@ contains
     real(dp), intent(in)                         :: dt
     real(dp), dimension(ndims)                   :: xn                 ! Output in radians
 
-    real(dp) dx,dy,dz,ryo,coslat,ryn,rdx
+    real(dp) udt,vdt,wdt,yo,yn,cosyo,dx
 
-    dx   = dt*u(1)     !   [seconds] x [meters/seconds]
-    dy   = dt*u(2)     !   [seconds] x [meters/seconds]
-    dz   = dt*u(3)     !   [seconds] x [meters/seconds]
+    udt  = dt*u(1)     !   [seconds] x [meters/seconds]
+    vdt  = dt*u(2)     !   [seconds] x [meters/seconds]
+    wdt  = dt*u(3)     !   [seconds] x [meters/seconds]
 
     if (Spherical) then
       ! ... Spherical metrics
       ! ...
-      ryo  = xo(2)
-      coslat = cos(ryo)
-      ryn = asin(sin(ryo+dy*IEarth)*cos(dx*IEarth))
-      rdx = atan2(sin(dx*Iearth)*coslat,cos(dx*Iearth)-sin(ryo)*sin(ryn))
-      xn(1)  = xo(1) + rdx             ! Radians
-      xn(2)  = ryn                     ! Radians
-      xn(3)  = xo(3) + dz              ! meters
+      udt = udt*IEarth    ! u*dt / REarth
+      vdt = vdt*IEarth    ! v*dt / REarth
+      yo  = xo(2)
+      cosyo = cos(yo)
+      yn = asin(sin(yo+vdt)*cos(udt))
+      dx = atan2(sin(udt)*cosyo,cos(udt)-sin(yo)*sin(yn))
+      xn(1)  = xo(1) + dx             ! Radians
+      xn(2)  = yn                     ! Radians
+      xn(3)  = xo(3) + wdt            ! meters
     else
       ! ... Cartesian metrics
       ! ...
-      xn(1)  = xo(1) + dx              ! meters
-      xn(2)  = xo(2) + dy              ! meters
-      xn(3)  = xo(3) + dz              ! meters
+      xn(1)  = xo(1) + udt             ! meters
+      xn(2)  = xo(2) + vdt             ! meters
+      xn(3)  = xo(3) + wdt             ! meters
     endif
 
     if (xn(3).gt.0) xn(3) = 0.0D0
@@ -2046,7 +2039,13 @@ contains
     !date = num2date(Reference_time+t,model_time_units,model_time_calendar)
     !tday = anint(date%hour*3600.0D0 + date%minute*60.0D0 + date%second)
     !call SunRise_and_SunSet (lon,lat,date,tdawn,tdusk)
-    !tday = model_daysec
+    !dvm_tdawn = tdawn
+    !dvm_tdusk = tdusk
+
+    !   ...... The previous calculations are done in the main time loop,
+    !   ...... neglecting the beginning/ending of the vertical velocity
+    !   ...... during a single time step. The smallest the time step, the
+    !   ...... lower the error of this approximation.
 
     if ((model_daysec.ge.dvm_tdawn).and.(model_daysec.le.dvm_tdawn+dvm_tvm)) then
       wo = -dvm_w
