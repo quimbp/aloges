@@ -83,6 +83,7 @@ real(dp)                                         :: Radius_x   = 0.02D0 ! deg
 real(dp)                                         :: Radius_y   = 0.02D0 ! deg
 real(dp)                                         :: Radius_z   = 0.0    ! m
 real(dp)                                         :: Radius_t   = 0.0    ! s
+character(len=maxlen)                            :: Release_SaveFile= '' ! To save the resulting data
 
 contains
 
@@ -93,7 +94,7 @@ contains
 
     type(type_date) release_date
     logical withdate,valid,is_land,wrngF,wrngR
-    integer i,j,k,l,flo
+    integer i,j,k,l,flo,iu
     real(dp) xmin,xmax,ymin,ymax,zmin,zmax,tmin,tmax
     real(dp) xxr,yyr,zzr,ttr
     real(dp) rnd(4)
@@ -169,7 +170,7 @@ contains
 
     else
 
-      ! ... If here, it means that the user just wans a number of floats
+      ! ... If here, it means that the user just wants a number of floats
       ! ... randomly placed inside the domain.
       ! ...      
       Nfloats = Nrandom
@@ -254,6 +255,16 @@ contains
       FLT(i)%Psize = Release_size
     enddo
 
+    if (len_trim(Release_SaveFile).gt.0) then
+      iu = unitfree()
+      open(iu,file=Release_SaveFile,status='unknown')
+      do i=1,Nfloats
+        write(*,'(F9.4,2X,F9.4,2X,F6.1,2X,A)') rad2deg*FLT(i)%xo, rad2deg*FLT(i)%yo, &
+                                               FLT(i)%zo, release_date%iso()
+      enddo
+      close(iu)
+
+    endif
     !stop '99999'
 
  

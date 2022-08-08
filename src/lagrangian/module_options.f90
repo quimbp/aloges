@@ -80,6 +80,7 @@ subroutine options
   logical                                        :: WithYterm = .False.
   logical                                        :: WithRterm = .False.
   logical                                        :: WithDVM   = .False.
+  logical                                        :: WithRfn   = .False.
 
   integer                                        :: na,i
   real(dp), dimension(:), allocatable            :: AAA
@@ -340,7 +341,7 @@ subroutine options
     
     ! ... Trajectory name and final point
     ! ...
-    call linearg('-trajectory',WithTname,trajectory_name)
+    call linearg('-traj',WithTname,trajectory_name)
     call linearg('-end',WithTfnal,trajectory_final)
     call linearg('-saveper',WithSaveP,save_period)
     if ((trajectory_final.eq.'NONE').or.(trajectory_final.eq.'NULL')) trajectory_final = ''
@@ -359,6 +360,7 @@ subroutine options
     call linearg('-to',WithReleaseTime,Release_time)
     call linearg('-ro',WithReleaseRho,Release_rho)
     call linearg('-so',WithReleaseSize,Release_size)
+    call linearg('-save_release',WithRfn,Release_SaveFile)
 
     if ( WithReleaseRho.or.WithReleaseSize) Particle_buoyant = .True.
     if (Particle_buoyant) then
@@ -436,12 +438,6 @@ subroutine options
           endif
         endif
       endif
-    endif
-
-    ! ... If a climatology field, we require the user to use the options -from and -for
-    ! ...
-    if (WithClim) then
-      if (.not.WithTini.or..not.WithTlen) call crash('Climatology requires options -from and -for')
     endif
 
     ! ... Wind Response matrix A11, A12, A21, A22:
@@ -569,9 +565,17 @@ subroutine options
     endif
 
     if (option_model) then
+      ! ... Check that release information has been provided
+      ! ...
       if (.not.Release_by_file.and. &
           .not.WithRandom.and. &
           .not.Release_by_pos) call crash('Missing release information')
+
+      ! ... If a climatology field, we require the user to use the options -from and -for
+      ! ...
+      if (WithClim) then
+        if (.not.WithTini.or..not.WithTlen) call crash('Climatology requires options -from and -for')
+      endif
     endif
 
 

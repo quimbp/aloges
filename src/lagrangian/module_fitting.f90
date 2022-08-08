@@ -110,7 +110,7 @@ contains
     ! ... Minimization variables
     ! ...
     integer, parameter                               :: Np = 5
-    integer                                          :: Nmatchings
+    integer                                          :: fit_nobs
     integer                                          :: Maxfev
     integer                                          :: Mode
     integer                                          :: Nprint
@@ -134,6 +134,8 @@ contains
     allocate (OWrhs(GOW%nx,GOW%ny,GOW%nz,2))
     allocate (AUrhs(GAU%nx,GAU%ny,GAU%nz,2))
     allocate (AVrhs(GAV%nx,GAV%ny,GAV%nz,2))
+    if (.not.WithAU) AUrhs = 0.0D0
+    if (.not.WithAV) AVrhs = 0.0D0
 
     ! ... Check out how many trajectories:
     ! ... 
@@ -228,20 +230,27 @@ contains
       do j=1,To(i)%Nm
         if (To(i)%valid(j)) then
           xo = [To(i)%x(j), To(i)%y(j), To(i)%z(j) ]
+
           To(i)%OU(j) = 0.0D0; To(i)%OV(j) = 0.0D0; To(i)%OW(j) = 0.0D0; To(i)%AU(j) = 0.0D0; To(i)%AV(j) = 0.0D0
           call get_forcing('OU',GOU,To(i)%t(j),To(i)%date(j),0.0D0,OUrhs)
           To(i)%OU(j) = time_interpol(GOU,OUrhs,To(i)%t(j),xo)
           call get_forcing('OV',GOV,To(i)%t(j),To(i)%date(j),0.0D0,OVrhs)
           To(i)%OV(j) = time_interpol(GOV,OVrhs,To(i)%t(j),xo)
+
           if (WithOW) then
             call get_forcing('OW',GOW,To(i)%t(j),To(i)%date(j),0.0D0,OWrhs)
             To(i)%OW(j) = time_interpol(GOW,OWrhs,To(i)%t(j),xo)
+          else
+            To(i)%OW(j) = 0.0D0
           endif
           if (winds) then
             call get_forcing('AU',GAU,To(i)%t(j),To(i)%date(j),0.0D0,AUrhs)
             To(i)%AU(j) = time_interpol(GAU,AUrhs,To(i)%t(j),xo)
             call get_forcing('AV',GAV,To(i)%t(j),To(i)%date(j),0.0D0,AVrhs)
             To(i)%AV(j) = time_interpol(GAV,AVrhs,To(i)%t(j),xo)
+          else
+            To(i)%AU(j) = 0.0D0
+            To(i)%AV(j) = 0.0D0
           endif
           if (verb.ge.4) then
             write(*,*) 'Position number    : ', j
@@ -267,25 +276,46 @@ contains
       write(*,*) '--------------'
       write(*,*) 'Fitting module'
       write(*,*) '--------------'
-      write(*,*) 'Number of trajectory files    : ', Nf
-      write(*,*) 'Minimum allowed speed         : ', fit_vmin
-      write(*,*) 'Maximum allowed speed         : ', fit_vmax
-      write(*,*) 'Number valid observations     : ', nvalid
+      write(*,*) 'Number of trajectory files  : ', Nf
+      write(*,*) 'Minimum allowed speed       : ', fit_vmin
+      write(*,*) 'Maximum allowed speed       : ', fit_vmax
+      write(*,*) 'Number valid observations   : ', nvalid
       do i=1,Nf
-        write(*,*) 'File name                     : ', trim(filelist(i))
-        write(*,*) 'Number of observations in file: ', To(i)%No
-        write(*,*) 'Number valid observations     : ', count(To(i)%valid)
-        write(*,*) 'Average time step             : ', To(i)%dtmean
+        write(*,*) 'File name                 : ', trim(filelist(i))
+        write(*,*) 'Number of entries in file : ', To(i)%No
+        write(*,*) 'Number valid entries      : ', count(To(i)%valid(1:To(i)%Nm))
+        write(*,*) 'Average time step         : ', To(i)%dtmean
       enddo
     endif
+
+    ! ... Check if wind data has been loaded
+    ! ...
+    if (.not.WithAU) then
+      fit_FGp2 = 0.0D0
+      fit_FGp3 = 0.0D0
+      fit_dop2 = 0.0D0
+      fit_dop3 = 0.0D0
+    endif
+    if (.not.WithAV) then
+      fit_FGp4 = 0.0D0
+      fit_FGp5 = 0.0D0
+      fit_dop4 = 0.0D0
+      fit_dop5 = 0.0D0
+    endif
+
 
     ! ... The number of Valid matchings is nvalid. We have to multiply by two to take
     ! ... into account the U ad the V matchings
     ! ...
-    Nmatchings = 2*(nvalid-1)           ! The last valid is has no defined velocity
+    fit_nobs = 0
+    do i=1,size(To)
+    do j=1,To(i)%Nm
+      if (To(i)%valid(j)) fit_nobs = fit_nobs + 2
+    enddo
+    enddo
 
-    allocate(Fvec(Nmatchings))       ! Number of terms   yo(i) - ym(i,p)
-    allocate(Fjac(Nmatchings,np))    ! Jacobian of each term by respect p
+    allocate(Fvec(fit_nobs))       ! Number of terms   yo(i) - ym(i,p)
+    allocate(Fjac(fit_nobs,np))    ! Jacobian of each term by respect p
 
     p(:)   = [fit_FGp1, fit_FGp2, fit_FGp3, fit_FGp4, fit_FGp5 ]
     Ftol   = 1.0D-6
@@ -300,13 +330,14 @@ contains
         Jcosto =  func(p)
         dJcost = dfunc(p)
         write(*,*) 
+        write(*,*) 'Number obs       : ', fit_nobs
         write(*,'(T2,A,5F15.5)') 'First guess      : ', p
         write(*,'(T2,A,G15.5)') 'Initial cost     : ', Jcosto
         write(*,'(T2,A,5G15.5)') 'Initial gradient : ', dJcost
         write(*,'(T2,A,5F15.0)') 'Fitting flag     : ', fit_dop1, fit_dop2, fit_dop3, fit_dop4, fit_dop5
     endif
 
-    call lmder (FCN,Nmatchings,Np,p,Fvec,Fjac,Nmatchings, &
+    call lmder (FCN,fit_nobs,Np,p,Fvec,Fjac,fit_nobs, &
                 Ftol,Xtol,Gtol,Maxfev, &
                 diag,mode,factor,nprint, &
                 Ninfo,Nfev,Njev,ipvt,qtf)
@@ -326,10 +357,12 @@ contains
     open(iu,file=fit_fout,status='unknown')
     do i=1,size(To)
     do j=1,To(i)%Nm
-      um = p(1)*To(i)%OU(j) + p(2)*To(i)%AU(j) + p(3)*To(i)%AV(j)
-      vm = p(1)*To(i)%OV(j) + p(4)*To(i)%AU(j) + p(5)*To(i)%AV(j)
-      write(iu,'(8F8.3)') To(i)%uo(j), To(i)%vo(j), um, vm,  &
-                          To(i)%OU(j), To(i)%OV(j), To(i)%AV(j), To(i)%AV(j)              
+      if (To(i)%valid(j)) then
+        um = p(1)*To(i)%OU(j) + p(2)*To(i)%AU(j) + p(3)*To(i)%AV(j)
+        vm = p(1)*To(i)%OV(j) + p(4)*To(i)%AU(j) + p(5)*To(i)%AV(j)
+        write(iu,'(2I4,8F9.3)') i, j, To(i)%uo(j), To(i)%vo(j), um, vm,  &
+                            To(i)%OU(j), To(i)%OV(j), To(i)%AV(j), To(i)%AV(j)              
+      endif
     enddo
     enddo
     close(iu)
@@ -403,14 +436,15 @@ contains
 
     ! ... Local variables
     ! ...
-    integer iu,i,nl,nh,N
+    integer iu,i,nl,nh,N,err
     real(dp) x, y, z
     character(len=maxlen) line
     character(len=20) sdate
 
     iu = unitfree()
     if (verb.ge.2) write(*,*) 'Opening ASCII trajectory ', trim(filename)
-    open(iu,file=filename,status='old')
+    open(iu,file=filename,status='old',iostat=err)
+    if (err.ne.0) call crash('File '//trim(filename)//' does not exist')
 
     nl = numlines(iu,'ascii')
     if (verb.ge.3) write(*,*) 'Number of lines: ', nl
@@ -603,9 +637,12 @@ contains
 
     do i=1,T%N-1
 
+      dx = T%x(i+1) - T%x(i)
+      dy = T%y(i+1) - T%y(i)
+      dz = T%z(i+1) - T%z(i)
       dt = T%t(i+1) - T%t(i)
 
-      if (abs(dt).gt.0) then
+      if (abs(dt).gt.0.and.abs(dx).gt.0.and.abs(dy).gt.0) then
 
         T%dt(i) = dt
         dtmean = dtmean + dt
@@ -613,13 +650,9 @@ contains
 
         if (Spherical) then
           ym =  0.5D0*(T%y(i+1)+T%y(i))
-          dx = REarth*(T%x(i+1)-T%x(i))*cos(ym)
-          dy = REarth*(T%y(i+1)-T%y(i))
-        else
-          dx = T%x(i+1)-T%x(i)
-          dy = T%y(i+1)-T%y(i)
+          dx = REarth*dx*cos(ym)
+          dy = REarth*dy
         endif
-        dz = T%z(i+1)-T%z(i)
         u = dx/dt
         v = dy/dt
         w = dz/dt
