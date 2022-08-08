@@ -81,6 +81,9 @@ subroutine options
   logical                                        :: WithRterm = .False.
   logical                                        :: WithDVM   = .False.
   logical                                        :: WithRfn   = .False.
+  logical                                        :: WithWind  = .False.
+  logical                                        :: WithBeta  = .False.
+  logical                                        :: WithTheta = .False.
 
   integer                                        :: na,i
   real(dp), dimension(:), allocatable            :: AAA
@@ -151,14 +154,14 @@ subroutine options
     ! ... OU, OV, OW, OT, OS, OR, OC options
     ! ...
     if (WithUterm) then
-      OUfilename = token_read(OUlist,'file=')
+      OUfilename = token_read(OUlist,'file')
       if (len_trim(OUfilename).ne.0) WithOU = .True.
-      word = token_read(OUlist,'var='); if (len_trim(word).gt.0) OUvname = trim(word)
-      word = token_read(OUlist,'x=');   if (len_trim(word).gt.0) OUxname = trim(word)
-      word = token_read(OUlist,'y=');   if (len_trim(word).gt.0) OUyname = trim(word)
-      word = token_read(OUlist,'z=');   if (len_trim(word).gt.0) OUzname = trim(word)
-      word = token_read(OUlist,'t=');   if (len_trim(word).gt.0) OUtname = trim(word)
-      word = token_read(OUlist,'val=')
+      word = token_read(OUlist,'var'); if (len_trim(word).gt.0) OUvname = trim(word)
+      word = token_read(OUlist,'x');   if (len_trim(word).gt.0) OUxname = trim(word)
+      word = token_read(OUlist,'y');   if (len_trim(word).gt.0) OUyname = trim(word)
+      word = token_read(OUlist,'z');   if (len_trim(word).gt.0) OUzname = trim(word)
+      word = token_read(OUlist,'t');   if (len_trim(word).gt.0) OUtname = trim(word)
+      word = token_read(OUlist,'val')
       if (len_trim(word).gt.0) then
         model_fixed_ou = .True.
         read(word,*) model_value_ou
@@ -170,14 +173,14 @@ subroutine options
     endif
 
     if (WithVterm) then
-      OVfilename = token_read(OVlist,'file=')
+      OVfilename = token_read(OVlist,'file')
       if (len_trim(OVfilename).ne.0) WithOV = .True.
-      word = token_read(OVlist,'var='); if (len_trim(word).gt.0) OVvname = trim(word)
-      word = token_read(OVlist,'x=');   if (len_trim(word).gt.0) OVxname = trim(word)
-      word = token_read(OVlist,'y=');   if (len_trim(word).gt.0) OVyname = trim(word)
-      word = token_read(OVlist,'z=');   if (len_trim(word).gt.0) OVzname = trim(word)
-      word = token_read(OVlist,'t=');   if (len_trim(word).gt.0) OVtname = trim(word)
-      word = token_read(OVlist,'val=')
+      word = token_read(OVlist,'var'); if (len_trim(word).gt.0) OVvname = trim(word)
+      word = token_read(OVlist,'x');   if (len_trim(word).gt.0) OVxname = trim(word)
+      word = token_read(OVlist,'y');   if (len_trim(word).gt.0) OVyname = trim(word)
+      word = token_read(OVlist,'z');   if (len_trim(word).gt.0) OVzname = trim(word)
+      word = token_read(OVlist,'t');   if (len_trim(word).gt.0) OVtname = trim(word)
+      word = token_read(OVlist,'val')
       if (len_trim(word).gt.0) then
         model_fixed_ov = .True.
         read(word,*) model_value_ov
@@ -190,13 +193,13 @@ subroutine options
     
 
     if (WithWterm) then
-      OWfilename = token_read(OWlist,'file=')
+      OWfilename = token_read(OWlist,'file')
       if (len_trim(OWfilename).ne.0) WithOW = .True.
-      word = token_read(OWlist,'var='); if (len_trim(word).gt.0) OWvname = trim(word)
-      word = token_read(OWlist,'x=');   if (len_trim(word).gt.0) OWxname = trim(word)
-      word = token_read(OWlist,'y=');   if (len_trim(word).gt.0) OWyname = trim(word)
-      word = token_read(OWlist,'z=');   if (len_trim(word).gt.0) OWzname = trim(word)
-      word = token_read(OWlist,'t=');   if (len_trim(word).gt.0) OWtname = trim(word)
+      word = token_read(OWlist,'var'); if (len_trim(word).gt.0) OWvname = trim(word)
+      word = token_read(OWlist,'x');   if (len_trim(word).gt.0) OWxname = trim(word)
+      word = token_read(OWlist,'y');   if (len_trim(word).gt.0) OWyname = trim(word)
+      word = token_read(OWlist,'z');   if (len_trim(word).gt.0) OWzname = trim(word)
+      word = token_read(OWlist,'t');   if (len_trim(word).gt.0) OWtname = trim(word)
       if (len_trim(word).gt.0) then
         model_fixed_ow = .True.
         read(word,*) model_value_ow
@@ -208,14 +211,14 @@ subroutine options
     endif
 
     if (WithXterm) then
-      AUfilename = token_read(AUlist,'file=')
+      AUfilename = token_read(AUlist,'file')
       if (len_trim(AUfilename).ne.0) WithAU = .True.
-      word = token_read(AUlist,'var='); if (len_trim(word).gt.0) AUvname = trim(word)
-      word = token_read(AUlist,'x=');   if (len_trim(word).gt.0) AUxname = trim(word)
-      word = token_read(AUlist,'y=');   if (len_trim(word).gt.0) AUyname = trim(word)
-      word = token_read(AUlist,'z=');   if (len_trim(word).gt.0) AUzname = trim(word)
-      word = token_read(AUlist,'t=');   if (len_trim(word).gt.0) AUtname = trim(word)
-      word = token_read(AUlist,'val=')
+      word = token_read(AUlist,'var'); if (len_trim(word).gt.0) AUvname = trim(word)
+      word = token_read(AUlist,'x');   if (len_trim(word).gt.0) AUxname = trim(word)
+      word = token_read(AUlist,'y');   if (len_trim(word).gt.0) AUyname = trim(word)
+      word = token_read(AUlist,'z');   if (len_trim(word).gt.0) AUzname = trim(word)
+      word = token_read(AUlist,'t');   if (len_trim(word).gt.0) AUtname = trim(word)
+      word = token_read(AUlist,'val')
       if (len_trim(word).gt.0) then
         model_fixed_au = .True.
         read(word,*) model_value_au
@@ -227,14 +230,14 @@ subroutine options
     endif
 
     if (WithYterm) then
-      AVfilename = token_read(AVlist,'file=')
+      AVfilename = token_read(AVlist,'file')
       if (len_trim(AVfilename).ne.0) WithAV = .True.
-      word = token_read(AVlist,'var='); if (len_trim(word).gt.0) AVvname = trim(word)
-      word = token_read(AVlist,'x=');   if (len_trim(word).gt.0) AVxname = trim(word)
-      word = token_read(AVlist,'y=');   if (len_trim(word).gt.0) AVyname = trim(word)
-      word = token_read(AVlist,'z=');   if (len_trim(word).gt.0) AVzname = trim(word)
-      word = token_read(AVlist,'t=');   if (len_trim(word).gt.0) AVtname = trim(word)
-      word = token_read(AVlist,'val=')
+      word = token_read(AVlist,'var'); if (len_trim(word).gt.0) AVvname = trim(word)
+      word = token_read(AVlist,'x');   if (len_trim(word).gt.0) AVxname = trim(word)
+      word = token_read(AVlist,'y');   if (len_trim(word).gt.0) AVyname = trim(word)
+      word = token_read(AVlist,'z');   if (len_trim(word).gt.0) AVzname = trim(word)
+      word = token_read(AVlist,'t');   if (len_trim(word).gt.0) AVtname = trim(word)
+      word = token_read(AVlist,'val')
       if (len_trim(word).gt.0) then
         model_fixed_av = .True.
         read(word,*) model_value_av
@@ -246,14 +249,14 @@ subroutine options
     endif
 
     if (WithRterm) then
-      ORfilename = token_read(ORlist,'file=')
+      ORfilename = token_read(ORlist,'file')
       if (len_trim(ORfilename).ne.0) WithOR = .True.
-      word = token_read(ORlist,'var='); if (len_trim(word).gt.0) ORvname = trim(word)
-      word = token_read(ORlist,'x=');   if (len_trim(word).gt.0) ORxname = trim(word)
-      word = token_read(ORlist,'y=');   if (len_trim(word).gt.0) ORyname = trim(word)
-      word = token_read(ORlist,'z=');   if (len_trim(word).gt.0) ORzname = trim(word)
-      word = token_read(ORlist,'t=');   if (len_trim(word).gt.0) ORtname = trim(word)
-      word = token_read(ORlist,'val=')
+      word = token_read(ORlist,'var'); if (len_trim(word).gt.0) ORvname = trim(word)
+      word = token_read(ORlist,'x');   if (len_trim(word).gt.0) ORxname = trim(word)
+      word = token_read(ORlist,'y');   if (len_trim(word).gt.0) ORyname = trim(word)
+      word = token_read(ORlist,'z');   if (len_trim(word).gt.0) ORzname = trim(word)
+      word = token_read(ORlist,'t');   if (len_trim(word).gt.0) ORtname = trim(word)
+      word = token_read(ORlist,'val')
       if (len_trim(word).gt.0) then
         word = uppercase(word)
         if (is_numeric(word)) then
@@ -275,40 +278,40 @@ subroutine options
 
 
     if (WithOT) then
-      OTfilename = token_read(OTlist,'file=')
-      word = token_read(OTlist,'var='); if (len_trim(word).gt.0) OTvname = trim(word)
-      word = token_read(OTlist,'x=');   if (len_trim(word).gt.0) OTxname = trim(word)
-      word = token_read(OTlist,'y=');   if (len_trim(word).gt.0) OTyname = trim(word)
-      word = token_read(OTlist,'z=');   if (len_trim(word).gt.0) OTzname = trim(word)
-      word = token_read(OTlist,'t=');   if (len_trim(word).gt.0) OTtname = trim(word)
+      OTfilename = token_read(OTlist,'file')
+      word = token_read(OTlist,'var'); if (len_trim(word).gt.0) OTvname = trim(word)
+      word = token_read(OTlist,'x');   if (len_trim(word).gt.0) OTxname = trim(word)
+      word = token_read(OTlist,'y');   if (len_trim(word).gt.0) OTyname = trim(word)
+      word = token_read(OTlist,'z');   if (len_trim(word).gt.0) OTzname = trim(word)
+      word = token_read(OTlist,'t');   if (len_trim(word).gt.0) OTtname = trim(word)
     endif
     if (WithOS) then
-      OSfilename = token_read(OSlist,'file=')
-      word = token_read(OSlist,'var='); if (len_trim(word).gt.0) OSvname = trim(word)
-      word = token_read(OSlist,'x=');   if (len_trim(word).gt.0) OSxname = trim(word)
-      word = token_read(OSlist,'y=');   if (len_trim(word).gt.0) OSyname = trim(word)
-      word = token_read(OSlist,'z=');   if (len_trim(word).gt.0) OSzname = trim(word)
-      word = token_read(OSlist,'t=');   if (len_trim(word).gt.0) OStname = trim(word)
+      OSfilename = token_read(OSlist,'file')
+      word = token_read(OSlist,'var'); if (len_trim(word).gt.0) OSvname = trim(word)
+      word = token_read(OSlist,'x');   if (len_trim(word).gt.0) OSxname = trim(word)
+      word = token_read(OSlist,'y');   if (len_trim(word).gt.0) OSyname = trim(word)
+      word = token_read(OSlist,'z');   if (len_trim(word).gt.0) OSzname = trim(word)
+      word = token_read(OSlist,'t');   if (len_trim(word).gt.0) OStname = trim(word)
     endif
 
     if (WithOC) then
-      OCfilename = token_read(OClist,'file=')
-      word = token_read(OClist,'var='); if (len_trim(word).gt.0) OCvname = trim(word)
-      word = token_read(OClist,'x=');   if (len_trim(word).gt.0) OCxname = trim(word)
-      word = token_read(OClist,'y=');   if (len_trim(word).gt.0) OCyname = trim(word)
-      word = token_read(OClist,'z=');   if (len_trim(word).gt.0) OCzname = trim(word)
-      word = token_read(OClist,'t=');   if (len_trim(word).gt.0) OCtname = trim(word)
+      OCfilename = token_read(OClist,'file')
+      word = token_read(OClist,'var'); if (len_trim(word).gt.0) OCvname = trim(word)
+      word = token_read(OClist,'x');   if (len_trim(word).gt.0) OCxname = trim(word)
+      word = token_read(OClist,'y');   if (len_trim(word).gt.0) OCyname = trim(word)
+      word = token_read(OClist,'z');   if (len_trim(word).gt.0) OCzname = trim(word)
+      word = token_read(OClist,'t');   if (len_trim(word).gt.0) OCtname = trim(word)
     endif
 
     if (WithMakeGrid) then
-      word = token_read(GRlist,'west='); if (len_trim(word).gt.0) read(word,*) alm_xmin
-      word = token_read(GRlist,'east='); if (len_trim(word).gt.0) read(word,*) alm_xmax
-      word = token_read(GRlist,'south='); if (len_trim(word).gt.0) read(word,*) alm_ymin
-      word = token_read(GRlist,'north='); if (len_trim(word).gt.0) read(word,*) alm_ymax
-      word = token_read(GRlist,'depth='); if (len_trim(word).gt.0) read(word,*) alm_depth
-      word = token_read(GRlist,'dx='); if (len_trim(word).gt.0) read(word,*) alm_dx
-      word = token_read(GRlist,'dy='); if (len_trim(word).gt.0) read(word,*) alm_dy
-      word = token_read(GRlist,'dz='); if (len_trim(word).gt.0) read(word,*) alm_dz
+      word = token_read(GRlist,'west'); if (len_trim(word).gt.0) read(word,*) alm_xmin
+      word = token_read(GRlist,'east'); if (len_trim(word).gt.0) read(word,*) alm_xmax
+      word = token_read(GRlist,'south'); if (len_trim(word).gt.0) read(word,*) alm_ymin
+      word = token_read(GRlist,'north'); if (len_trim(word).gt.0) read(word,*) alm_ymax
+      word = token_read(GRlist,'depth'); if (len_trim(word).gt.0) read(word,*) alm_depth
+      word = token_read(GRlist,'dx'); if (len_trim(word).gt.0) read(word,*) alm_dx
+      word = token_read(GRlist,'dy'); if (len_trim(word).gt.0) read(word,*) alm_dy
+      word = token_read(GRlist,'dz'); if (len_trim(word).gt.0) read(word,*) alm_dz
       alm_zmin = -abs(alm_depth)
       alm_zmax = 0.0D0
     endif
@@ -440,23 +443,58 @@ subroutine options
       endif
     endif
 
+    ! ... Wind method and parameters
+    ! ...
+    call linearg('-Wind',WithWind,WDlist)
+    if (WithWind) then
+      WDlist = lowercase(WDlist)
+      word = token_read(WDlist,'a')
+      if (len_trim(word).gt.0) then
+        WindResponse = .True.
+        AAA = ReadVector(trim(word))
+        if (size(AAA).ne.4) call crash('Incompatible number of A values')
+        A11 = AAA(1)
+        A12 = AAA(2)
+        A21 = AAA(3)
+        A22 = AAA(4)
+      endif
+      word = token_read(WDlist,'beta')
+      if (len_trim(word).gt.0) then
+        WindDriven = .True.
+        Withbeta   = .True.
+        read(word,*) WDriven_beta
+      endif
+      word = token_read(WDlist,'theta')
+      if (len_trim(word).gt.0) then
+        WindDriven  = .True.
+        Withtheta   = .True.
+        read(word,*) WDriven_theta
+      endif
+      word = token_read(WDlist,'depth'); if (len_trim(word).gt.0) read(word,*) WindDepth
+    endif
+    if (WindResponse.and.WindDriven) call crash('Incompatible use of A, beta and theta parameters')
+    if (count([Withbeta,WithTheta]).eq.1) call crash('Both beta and theta values required')
+    if (Winds) then
+      if (count([WindResponse,WindDriven]).eq.0) call crash('-Wind forcing requires specification of wind paramteres')
+    endif
+
     ! ... Wind Response matrix A11, A12, A21, A22:
     ! ...
-    call linearg('-Winddriven',WindDriven,WDlist)
-    if (WindDriven) then
-      word = token_read(WDlist,'alpha='); if (len_trim(word).gt.0) read(word,*) WDriven_alpha
-      word = token_read(WDlist,'beta='); if (len_trim(word).gt.0) read(word,*) WDriven_beta
-      WindDepth = 0.0D0
-      if (verb.ge.4) write(*,*) 'WDriven_alpha, WDriven_beta : ', WDriven_alpha, WDriven_beta
-      if (verb.ge.4) write(*,*) 'WindDepth : ', WindDepth
-    else
-      call linearg('-winddepth',WithWDepth,WindDepth)
-      call linearg('-a11',WithA11,A11)
-      call linearg('-a11',WithA11,A11)
-      call linearg('-a12',WithA12,A12)
-      call linearg('-a21',WithA21,A21)
-      call linearg('-a22',WithA22,A22)
-    endif
+    !call linearg('-Winddriven',WindDriven,WDlist)
+    !if (WindDriven) then
+    !  word = token_read(WDlist,'alpha='); if (len_trim(word).gt.0) read(word,*) WDriven_alpha
+    !  word = token_read(WDlist,'beta='); if (len_trim(word).gt.0) read(word,*) WDriven_beta
+    !  WindDepth = 0.0D0
+    !  if (verb.ge.4) write(*,*) 'WDriven_alpha, WDriven_beta : ', WDriven_alpha, WDriven_beta
+    !  if (verb.ge.4) write(*,*) 'WindDepth : ', WindDepth
+    !else
+    !  call linearg('-winddepth',WithWDepth,WindDepth)
+    !  call linearg('-a11',WithA11,A11)
+    !  call linearg('-a11',WithA11,A11)
+    !  call linearg('-a12',WithA12,A12)
+    !  call linearg('-a21',WithA21,A21)
+    !  call linearg('-a22',WithA22,A22)
+    !endif
 
     WindDepth = -abs(WindDepth)
 
@@ -494,9 +532,9 @@ subroutine options
     call linearg('-DVM',WithDVM,DVMlist)
     if (WithDVM) then
       Particle_dvm = .True.
-      word = token_read(DVMlist,'zday='); if (len_trim(word).gt.0) read(word,*) dvm_zday 
-      word = token_read(DVMlist,'znight='); if (len_trim(word).gt.0) read(word,*) dvm_znight 
-      word = token_read(DVMlist,'tvm='); if (len_trim(word).gt.0) read(word,*) dvm_tvm
+      word = token_read(DVMlist,'zday'); if (len_trim(word).gt.0) read(word,*) dvm_zday 
+      word = token_read(DVMlist,'znight'); if (len_trim(word).gt.0) read(word,*) dvm_znight 
+      word = token_read(DVMlist,'tvm'); if (len_trim(word).gt.0) read(word,*) dvm_tvm
     endif
 
 
@@ -518,10 +556,10 @@ subroutine options
         reverse = .False.
       endif
 
-      word = token_read(FITlist,'vmin='); if (len_trim(word).gt.0) read(word,*) fit_vmin
-      word = token_read(FITlist,'vmax='); if (len_trim(word).gt.0) read(word,*) fit_vmax
-      word = token_read(FITlist,'out='); if (len_trim(word).gt.0)  read(word,*) fit_fout
-      word = token_read(FITlist,'first=')
+      word = token_read(FITlist,'vmin'); if (len_trim(word).gt.0) read(word,*) fit_vmin
+      word = token_read(FITlist,'vmax'); if (len_trim(word).gt.0) read(word,*) fit_vmax
+      word = token_read(FITlist,'out'); if (len_trim(word).gt.0)  read(word,*) fit_fout
+      word = token_read(FITlist,'first')
       if (len_trim(word).gt.0)  then
         AAA = ReadVector(trim(word))
         if (size(AAA).ne.5) call crash('Incompatible number of initial parameters')
@@ -531,7 +569,7 @@ subroutine options
         fit_FGp4 = AAA(4)
         fit_FGp5 = AAA(5)
       endif
-      word = token_read(FITlist,'adjust=')
+      word = token_read(FITlist,'adjust')
       if (len_trim(word).gt.0)  then
         AAA = ReadVector(trim(word))
         if (size(AAA).ne.5) call crash('Incompatible number of initial parameters')

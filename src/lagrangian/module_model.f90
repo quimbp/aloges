@@ -105,7 +105,7 @@ integer                                          :: ADVECTION_LAYER = 0
 ! ... Pereiro et al. (2019).
 ! ... The atmospheric term only applies at depths shallower than WindDepth.
 ! ...
-real(dp)                                         :: WindDepth = 0.0D0
+logical                                          :: WindResponse = .False.
 real(dp)                                         :: A11       = 0.0_dp
 real(dp)                                         :: A12       = 0.0_dp
 real(dp)                                         :: A21       = 0.0_dp
@@ -118,9 +118,10 @@ real(dp)                                         :: A22       = 0.0_dp
 ! ... DOI: 10.1175/2008JTECHO618.1
 ! ...
 logical                                          :: WindDriven = .False.
-real(dp)                                         :: WDriven_alpha = 0.0D0
 real(dp)                                         :: WDriven_beta  = 0.0D0
+real(dp)                                         :: WDriven_theta = 0.0D0
 
+real(dp)                                         :: WindDepth = 0.0D0
 
 ! ... Water speed fraction (alpha)
 ! ... Dragg-related term. It also allows simulating when
@@ -600,8 +601,8 @@ contains
     ! ... ov = beta* (sin(alpha)*au - cos(alpha)*av)
     ! ...
     if (WindDriven) then
-      A11 = WDriven_beta*cos(deg2rad*WDriven_alpha); A22 = A11
-      A21 = WDriven_beta*sin(deg2rad*WDriven_alpha); A12 = -A21
+      A11 = WDriven_beta*cos(deg2rad*WDriven_theta); A22 = A11
+      A21 = WDriven_beta*sin(deg2rad*WDriven_theta); A12 = -A21
     endif
 
 
@@ -682,13 +683,16 @@ contains
       endif
 
       write(*,*) 'Wind forcing           : ', Winds
-      write(*,*) 'Wind driven model      : ', WindDriven
+
+      write(*,*) 'Wind response method   : ', WindResponse
+      write(*,*) 'Wind driven method     : ', WindDriven
       if (WindDriven) then
-        write(*,*) 'Wind driven alpha      : ', WDriven_alpha
         write(*,*) 'Wind driven beta       : ', WDriven_beta
+        write(*,*) 'Wind driven theta      : ', WDriven_theta
       endif
       write(*,*) 'A11, A12               : ', A11, A12
       write(*,*) 'A21, A22               : ', A21, A22
+      write(*,*) 'Wind action depth      : ', WindDepth
 
       write(*,*) 'Muliplicative noise    : ', noise_mu
       write(*,*) 'Additive noise model 0 : ', noise_model_0

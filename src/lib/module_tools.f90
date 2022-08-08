@@ -655,67 +655,85 @@ contains
 
     character(len=*), intent(in)           :: line
     character(len=*), intent(in)           :: prompt
-    character(len=:), allocatable          :: ans
+    character(len=maxlen)                  :: ans
 
     ! ... Local variables
     ! ...
-    integer plen,ip,iw,ic
-    character(len=len(line)+1) lline
+    integer i,j,i1,i2,nl
+    character(len=maxlen) lprompt,lans
 
-    lline = compress(line)
-    plen = len_trim(prompt)
+    ans = ''
 
-    ip = index(line,prompt)
-    if (ip.le.0) then
-      ans = ''
-      return
-    else
-      ip = ip + 1
-    endif
+    nl = len_trim(line)
+    lprompt = adjustl(prompt)
 
-    ! ... Get the input line on the right of the token:
-    ! ...
-    lline = compress(lline(ip+plen-1:))
+    do i=2,len_trim(line)-1
 
-    ! ... Remove left white spaces:
-    ! ...
-    lline = adjustl(lline)
+      if (line(i:i).eq.'=') then
+        ! ... get the index i2
+        ! ...
+        do j=i-1,1,-1
+          if (line(j:j).ne.' ') then
+            i2 = j
+            exit
+          endif
+        enddo
+        ! ... get the index i1
+        ! ...
+        do j=i2,1,-1
+          if ((line(j:j).eq.' ').or.(line(j:j).eq.',')) then
+            i1 = j+1
+            exit
+          endif
+          if (j.eq.1) i1 = 1
+        enddo
 
-    ! ... Check if vector
-    ! ...
-    if (lline(1:1).eq.'[') then
-      ip = index(lline,']') 
-      if (ip.le.0) call crash('Invalid toke vector')
-      ans = lline(1:ip)
-      return
-    endif
+        if (line(i1:i2).eq.trim(lprompt)) then
+          ! ... Ok, we got the left hand side of the token.
+          ! ... Now, read the right hand side. There are two
+          ! ... options: regular entry or a vector (between square
+          ! ... brackets).
+          ! ... The equal sign is at position "i"
+          
+          ! ... Get index i1
+          ! ... 
+          do j=i+1,nl
+            if (line(j:j).ne.' ') then
+              i1 = j
+              exit
+            endif
+          enddo
+          if (line(i1:i1).eq.'[') then
+            ! ... We return a vector
+            ! ...
+            i2 = -1
+            do j=i1+1,nl
+              if (line(j:j).eq.']') then
+                i2 = j
+                exit
+              endif
+            enddo
+            if (i2.eq.-1) call crash('TOKEN_READ: Bad formulated vector')
+          else
+            do j=i1,nl
+              if ((line(j:j).eq.' ').or.(line(j:j).eq.',')) then
+                i2 = j-1
+                exit
+              endif
+              if (j.eq.nl) i2 = nl
+            enddo
+          endif
 
-    ! ... Check for the first white space or the end of line:
-    ! ...
-    iw = index(lline,' ') - 1
-    ic = index(lline,',') - 1
-    if (iw.le.0.and.ic.gt.0) then
-      ip = ic
-    else if (iw.gt.0.and.ic.le.0) then
-      ip = iw
-    else if (iw.gt.0.and.ic.gt.0) then
-      ip = min(iw,ic)
-    else
-      ip = 0
-    endif
-    if (ip.le.0) ip = len_trim(lline)
+          ! ... This is the answer. Before returning we check if there was a None
+          ! ...
+          ans = line(i1:i2)
+          lans = lowercase(ans)
+          if (trim(lans).eq.'none') ans = ''
+          return
 
-    ! ... Get the first word:
-    ! ...
-    ans = lline(1:ip)
-
-    if (trim(ans).eq.'none') then
-      ans = ''
-    else if (trim(ans).eq.'None') then
-      ans = ''
-    else if (trim(ans).eq.'NONE') then
-      ans = ''
-    endif
+        endif
+      endif
+    enddo
 
   end function token_read
   ! ...
