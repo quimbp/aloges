@@ -59,9 +59,10 @@ subroutine options
   logical                                        :: WithKH1   = .False.
   logical                                        :: WithKV1   = .False.
   logical                                        :: WithMVmin = .False.
-  logical                                        :: WithAlfa1 = .False.
-  logical                                        :: WithAlfa2 = .False.
-  logical                                        :: WithAlfa3 = .False.
+  logical                                        :: WithAlfa  = .False.
+!  logical                                        :: WithAlfa1 = .False.
+!  logical                                        :: WithAlfa2 = .False.
+!  logical                                        :: WithAlfa3 = .False.
   logical                                        :: WithRx    = .False.
   logical                                        :: WithRy    = .False.
   logical                                        :: WithRz    = .False.
@@ -102,6 +103,7 @@ subroutine options
   character(len=400)                             :: WDlist=''
   character(len=400)                             :: DVMlist=''
   character(len=400)                             :: FITlist=''
+  character(len=400)                             :: Alphalist=''
 
 
     ! ... Fill in the help information
@@ -338,9 +340,32 @@ subroutine options
 
     ! ... Velocity factor
     ! ...
-    call linearg('-alpha1',WithAlfa1,alpha(1))
-    call linearg('-alpha2',WithAlfa2,alpha(2))
-    call linearg('-alpha2',WithAlfa3,alpha(3))
+    !call linearg('-alpha1',WithAlfa1,alpha(1))
+    !call linearg('-alpha2',WithAlfa2,alpha(2))
+    !call linearg('-alpha2',WithAlfa3,alpha(3))
+    call linearg('-alpha',WithAlfa,Alphalist)
+    if (WithAlfa) then
+      if (Alphalist(1:1).eq.'[') then  
+        ! ... A vector has been entered
+        AAA = ReadVector(trim(Alphalist))
+        na = size(AAA)
+        if (na.eq.1) then
+          alpha(:) = AAA(1)
+        else if (na.eq.2) then
+          alpha(1) = AAA(1)
+          alpha(2) = AAA(2)
+        else if (na.eq.3) then
+          alpha(1) = AAA(1)
+          alpha(2) = AAA(2)
+          alpha(3) = AAA(3)
+        endif
+      else
+        ! ... A single value has been entered
+        read(Alphalist,*) alpha(1)
+        read(Alphalist,*) alpha(2)
+        read(Alphalist,*) alpha(3)
+      endif
+    endif
     
     ! ... Trajectory name and final point
     ! ...
