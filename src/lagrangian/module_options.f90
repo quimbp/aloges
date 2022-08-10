@@ -85,6 +85,7 @@ subroutine options
   logical                                        :: WithWind  = .False.
   logical                                        :: WithBeta  = .False.
   logical                                        :: WithTheta = .False.
+  logical                                        :: WithRk    = .False.
 
   integer                                        :: na,i
   real(dp), dimension(:), allocatable            :: AAA
@@ -562,6 +563,9 @@ subroutine options
       word = token_read(DVMlist,'tvm'); if (len_trim(word).gt.0) read(word,*) dvm_tvm
     endif
 
+    ! ... Runge-Kutta order
+    ! ...
+    call linearg('-rk',WithRK,rk_order)
 
     ! ... Fitting options
     ! ...
@@ -640,7 +644,6 @@ subroutine options
         if (.not.WithTini.or..not.WithTlen) call crash('Climatology requires options -from and -for')
       endif
     endif
-
 
     ! ... Check options
     ! ...

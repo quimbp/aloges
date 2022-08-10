@@ -35,7 +35,7 @@ INC = $(CDFINC)
 TARGET = ../../lib/libaloges.a
 OBJ = module_types.o module_constants.o module_math.o module_tools.o \
       module_time.o module_grid.o module_lineargs.o module_help.o \
-      module_minpack.o
+      module_trajectories.o module_minpack.o
 
 all: $(OBJ) $(LIBDIR) $(INCDIR) aloges.mod
 	rm -f $(TARGET)
@@ -86,6 +86,9 @@ module_lineargs.o: module_types.o module_constants.o module_tools.o module_linea
 
 module_help.o: module_types.o module_constants.o module_tools.o module_help.f90
 	$(FC) -c $(FFLAGS) $(INC) module_help.f90
+
+module_trajectories.o: module_types.o module_constants.o module_tools.o module_trajectories.f90
+	$(FC) -c $(FFLAGS) $(INC) module_trajectories.f90
 
 module_minpack.o: module_types.o module_minpack.f90
 	$(FC) -c $(FFLAGS) $(INC) module_minpack.f90

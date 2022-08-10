@@ -855,6 +855,12 @@ read(word,*) date%minute
 call line_word(att,6,word)
 read(word,*) date%second
 
+if (date%month.gt.12.or.date%month.le.0) call crash('STRPTIME ERROR. Invalid month')
+if (date%day.gt.31.or.date%day.le.0) call crash('STRPTIME ERROR. Invalid day')
+if (date%hour.gt.24.or.date%hour.lt.0) call crash('STRPTIME ERROR. Invalid hour')
+if (date%minute.gt.60.or.date%minute.lt.0) call crash('STRPTIME ERROR. Invalid minute')
+if (date%second.gt.60.or.date%second.lt.0) call crash('STRPTIME ERROR. Invalid second')
+
 date%yearday = days_before_month(date%year,date%month) + date%day
 date%calendar = 'gregorian'
 

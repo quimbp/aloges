@@ -278,4 +278,30 @@ contains
   ! ...
   ! ===================================================================
   ! ...
+  real(dp) function haversine (lon1,lat1,lon2,lat2)
+    ! ...
+    ! ... Function Haversine
+    ! ... Determines the great-circle distance between two points in a
+    ! ... sphere. The input lngitudes and latitudes are given in radians
+    ! ... The retruned distance is in meters.
+    ! ... REarth = 6371315.0_dp      ! m
+    ! ...
+    real(dp), intent(in)                  :: lon1,lat1
+    real(dp), intent(in)                  :: lon2,lat2
+
+    ! ... Local variables
+    ! ...
+    real(dp) sindx,sindy,dang
+
+    sindx = sin(0.5D0*(lon2-lon1))
+    sindy = sin(0.5D0*(lat2-lat1))
+
+    dang = 2.0d0*asin(sqrt(sindy*sindy + cos(lat2)*cos(lat1)*sindx*sindx))
+    haversine = REarth * dang
+
+    return
+  end function haversine
+  ! ...
+  ! ===================================================================
+  ! ...
 end module module_math

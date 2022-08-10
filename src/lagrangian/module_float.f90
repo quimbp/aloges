@@ -310,7 +310,7 @@ contains
     ! ... Local variables
     ! ...
     logical withdate,valid,is_land
-    integer iu,i,ii,j,nheader,nlines,nmax,flo
+    integer iu,i,ii,j,nheader,nlines,nmax,flo,err
     real(dp) rnd(4)
     real(dp) xx,yy,zz,tt
     real(dp) xo,yo,zo,to
@@ -326,7 +326,9 @@ contains
     if (verb.ge.2) write(*,*) 'Reading release ASCII file: ', trim(filename)
 
     iu = unitfree()
-    open(iu,file=filename,status='old')
+    open(iu,file=filename,status='old',iostat=err)
+    if (err.ne.0) call crash('Input release file not found')
+
     nlines = numlines(iu)
 
     ! ... Check for header lines

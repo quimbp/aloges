@@ -616,6 +616,7 @@ contains
       else
         write(*,*) 'Backward model'
       endif
+      write(*,*) 'Runge Kutta   : ', rk_order
       write(*,*) 'Initial time  : ', model_tini, model_dini%iso()
       write(*,*) 'Final time    : ', model_tfin, model_dfin%iso()
       write(*,*) 'Time step     : ', model_dt
@@ -996,7 +997,7 @@ contains
       do ifloat=1,Nfloats
         model_time = FLT(ifloat)%tlast
         model_date = num2date(Reference_time+model_time,model_time_units,model_time_calendar)
-        write(iu,'(F9.4,2X,F9.4,2X,F6.1,2X,A)') FLT(ifloat)%x*rad2deg, &
+        write(iu,'(F11.6,2X,F11.6,2X,F8.3,2X,A)') FLT(ifloat)%x*rad2deg, &
                                                 FLT(ifloat)%y*rad2deg, &
                                                 abs(FLT(ifloat)%z), &
                                                 model_date%iso()
@@ -1102,7 +1103,7 @@ contains
             G%trec1 = anint(date2num(G%drec1,units=model_time_units)+(HalfMonth(m1)-1)*86400.0D0)
             f(:,:,:,2) = f(:,:,:,1)
             f(:,:,:,1) = G%read3D(G%varid,step=G%rec1,missing_value=missing,verbose=verb.ge.3)
-            if (verb.ge.1) write(*,'(T2,"Backward bracket ",A2," update:",I2," - ",I2)') &
+            if (verb.ge.2) write(*,'(T2,"Backward bracket ",A2," update:",I2," - ",I2)') &
                            label, G%rec1, G%rec2
           endif
         else                                   ! Forward model
@@ -1133,7 +1134,7 @@ contains
           if (time.le.G%t(G%rec1)) then
             G%rec2 = G%rec1
             G%rec1 = G%rec1 - 1
-            if (verb.ge.1) write(*,'(T2,"Backward bracket ",A2," update:",F12.0," - ",F12.0)') &
+            if (verb.ge.2) write(*,'(T2,"Backward bracket ",A2," update:",F12.0," - ",F12.0)') &
                            label, G%t(G%rec1), G%t(G%rec2)
             f(:,:,:,2) = f(:,:,:,1)
             f(:,:,:,1) = G%read3D(G%varid,step=G%rec1,missing_value=missing,verbose=verb.ge.3)
@@ -1185,7 +1186,7 @@ contains
         if (time.le.G%t(G%rec1)) then
           G%rec2 = G%rec1
           G%rec1 = G%rec1 - 1
-          if (verb.ge.1) write(*,'(T2,"Backward bracket ",A2," update:",F12.0," - ",F12.0)') &
+          if (verb.ge.2) write(*,'(T2,"Backward bracket ",A2," update:",F12.0," - ",F12.0)') &
                          label, G%t(G%rec1), G%t(G%rec2)
           f(:,:,:,2) = f(:,:,:,1)
           f(:,:,:,1) = G%read3D(G%varid,step=G%rec1,missing_value=0.0D0)
