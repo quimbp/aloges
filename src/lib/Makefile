@@ -52,6 +52,7 @@ clean:
 	if test -d $(INCDIR); then rm -f $(INCDIR)module_grid.mod; fi
 	if test -d $(INCDIR); then rm -f $(INCDIR)module_lineargs.mod; fi
 	if test -d $(INCDIR); then rm -f $(INCDIR)module_help.mod; fi
+	if test -d $(INCDIR); then rm -f $(INCDIR)module_trajectories.mod; fi
 	if test -d $(INCDIR); then rm -f $(INCDIR)module_minpack.mod; fi
 	if test -d $(INCDIR); then rm -f $(INCDIR)aloges.mod; fi
 
