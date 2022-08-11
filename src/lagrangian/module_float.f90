@@ -259,10 +259,10 @@ contains
       iu = unitfree()
       open(iu,file=Release_SaveFile,status='unknown')
       do i=1,Nfloats
-        write(*,'(F9.4,2X,F9.4,2X,F6.1,2X,A)') rad2deg*FLT(i)%xo, &
-                                               rad2deg*FLT(i)%yo, &
-                                               FLT(i)%zo, &
-                                               release_date%iso()
+        write(iu,'(F9.4,2X,F9.4,2X,F6.1,2X,A)') rad2deg*FLT(i)%xo, &
+                                                rad2deg*FLT(i)%yo, &
+                                                FLT(i)%zo, &
+                                                release_date%iso()
       enddo
       close(iu)
     endif

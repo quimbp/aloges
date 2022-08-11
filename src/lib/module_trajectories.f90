@@ -84,9 +84,6 @@ contains
       call crash('Input trajectory file: unknown format')
     endif
 
-    TR%x = deg2rad*TR%x
-    TR%y = deg2rad*TR%y
-
     if (verb) then                       
      write(*,*) '------------------- '
      write(*,*) 'Number particles : ', TR%N
