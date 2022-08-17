@@ -3,7 +3,6 @@ include make.inc
 all:
 	(cd src/lib; make)
 	(cd src/lagrangian; make)
-	make afort
 
 clean:
 	(cd src/lib; make clean)

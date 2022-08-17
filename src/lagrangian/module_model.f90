@@ -1479,7 +1479,7 @@ contains
         Table_iu(i) = iu
         open(iu,file=afile,status='unknown')
         rewind(iu)
-        write(iu,'(T1,A)') '# ALM ASCII trajectory'
+        write(iu,'(T1,A)') '# ALOGES LAGRANGIAN MODEL trajectory'
         write(iu,'(T1,A)') '# -------------------------------------------------&
                         &--------------------------------------------------------'
         write(iu,'(T1,A)') '# Version: ' // trim(VERSION)
