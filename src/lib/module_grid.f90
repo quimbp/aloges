@@ -983,7 +983,8 @@ contains
       write(*,*) 'West  - East     : ', GRD%Rconversion*GRD%file_xmin,GRD%Rconversion*GRD%file_xmax
       write(*,*) 'South - North    : ', GRD%Rconversion*GRD%file_ymin,GRD%Rconversion*GRD%file_ymax
     endif
-    write(*,*) 'Z(1)  - Z(Nz)    : ', GRD%file_z(1),GRD%file_z(GRD%file_nz)
+    !write(*,*) 'Z(1)  - Z(Nz)    : ', GRD%file_z(1),GRD%file_z(GRD%file_nz)
+    call vprint('Z(1:Nz)          : ',GRD%file_z(:),mode='V',fmt='F9.2')
 !    write(*,*) 'West  (deg, rad) : ', GRD%Rconversion*GRD%file_xmin,GRD%file_xmin
 !    write(*,*) 'East  (deg, rad) : ', GRD%Rconversion*GRD%file_xmax,GRD%file_xmax
 !    write(*,*) 'South (deg, rad) : ', GRD%Rconversion*GRD%file_ymin,GRD%file_ymin
@@ -1003,7 +1004,7 @@ contains
       endif
     endif
     write(*,*) 
-    write(*,*) '== Selected region == '
+    write(*,*) '== Working region == '
     write(*,*) 'Nx, Ny, Nz, Nt   : ', GRD%Nx, GRD%Ny, GRD%nz, GRD%nt
     write(*,*) 'ia, ja, ka, la   : ', GRD%ia, GRD%ja, GRD%ka, GRD%la
     if (GRD%Cartesian) then
@@ -1013,7 +1014,7 @@ contains
       write(*,*) 'West  - East     : ', GRD%Rconversion*GRD%xmin,GRD%Rconversion*GRD%xmax
       write(*,*) 'South - North    : ', GRD%Rconversion*GRD%ymin,GRD%Rconversion*GRD%ymax
     endif
-      write(*,*) 'Z(1)  - Z(Nz)    : ', GRD%z(1),GRD%z(GRD%nz)
+    write(*,*) 'Z(1)  - Z(Nz)    : ', GRD%z(1),GRD%z(GRD%nz)
 !    write(*,*) 'West  (deg, rad) : ', GRD%Rconversion*GRD%xmin,GRD%xmin
 !    write(*,*) 'East  (deg, rad) : ', GRD%Rconversion*GRD%xmax,GRD%xmax
 !    write(*,*) 'South (deg, rad) : ', GRD%Rconversion*GRD%ymin,GRD%ymin

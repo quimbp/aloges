@@ -40,30 +40,28 @@ implicit none
 ! ... The fitting option is defined in module_alm.f90:  option_fitting = .False. (default)
 ! ...
 type type_trajectory
-  integer                                        :: No = 0
-  integer                                        :: N  = 0
-  integer                                        :: Nm = 0
   character(len=maxlen)                          :: filename = ''
-  logical, dimension(:),  pointer                :: valid
-  type(type_date), dimension(:), pointer         :: date
-  real(dp)                                       :: dtmean = 0.0D0
-  real(dp), dimension(:), pointer                :: x
-  real(dp), dimension(:), pointer                :: y
-  real(dp), dimension(:), pointer                :: z
-  real(dp), dimension(:), pointer                :: t
-  real(dp), dimension(:), pointer                :: dt
-  real(dp), dimension(:), pointer                :: uf       ! File (if stored) u value
-  real(dp), dimension(:), pointer                :: vf       ! File (if stored) v value
-  real(dp), dimension(:), pointer                :: wf       ! File (if stored) w value
-  real(dp), dimension(:), pointer                :: uo       ! Derived value
-  real(dp), dimension(:), pointer                :: vo       ! Derived value
-  real(dp), dimension(:), pointer                :: wo       ! Derived value
-  real(dp), dimension(:), pointer                :: speed    ! Derived value
-  real(dp), dimension(:), pointer                :: OU       ! Interpolated OU value
-  real(dp), dimension(:), pointer                :: OV       ! Interpolated OV value
-  real(dp), dimension(:), pointer                :: OW       ! Interpolated OW value
-  real(dp), dimension(:), pointer                :: AU       ! Interpolated AU value
-  real(dp), dimension(:), pointer                :: AV       ! Interpolated AV value
+  integer                                        :: Np = 0
+  integer                                        :: Nt = 0
+  real(dp)                                       :: dt = 0.0D0
+  logical, dimension(:,:),  pointer              :: valid
+  type(type_date), dimension(:,:), pointer       :: date
+  real(dp), dimension(:,:), pointer              :: x
+  real(dp), dimension(:,:), pointer              :: y
+  real(dp), dimension(:,:), pointer              :: z
+  real(dp), dimension(:,:), pointer              :: t
+  real(dp), dimension(:,:), pointer              :: uf       ! File (if stored) u value
+  real(dp), dimension(:,:), pointer              :: vf       ! File (if stored) v value
+  real(dp), dimension(:,:), pointer              :: wf       ! File (if stored) w value
+  real(dp), dimension(:,:), pointer              :: uo       ! Derived value
+  real(dp), dimension(:,:), pointer              :: vo       ! Derived value
+  real(dp), dimension(:,:), pointer              :: wo       ! Derived value
+  real(dp), dimension(:,:), pointer              :: speed    ! Derived value
+  real(dp), dimension(:,:), pointer              :: OU       ! Interpolated OU value
+  real(dp), dimension(:,:), pointer              :: OV       ! Interpolated OV value
+  real(dp), dimension(:,:), pointer              :: OW       ! Interpolated OW value
+  real(dp), dimension(:,:), pointer              :: AU       ! Interpolated AU value
+  real(dp), dimension(:,:), pointer              :: AV       ! Interpolated AV value
 
   contains
     procedure                   :: read          => trajectory_read
@@ -86,7 +84,16 @@ real(dp)                                         :: fit_FGp2  = 1.0D0
 real(dp)                                         :: fit_FGp3  = 1.0D0
 real(dp)                                         :: fit_FGp4  = 1.0D0
 real(dp)                                         :: fit_FGp5  = 1.0D0
+
+integer                                          :: fit_Maxfev = 200
+integer                                          :: fit_Mode   = 1      ! Self-scaling of variables
+integer                                          :: fit_Nprint = 0
+real(dp)                                         :: fit_Ftol = sqrt(epsilon(1.0_dp))
+real(dp)                                         :: fit_Xtol = sqrt(epsilon(1.0_dp))
+real(dp)                                         :: fit_Gtol = 0.0D0
+real(dp)                                         :: fit_Factor = 100.0D0
 character(len=maxlen)                            :: fit_fout  = 'fitting.dat'
+character(len=maxlen)                            :: fit_diag  = 'fitting.diag'
 
 
 type(type_trajectory), dimension(:), allocatable :: To
@@ -102,6 +109,7 @@ contains
     ! ...
     logical                                          :: firstmin,firstmax
     integer                                          :: i,j,Nf,icount,nvalid,iu
+    integer                                          :: pp,ll
     real(dp)                                         :: dtmin,dtmax,dtmean
     real(dp)                                         :: um,vm
     real(dp), dimension(ndims)                       :: xo
@@ -111,17 +119,12 @@ contains
     ! ...
     integer, parameter                               :: Np = 5
     integer                                          :: fit_nobs
-    integer                                          :: Maxfev
-    integer                                          :: Mode
-    integer                                          :: Nprint
     integer                                          :: Ninfo
     integer                                          :: NFev
     integer                                          :: NJev
     integer, dimension(Np)                           :: ipvt
     real(dp), dimension(:), allocatable              :: Fvec
     real(dp), dimension(:,:), allocatable            :: FJac
-    real(dp)                                         :: Ftol,Xtol,Gtol
-    real(dp)                                         :: Factor
     real(dp)                                         :: Jcosto,Jcost
     real(dp), dimension(Np)                          :: p,po,pn,diag,qtf
     real(dp), dimension(Np)                          :: dJcost
@@ -134,8 +137,11 @@ contains
     allocate (OWrhs(GOW%nx,GOW%ny,GOW%nz,2))
     allocate (AUrhs(GAU%nx,GAU%ny,GAU%nz,2))
     allocate (AVrhs(GAV%nx,GAV%ny,GAV%nz,2))
-    if (.not.WithAU) AUrhs = 0.0D0
-    if (.not.WithAV) AVrhs = 0.0D0
+    OUrhs = 0.0D0
+    OVrhs = 0.0D0
+    OWrhs = 0.0D0
+    AUrhs = 0.0D0
+    AVrhs = 0.0D0
 
     ! ... Check out how many trajectories:
     ! ... 
@@ -150,72 +156,37 @@ contains
     ! ...
     do i=1,Nf
 
+      if (verb.ge.1) write(*,*) 'Reading file: ', trim(filelist(i))
+
       ! ... Read (one file at a time):
       ! ...
       call To(i)%read(filelist(i))
 
       ! ... Pass from deg to radians
       ! ...
-      To(i)%x(:) = deg2rad*To(i)%x(:)
-      To(i)%y(:) = deg2rad*To(i)%y(:)
-      To(i)%z(:) =    -abs(To(i)%z(:))
+      do pp=1,To(i)%Np
+      do ll=1,To(i)%Nt
+        if (To(i)%valid(pp,ll)) then
+          To(i)%x(pp,ll) = deg2rad*To(i)%x(pp,ll)
+          To(i)%y(pp,ll) = deg2rad*To(i)%y(pp,ll)
+          To(i)%z(pp,ll) =    -abs(To(i)%z(pp,ll))
+        endif
+      enddo
+      enddo
 
       ! ... Calculate the velocities
       ! ... It calculates the dt between successive valid positions
       ! ...
       call To(i)%velocity()
 
-      ! ... Minimum and maximum time intervals between "valid" positions
-      ! ...
-      dtmin = 1D40
-      dtmax = -dtmin
-      do j=1,To(i)%Nm
-        if (To(i)%valid(j)) then
-          dtmin = min(dtmin,To(i)%dt(j))
-          dtmax = max(dtmax,To(i)%dt(j))
-        endif
-      enddo
-
-      ! ... Trimmed mean:
-      ! ...
-      firstmin = .True.
-      firstmax = .True.
-      dtmean = 0.0D0
-      icount = 0
-      do j=1,To(i)%Nm
-        if (To(i)%valid(j)) then
-          if (firstmin.and.To(i)%dt(j).eq.dtmin) then
-            firstmin = .False.
-          else if  (firstmax.and.To(i)%dt(j).eq.dtmax) then
-            firstmax = .False.
-          else
-            dtmean = dtmean + To(i)%dt(j)
-            icount = icount + 1
-          endif
-        endif
-      enddo
-      if (icount.eq.0) call crash('No valid points in trajectory')
-      dtmean = dtmean / icount
-      To(i)%dtmean = dtmean
-
-      ! ... Large and small dt intervals are not considered:
-      ! ... This eliminates the first velocity estimation after a big data gap
-      ! ... in the time series. "Big" data gaps correspond to more than 3 times
-      ! ... the averaged time interval
-      ! ...
-      do j=1,To(i)%Nm
-        if (To(i)%valid(j)) then
-           if (To(i)%dt(j).lt.0.333D0*dtmean) To(i)%valid(j) = .False.
-           if (To(i)%dt(j).gt.3.000D0*dtmean) To(i)%valid(j) = .False.
-        endif
-      enddo
-   
       if (verb.ge.5) then
         write(*,*)
         write(*,*) 'Estimated velocities: '
-        do j=1,To(i)%Nm
-          write(*,'(I4,5F9.4,F7.0,X,L)') j, To(i)%x(j), To(i)%y(j), To(i)%uo(j), To(i)%vo(j), &
-                                            To(i)%wo(j), To(i)%dt(j), To(i)%valid(j)
+        do pp=1,To(i)%Np
+        do ll=1,To(i)%Nt-1
+          write(*,'(2I6,5F9.4,X,L)') pp, ll, To(i)%x(pp,ll), To(i)%y(pp,ll), To(i)%uo(pp,ll), &
+                                            To(i)%vo(pp,ll), To(i)%wo(pp,ll), To(i)%valid(pp,ll)
+        enddo
         enddo
       endif
 
@@ -227,38 +198,41 @@ contains
       GAU%rec1 = -1; GAU%rec2 = -1
       GAV%rec1 = -1; GAV%rec2 = -1
 
-      do j=1,To(i)%Nm
-        if (To(i)%valid(j)) then
-          xo = [To(i)%x(j), To(i)%y(j), To(i)%z(j) ]
+      do ll=1,To(i)%Nt-1
+      do pp=1,To(i)%Np
+        if (To(i)%valid(pp,ll)) then
+          xo = [To(i)%x(pp,ll), To(i)%y(pp,ll), To(i)%z(pp,ll) ]
 
-          To(i)%OU(j) = 0.0D0; To(i)%OV(j) = 0.0D0; To(i)%OW(j) = 0.0D0; To(i)%AU(j) = 0.0D0; To(i)%AV(j) = 0.0D0
-          call get_forcing('OU',GOU,To(i)%t(j),To(i)%date(j),0.0D0,OUrhs)
-          To(i)%OU(j) = time_interpol(GOU,OUrhs,To(i)%t(j),xo)
-          call get_forcing('OV',GOV,To(i)%t(j),To(i)%date(j),0.0D0,OVrhs)
-          To(i)%OV(j) = time_interpol(GOV,OVrhs,To(i)%t(j),xo)
+          To(i)%OU(pp,ll) = 0.0D0; To(i)%OV(pp,ll) = 0.0D0; To(i)%OW(pp,ll) = 0.0D0
+          To(i)%AU(pp,ll) = 0.0D0; To(i)%AV(pp,ll) = 0.0D0
+          call get_forcing('OU',GOU,To(i)%t(pp,ll),To(i)%date(pp,ll),0.0D0,OUrhs)
+          To(i)%OU(pp,ll) = time_interpol(GOU,OUrhs,To(i)%t(pp,ll),xo)
+          call get_forcing('OV',GOV,To(i)%t(pp,ll),To(i)%date(pp,ll),0.0D0,OVrhs)
+          To(i)%OV(pp,ll) = time_interpol(GOV,OVrhs,To(i)%t(pp,ll),xo)
 
           if (WithOW) then
-            call get_forcing('OW',GOW,To(i)%t(j),To(i)%date(j),0.0D0,OWrhs)
-            To(i)%OW(j) = time_interpol(GOW,OWrhs,To(i)%t(j),xo)
+            call get_forcing('OW',GOW,To(i)%t(pp,ll),To(i)%date(pp,ll),0.0D0,OWrhs)
+            To(i)%OW(pp,ll) = time_interpol(GOW,OWrhs,To(i)%t(pp,ll),xo)
           else
-            To(i)%OW(j) = 0.0D0
+            To(i)%OW(pp,ll) = 0.0D0
           endif
           if (winds) then
-            call get_forcing('AU',GAU,To(i)%t(j),To(i)%date(j),0.0D0,AUrhs)
-            To(i)%AU(j) = time_interpol(GAU,AUrhs,To(i)%t(j),xo)
-            call get_forcing('AV',GAV,To(i)%t(j),To(i)%date(j),0.0D0,AVrhs)
-            To(i)%AV(j) = time_interpol(GAV,AVrhs,To(i)%t(j),xo)
+            call get_forcing('AU',GAU,To(i)%t(pp,ll),To(i)%date(pp,ll),0.0D0,AUrhs)
+            To(i)%AU(pp,ll) = time_interpol(GAU,AUrhs,To(i)%t(pp,ll),xo)
+            call get_forcing('AV',GAV,To(i)%t(pp,ll),To(i)%date(pp,ll),0.0D0,AVrhs)
+            To(i)%AV(pp,ll) = time_interpol(GAV,AVrhs,To(i)%t(pp,ll),xo)
           else
-            To(i)%AU(j) = 0.0D0
-            To(i)%AV(j) = 0.0D0
+            To(i)%AU(pp,ll) = 0.0D0
+            To(i)%AV(pp,ll) = 0.0D0
           endif
           if (verb.ge.4) then
-            write(*,*) 'Position number    : ', j
-            write(*,*) 'MODEL_FIT Time, xo : ', To(i)%t(j), xo
-            write(*,*) '      OU, OV, OW   : ', To(i)%OU(j), To(i)%OV(j), To(i)%OW(j)
-            write(*,*) '      AU, AV       : ', To(i)%AU(j), To(i)%AV(j)
+            write(*,*) 'Particle and step  : ', pp, ll
+            write(*,*) 'MODEL_FIT Time, xo : ', To(i)%t(pp,ll), xo
+            write(*,*) '      OU, OV, OW   : ', To(i)%OU(pp,ll), To(i)%OV(pp,ll), To(i)%OW(pp,ll)
+            write(*,*) '      AU, AV       : ', To(i)%AU(pp,ll), To(i)%AV(pp,ll)
           endif
         endif
+      enddo
       enddo
 
     enddo
@@ -266,9 +240,12 @@ contains
     ! ... At this moment we have everything for the evaluation of the cost function
     ! ... The information is on the To structure.
 
+    
     nvalid = 0
     do i=1,Nf
-      nvalid = nvalid + count(To(i)%valid)
+    do pp=1,To(i)%Np
+      nvalid = nvalid + count(To(i)%valid(pp,1:To(i)%Nt-1))
+    enddo
     enddo
 
     if (verb.ge.1) then
@@ -282,9 +259,12 @@ contains
       write(*,*) 'Number valid observations   : ', nvalid
       do i=1,Nf
         write(*,*) 'File name                 : ', trim(filelist(i))
-        write(*,*) 'Number of entries in file : ', To(i)%No
-        write(*,*) 'Number valid entries      : ', count(To(i)%valid(1:To(i)%Nm))
-        write(*,*) 'Average time step         : ', To(i)%dtmean
+        write(*,*) 'Number particles in file  : ', To(i)%Np
+        write(*,*) 'Number of steps in file   : ', To(i)%Nt
+        write(*,*) 'Time step                 : ', To(i)%dt
+        do pp=1,To(i)%Np
+          write(*,*) '  Particle, valid entries : ', pp, count(To(i)%valid(pp,1:To(i)%Nt-1))
+        enddo
       enddo
     endif
 
@@ -309,8 +289,10 @@ contains
     ! ...
     fit_nobs = 0
     do i=1,size(To)
-    do j=1,To(i)%Nm
-      if (To(i)%valid(j)) fit_nobs = fit_nobs + 2
+    do pp=1,To(i)%Np
+    do ll=1,To(i)%Nt-1
+      if (To(i)%valid(pp,ll)) fit_nobs = fit_nobs + 2
+    enddo
     enddo
     enddo
 
@@ -318,67 +300,85 @@ contains
     allocate(Fjac(fit_nobs,np))    ! Jacobian of each term by respect p
 
     p(:)   = [fit_FGp1, fit_FGp2, fit_FGp3, fit_FGp4, fit_FGp5 ]
-    Ftol   = 1.0D-6
-    Xtol   = 1.0D-7
-    Gtol   = 1.0D-18
-    Maxfev = 100
-    Mode   = 1
-    factor = 10.0D0
-    Nprint = 0
+
+    Jcosto =  func(p)
+    dJcost = dfunc(p)
+
+    iu = unitfree()
+    open(iu,file=fit_diag,status='unknown')
+    write(iu,'(T2,A,I5)')     'Number obs       : ', fit_nobs
+    write(iu,'(T2,A,5F15.5)') 'First guess      : ', p
+    write(iu,'(T2,A,G15.5)')  'Initial cost     : ', Jcosto
+    write(iu,'(T2,A,5G15.5)') 'Initial gradient : ', dJcost
+    write(iu,'(T2,A,5F15.0)') 'Fitting flag     : ', fit_dop1, fit_dop2, fit_dop3, fit_dop4, fit_dop5
+    write(iu,'(T2,A,G12.3)')  'Ftol             : ', fit_Ftol
+    write(iu,'(T2,A,G12.3)')  'Xtol             : ', fit_Xtol
+    write(iu,'(T2,A,G12.3)')  'Gtol             : ', fit_Gtol
+    write(iu,'(T2,A,I3)')     'Maxfev           : ', fit_Maxfev
+    write(iu,'(T2,A,I3)')     'Mode             : ', fit_Mode   
+    write(iu,'(T2,A,G12.3)')  'Factor           : ', fit_Factor
+    write(iu,'(T2,A,I3)')     'Nprint           : ', fit_Nprint 
 
     if (verb.ge.1) then
-        Jcosto =  func(p)
-        dJcost = dfunc(p)
-        write(*,*) 
-        write(*,*) 'Number obs       : ', fit_nobs
-        write(*,'(T2,A,5F15.5)') 'First guess      : ', p
-        write(*,'(T2,A,G15.5)') 'Initial cost     : ', Jcosto
-        write(*,'(T2,A,5G15.5)') 'Initial gradient : ', dJcost
-        write(*,'(T2,A,5F15.0)') 'Fitting flag     : ', fit_dop1, fit_dop2, fit_dop3, fit_dop4, fit_dop5
+      write(*,*) 
+      write(*,'(T2,A,I5)')     'Number obs       : ', fit_nobs
+      write(*,'(T2,A,5F15.5)') 'First guess      : ', p
+      write(*,'(T2,A,G15.5)')  'Initial cost     : ', Jcosto
+      write(*,'(T2,A,5G15.5)') 'Initial gradient : ', dJcost
+      write(*,'(T2,A,5F15.0)') 'Fitting flag     : ', fit_dop1, fit_dop2, fit_dop3, fit_dop4, fit_dop5
+      write(*,'(T2,A,G15.5)')  'Ftol             : ', fit_Ftol
+      write(*,'(T2,A,G15.5)')  'Xtol             : ', fit_Xtol
+      write(*,'(T2,A,G15.5)')  'Gtol             : ', fit_Gtol
+      write(*,'(T2,A,I3)')     'Maxfev           : ', fit_Maxfev
+      write(*,'(T2,A,I3)')     'Mode             : ', fit_Mode   
+      write(*,'(T2,A,G9.3)')   'Factor           : ', fit_Factor
+      write(*,'(T2,A,I3)')     'Nprint           : ', fit_Nprint 
     endif
 
     call lmder (FCN,fit_nobs,Np,p,Fvec,Fjac,fit_nobs, &
-                Ftol,Xtol,Gtol,Maxfev, &
-                diag,mode,factor,nprint, &
+                fit_Ftol,fit_Xtol,fit_Gtol,fit_Maxfev, &
+                diag,fit_Mode,fit_Factor,fit_Nprint, &
                 Ninfo,Nfev,Njev,ipvt,qtf)
 
+    Jcost = func(p)
+    dJcost = dfunc(p)
+    write(iu,'(T2,A,5F15.5)') 'Solution         : ', p
+    write(iu,'(T2,A,G15.5)')  'Final cost       : ', Jcost
+    write(iu,'(T2,A,5G15.5)') 'Final gradient   : ', dJcost
+    write(iu,'(T2,A,I3)')     'Exit parameter   : ', Ninfo  
+    write(iu,'(T2,A,I3)')     'NFev             : ', Nfev
+    write(iu,'(T2,A,I3)')     'NJev             : ', Njev
+    close(iu)
+
     if (verb.ge.1) then
-        Jcost = func(p)
-        dJcost = dfunc(p)
-        write(*,*)
-        write(*,'(T2,A,5F15.5)') 'Solution         : ', p
-        write(*,'(T2,A,G15.5)') 'Final cost       : ', Jcost
-        write(*,'(T2,A,5G15.5)') 'Final gradient   : ', dJcost
-        write(*,*) 'Info             : ', ninfo
-        write(*,*) 'Nfev             : ', nfev
-        write(*,*) 'Njev             : ', njev
+      write(*,*)
+      write(*,'(T2,A,5F15.5)') 'Solution         : ', p
+      write(*,'(T2,A,G15.5)')  'Final cost       : ', Jcost
+      write(*,'(T2,A,5G15.5)') 'Final gradient   : ', dJcost
+      write(*,'(T2,A,I3)')     'Exit parameter   : ', Ninfo  
+      write(*,'(T2,A,I3)')     'NFev             : ', Nfev
+      write(*,'(T2,A,I3)')     'NJev             : ', Njev
     endif
 
+    if (Ninfo.eq.0) call crash('MODEL_FITTING: Inproper input parameters in LMDER')
+
     open(iu,file=fit_fout,status='unknown')
+    write(iu,'(T1,A)') '# File  Part  Stp   UObs     VObs    Umodel   Vmodel   OceU     OceV     AtmU     AtmV'
+    write(iu,'(T1,A)') '# --------------------------------------------------------------------------------------'
     do i=1,size(To)
-    do j=1,To(i)%Nm
-      if (To(i)%valid(j)) then
-        um = p(1)*To(i)%OU(j) + p(2)*To(i)%AU(j) + p(3)*To(i)%AV(j)
-        vm = p(1)*To(i)%OV(j) + p(4)*To(i)%AU(j) + p(5)*To(i)%AV(j)
-        write(iu,'(2I4,8F9.3)') i, j, To(i)%uo(j), To(i)%vo(j), um, vm,  &
-                            To(i)%OU(j), To(i)%OV(j), To(i)%AV(j), To(i)%AV(j)              
+    do pp=1,To(i)%Np
+    do ll=1,To(i)%Nt-1
+      if (To(i)%valid(pp,ll)) then
+        um = p(1)*To(i)%OU(pp,ll) + p(2)*To(i)%AU(pp,ll) + p(3)*To(i)%AV(pp,ll)
+        vm = p(1)*To(i)%OV(pp,ll) + p(4)*To(i)%AU(pp,ll) + p(5)*To(i)%AV(pp,ll)
+        write(iu,'(I4,I5,I6,8F9.3)') i, pp, ll, To(i)%uo(pp,ll), To(i)%vo(pp,ll), um, vm,  &
+                            To(i)%OU(pp,ll), To(i)%OV(pp,ll), To(i)%AV(pp,ll), To(i)%AV(pp,ll)              
       endif
+    enddo
     enddo
     enddo
     close(iu)
     
-
-!    p(:) = 1.0D0
-!   Jcosto = func(p)
-!    print*, 'Cost: ', Jcosto
-!    dJcost = dfunc(p)
-!    print*, 'd Cost/ dp = ', dJcost
-!
-!    pn = p; pn(2) = 1.01D0
-!    Jcost = func(pn)
-!    print*, (Jcost - Jcosto)/0.01D0
-
-
     return
 
 
@@ -394,7 +394,8 @@ contains
     ! ... Local variables
     ! ...
     character(len=maxlen)                        :: fpath,fbase,ftype
-    integer                                      :: i
+    integer                                      :: pp,ll
+    real(dp)                                     :: dt
 
     call filename_split (filename,fpath,fbase,ftype)
     ftype = lowercase(ftype)
@@ -403,27 +404,26 @@ contains
       call trajectory_read_ascii (filename,T)
  
     else if ((ftype.eq.'nc').or.(ftype.eq.'cdf')) then
-      print*, 'netcdf'
+      call trajectory_read_nc (filename,T)
 
     else if (index(ftype,'json').gt.0) then
-      print*, 'geojson'
+      call crash('MODULE_FITTING: JSON files not accepted.')
 
     else
       call crash('Input trajectory file: unknown format')
     endif
 
-    ! ... Transform dates into seconds:
+    ! ... Check if time step is homogeneous
     ! ...
-    do i=1,T%N
-      T%t(i) = anint(date2num(T%date(i),units=alm_time_units))
-      if ((T%t(i).lt.alm_tini).or.(T%t(i).gt.alm_tfin)) then
-        T%valid(i) = .False.
-      endif
-    enddo
+    T%dt = anint(T%t(1,2) - T%t(1,1))
+    if (T%dt.eq.0) call crash('Time step cannot be zero')
 
-    T%No = T%N
-    call T%compress()
-  
+    do pp=1,T%Np
+    do ll=2,T%Nt-1
+      dt = anint(T%t(pp,ll+1)-T%t(pp,ll))
+      if (dt.ne.T%dt) call crash('Time step not uniform')
+    enddo
+    enddo
 
   end subroutine trajectory_read
   ! ...
@@ -463,27 +463,124 @@ contains
 
     ! ... Allocate all the tables of the trajectory structure
     ! ...
-    call T%allocate(N)
-    T%valid(:) = .True.
+    call T%allocate(1,N)
+    T%valid(1,:) = .True.
 
     rewind(iu) 
     do i=1,nh
       read(iu,*)
     enddo
     do i=1,N
-      read(iu,*) T%x(i), T%y(i), T%z(i), sdate
-      T%date(i) = strptime(sdate)
-      if ((T%x(i).lt.-180.001).or.(T%x(i).gt.360.001)) T%valid(i) = .False.
-      if ((T%y(i).lt.-90.001).or.(T%y(i).gt.90.001))   T%valid(i) = .False.
+      read(iu,*) T%x(1,i), T%y(1,i), T%z(1,i), sdate
+      T%date(1,i) = strptime(sdate)
+      if ((T%x(1,i).lt.-180.001).or.(T%x(1,i).gt.360.001)) T%valid(1,i) = .False.
+      if ((T%y(1,i).lt.-90.001).or.(T%y(1,i).gt.90.001))   T%valid(1,i) = .False.
     enddo
     
+    ! ... Transform dates into seconds:
+    ! ...
+    do i=1,N
+      T%t(1,i) = anint(date2num(T%date(1,i),units=alm_time_units))
+      if ((T%t(1,i).lt.alm_tini).or.(T%t(1,i).gt.alm_tfin)) then
+        T%valid(1,i) = .False.
+      endif
+    enddo
+
   end subroutine trajectory_read_ascii
   ! ...
   ! =====================================================================
   ! ...
-  subroutine trajectory_allocate(T,N)
+  subroutine trajectory_read_nc (filename,T)
+
+    character(len=*), intent(in)                 :: filename  
+    type(type_trajectory), intent(inout)         :: T
+
+    ! ... Local variables
+    ! ...
+    integer fid,np,nt,idx,idy,idz,idt,err,pp,ll
+    character(len=maxlen) dname,time_units,calendar
+
+    if (verb.ge.2) write(*,*) 'Opening NetCDF trajectory ', trim(filename)
+    err = NF90_OPEN(filename,0,fid)
+    call cdf_error(err,'TRAJECTORY_READ_NC: error opening '//trim(filename))
+
+    err = NF90_INQUIRE_DIMENSION(fid,1,name=dname,len=np)
+    call cdf_error(err,'TRAJECTORY_READ_NC: error reading first dimension')
+    err = NF90_INQUIRE_DIMENSION(fid,2,name=dname,len=nt)
+    call cdf_error(err,'TRAJECTORY_READ_NC: error reading second dimension')
+    if (verb.ge.2) write(*,*) 'Np, Nt : ', Np, Nt
+
+    err = NF90_INQ_VARID(fid,'lon',idx)
+    call cdf_error(err,'TRAJECTORY_READ_NC: error inquiring about lon')
+    err = NF90_INQ_VARID(fid,'lat',idy)
+    call cdf_error(err,'TRAJECTORY_READ_NC: error inquiring about lat')
+    err = NF90_INQ_VARID(fid,'depth',idz)
+    call cdf_error(err,'TRAJECTORY_READ_NC: error inquiring about depth')
+    err = NF90_INQ_VARID(fid,'time',idt)
+    call cdf_error(err,'TRAJECTORY_READ_NC: error inquiring about time')
+
+    T%filename = trim(filename)
+    T%Np = np
+    T%Nt = nt
+
+    ! ... Allocate all the tables of the trajectory structure
+    ! ...
+    call T%allocate(Np,Nt)
+    T%valid(:,:) = .True.
+
+    err = NF90_GET_VAR(fid,idx,T%x)
+    call cdf_error(err,'TRAJECTORY_READ_NC: error reading lon')
+    err = NF90_GET_VAR(fid,idy,T%y)
+    call cdf_error(err,'TRAJECTORY_READ_NC: error reading lat')
+    err = NF90_GET_VAR(fid,idz,T%z)
+    call cdf_error(err,'TRAJECTORY_READ_NC: error reading depth')
+    err = NF90_GET_VAR(fid,idt,T%t(1,:))
+    call cdf_error(err,'TRAJECTORY_READ_NC: error reading time')
+
+
+    ! ... Convert time to dates:
+    ! ...
+    time_units = ''
+    calendar = ''
+    err = NF90_GET_ATT (fid,idt,'units',time_units)
+    call cdf_error(err,'Time variable without UNITS attribute')
+    err = NF90_GET_ATT (fid,idt,'calendar',calendar)
+    call cdf_error(err,'Time variable without CALENDAR attribute')
+    call check_calendar(calendar)
+
+    do ll=1,T%nt
+      T%date(1,ll) = num2date(T%t(1,ll),units=time_units,calendar=calendar)
+    enddo
+
+    ! ... replicate time and dates:
+    ! ...
+    do pp=2,np
+      T%t(pp,:) = T%t(1,:)
+      T%date(pp,:) = T%date(1,:)
+    enddo
+
+    ! ... Close file
+    ! ...
+    err = NF90_CLOSE(fid)
+
+    ! ... Remove not valid points:
+    ! ...
+    do pp=1,np
+    do ll=1,nt
+      if ((T%x(pp,ll).lt.-180.001).or.(T%x(pp,ll).gt.360.001))  T%valid(pp,ll) = .False.
+      if ((T%y(pp,ll).lt.-90.001).or.(T%y(pp,ll).gt.90.001))    T%valid(pp,ll) = .False.
+      if ((T%t(pp,ll).lt.alm_tini).or.(T%t(pp,ll).gt.alm_tfin)) T%valid(pp,ll) = .False.
+    enddo
+    enddo
+    
+  end subroutine trajectory_read_nc
+  ! ...
+  ! =====================================================================
+  ! ...
+  subroutine trajectory_allocate(T,Np,N)
 
   class(type_trajectory), intent(inout)          :: T
+  integer, intent(in)                            :: Np
   integer, intent(in)                            :: N
 
   T%valid => NULL()
@@ -492,7 +589,6 @@ contains
   T%y     => NULL()
   T%z     => NULL()
   T%t     => NULL()
-  T%dt    => NULL()
   T%uf    => NULL()
   T%vf    => NULL()
   T%wf    => NULL()
@@ -506,28 +602,27 @@ contains
   T%AU    => NULL()
   T%AV    => NULL()
 
-  T%N  = N
-  T%Nm = N - 1
+  T%Np = Np
+  T%Nt = N
 
-  allocate(T%valid(N))
-  allocate(T%date(N))
-  allocate(T%x(N))
-  allocate(T%y(N))
-  allocate(T%z(N))
-  allocate(T%t(N))
-  allocate(T%dt(N))
-  allocate(T%uf(N))
-  allocate(T%vf(N))
-  allocate(T%wf(N))
-  allocate(T%uo(N))
-  allocate(T%vo(N))
-  allocate(T%wo(N))
-  allocate(T%speed(N))
-  allocate(T%OU(N))
-  allocate(T%OV(N))
-  allocate(T%OW(N))
-  allocate(T%AU(N))
-  allocate(T%AV(N))
+  allocate(T%valid(Np,N))
+  allocate(T%date(Np,N))
+  allocate(T%x(Np,N))
+  allocate(T%y(Np,N))
+  allocate(T%z(Np,N))
+  allocate(T%t(Np,N))
+  allocate(T%uf(Np,N))
+  allocate(T%vf(Np,N))
+  allocate(T%wf(Np,N))
+  allocate(T%uo(Np,N))
+  allocate(T%vo(Np,N))
+  allocate(T%wo(Np,N))
+  allocate(T%speed(Np,N))
+  allocate(T%OU(Np,N))
+  allocate(T%OV(Np,N))
+  allocate(T%OW(Np,N))
+  allocate(T%AU(Np,N))
+  allocate(T%AV(Np,N))
 
   end subroutine trajectory_allocate
   ! ...
@@ -542,77 +637,77 @@ contains
     integer i,iv,N,Nv
     type(type_trajectory) Tv
 
-    N = T%N
-    Nv = count(T%valid)
+!    N = T%N
+!    Nv = count(T%valid)
+!
+!    call Tv%allocate(Nv)
+!
+!    iv = 0
+!    do i=1,N
+!      if (T%valid(i)) then
+!        iv = iv + 1
+!        Tv%valid(iv) = T%valid(i)
+!        Tv%date(iv)  = T%date(i)
+!        Tv%x(iv)     = T%x(i)
+!        Tv%y(iv)     = T%y(i)
+!        Tv%z(iv)     = T%z(i)
+!        Tv%t(iv)     = T%t(i)
+!        Tv%dt(iv)    = T%dt(i)
+!        Tv%uf(iv)    = T%uf(i)
+!        Tv%vf(iv)    = T%vf(i)
+!        Tv%wf(iv)    = T%wf(i)
+!        Tv%uo(iv)    = T%uo(i)
+!        Tv%vo(iv)    = T%vo(i)
+!        Tv%wo(iv)    = T%wo(i)
+!        Tv%OU(iv)    = T%OU(i)
+!        Tv%OV(iv)    = T%OV(i)
+!        Tv%OW(iv)    = T%OW(i)
+!        Tv%AU(iv)    = T%AU(i)
+!        Tv%AV(iv)    = T%AV(i)
+!      endif
+!    enddo
+!    if (iv.ne.Nv) stop 'Incompatible iv and Nv in trajectory_compress'
 
-    call Tv%allocate(Nv)
-
-    iv = 0
-    do i=1,N
-      if (T%valid(i)) then
-        iv = iv + 1
-        Tv%valid(iv) = T%valid(i)
-        Tv%date(iv)  = T%date(i)
-        Tv%x(iv)     = T%x(i)
-        Tv%y(iv)     = T%y(i)
-        Tv%z(iv)     = T%z(i)
-        Tv%t(iv)     = T%t(i)
-        Tv%dt(iv)    = T%dt(i)
-        Tv%uf(iv)    = T%uf(i)
-        Tv%vf(iv)    = T%vf(i)
-        Tv%wf(iv)    = T%wf(i)
-        Tv%uo(iv)    = T%uo(i)
-        Tv%vo(iv)    = T%vo(i)
-        Tv%wo(iv)    = T%wo(i)
-        Tv%OU(iv)    = T%OU(i)
-        Tv%OV(iv)    = T%OV(i)
-        Tv%OW(iv)    = T%OW(i)
-        Tv%AU(iv)    = T%AU(i)
-        Tv%AV(iv)    = T%AV(i)
-      endif
-    enddo
-    if (iv.ne.Nv) stop 'Incompatible iv and Nv in trajectory_compress'
-
-    call T%allocate(Nv)
-
-    T%valid(:) = Tv%valid(:)
-    T%date(:)  = Tv%date(:)
-    T%x(:)     = Tv%x(:)
-    T%y(:)     = Tv%y(:)
-    T%z(:)     = Tv%z(:)
-    T%t(:)     = Tv%t(:)
-    T%dt(:)    = Tv%dt(:)
-    T%uf(:)    = Tv%uf(:)
-    T%vf(:)    = Tv%vf(:)
-    T%wf(:)    = Tv%wf(:)
-    T%uo(:)    = Tv%uo(:)
-    T%vo(:)    = Tv%vo(:)
-    T%wo(:)    = Tv%wo(:)
-    T%OU(:)    = Tv%OU(:)
-    T%OV(:)    = Tv%OV(:)
-    T%OW(:)    = Tv%OW(:)
-    T%AU(:)    = Tv%AU(:)
-    T%AV(:)    = Tv%AV(:)
- 
-    Tv%valid => NULL()
-    Tv%date  => NULL()
-    Tv%x     => NULL()
-    Tv%y     => NULL()
-    Tv%z     => NULL()
-    Tv%t     => NULL()
-    Tv%dt    => NULL()
-    Tv%uf    => NULL()
-    Tv%vf    => NULL()
-    Tv%wf    => NULL()
-    Tv%uo    => NULL()
-    Tv%vo    => NULL()
-    Tv%wo    => NULL()
-    Tv%speed => NULL()
-    Tv%OU    => NULL()
-    Tv%OV    => NULL()
-    Tv%OW    => NULL()
-    Tv%AU    => NULL()
-    Tv%AV    => NULL()
+!    call T%allocate(Nv)
+!
+!    T%valid(:) = Tv%valid(:)
+!    T%date(:)  = Tv%date(:)
+!    T%x(:)     = Tv%x(:)
+!    T%y(:)     = Tv%y(:)
+!    T%z(:)     = Tv%z(:)
+!    T%t(:)     = Tv%t(:)
+!    T%dt(:)    = Tv%dt(:)
+!    T%uf(:)    = Tv%uf(:)
+!    T%vf(:)    = Tv%vf(:)
+!    T%wf(:)    = Tv%wf(:)
+!    T%uo(:)    = Tv%uo(:)
+!    T%vo(:)    = Tv%vo(:)
+!    T%wo(:)    = Tv%wo(:)
+!    T%OU(:)    = Tv%OU(:)
+!    T%OV(:)    = Tv%OV(:)
+!    T%OW(:)    = Tv%OW(:)
+!    T%AU(:)    = Tv%AU(:)
+!    T%AV(:)    = Tv%AV(:)
+! 
+!    Tv%valid => NULL()
+!    Tv%date  => NULL()
+!    Tv%x     => NULL()
+!    Tv%y     => NULL()
+!    Tv%z     => NULL()
+!    Tv%t     => NULL()
+!    Tv%dt    => NULL()
+!    Tv%uf    => NULL()
+!    Tv%vf    => NULL()
+!    Tv%wf    => NULL()
+!    Tv%uo    => NULL()
+!    Tv%vo    => NULL()
+!    Tv%wo    => NULL()
+!    Tv%speed => NULL()
+!    Tv%OU    => NULL()
+!    Tv%OV    => NULL()
+!    Tv%OW    => NULL()
+!    Tv%AU    => NULL()
+!    Tv%AV    => NULL()
 
   end subroutine trajectory_compress
   ! ...
@@ -624,54 +719,54 @@ contains
 
     ! ... Local variables
     ! ... 
-    integer i,iv,N,Nv
+    integer i,iv,N,Nv,pp,ll
     real(dp) dt,ym,dx,dy,dz,dtmean
     real(dp) u,v,w
 
-    T%dt(:) = 0.0D0
-    T%uo(:) = 0.0D0
-    T%vo(:) = 0.0D0
-    T%wo(:) = 0.0D0
-    dtmean  = 0.0D0
+    T%uo(:,:) = 0.0D0
+    T%vo(:,:) = 0.0D0
+    T%wo(:,:) = 0.0D0
+    dt  = T%dt
+
     nv      = 0
+    do pp=1,T%Np
+    do ll=1,T%Nt-1
 
-    do i=1,T%N-1
+      dx = T%x(pp,ll+1) - T%x(pp,ll)
+      dy = T%y(pp,ll+1) - T%y(pp,ll)
+      dz = T%z(pp,ll+1) - T%z(pp,ll)
 
-      dx = T%x(i+1) - T%x(i)
-      dy = T%y(i+1) - T%y(i)
-      dz = T%z(i+1) - T%z(i)
-      dt = T%t(i+1) - T%t(i)
+      if (abs(dx).gt.0.and.abs(dy).gt.0) then
 
-      if (abs(dt).gt.0.and.abs(dx).gt.0.and.abs(dy).gt.0) then
-
-        T%dt(i) = dt
-        dtmean = dtmean + dt
         nv = nv + 1
-
         if (Spherical) then
-          ym =  0.5D0*(T%y(i+1)+T%y(i))
+          ym =  0.5D0*(T%y(pp,ll+1)+T%y(pp,ll))
           dx = REarth*dx*cos(ym)
           dy = REarth*dy
         endif
         u = dx/dt
         v = dy/dt
         w = dz/dt
-        T%uo(i)     = u
-        T%vo(i)     = v
-        T%wo(i)     = w
-        T%speed(i) = sqrt(u*u + v*v + w*w)
-        if ((T%speed(i).lt.fit_vmin).or.(T%speed(i).gt.fit_vmax)) T%valid(i) = .False.
+        !print*, pp, ll
+        !print*, T%x(pp,ll), T%y(pp,ll) 
+        !print*, T%x(pp,ll+1), T%y(pp,ll+1) 
+        !print*, dx, dy, dz, dt, u, v, w
+        !stop '33333'
+        T%uo(pp,ll)     = u
+        T%vo(pp,ll)     = v
+        T%wo(pp,ll)     = w
+        T%speed(pp,ll) = sqrt(u*u + v*v + w*w)
+        if ((T%speed(pp,ll).lt.fit_vmin).or.(T%speed(pp,ll).gt.fit_vmax)) T%valid(pp,ll) = .False.
 
       else
 
-        T%valid(i) = .False.
+        T%valid(pp,ll) = .False.
 
       endif
 
     enddo
+    enddo
     if (nv.eq.0) call crash ('No valid trajectory data')
-    dtmean   = dtmean / nv
-    T%dtmean = dtmean
 
 
   end subroutine trajectory_velocity
@@ -684,7 +779,7 @@ contains
 
     ! ... Local variables
     ! ...
-    integer f,l,n
+    integer f,ll,pp,n
     real(dp) u,v,du,dv
 
     ! ... p(5)
@@ -697,18 +792,22 @@ contains
     func = 0.0D0
     n    = 0.0D0
     do f=1,size(To)
-      do l=1,To(f)%Nm
-        if (To(f)%valid(l)) then
-          u = p(1)*To(f)%OU(l) + p(2)*To(f)%AU(l) + p(3)*To(f)%AV(l)
-          v = p(1)*To(f)%OV(l) + p(4)*To(f)%AU(l) + p(5)*To(f)%AV(l)
-          du = To(f)%uo(l) - u
-          dv = To(f)%vo(l) - v
+      do pp=1,To(f)%Np
+      do ll=1,To(f)%Nt-1
+        if (To(f)%valid(pp,ll)) then
+          u = p(1)*To(f)%OU(pp,ll) + p(2)*To(f)%AU(pp,ll) + p(3)*To(f)%AV(pp,ll)
+          v = p(1)*To(f)%OV(pp,ll) + p(4)*To(f)%AU(pp,ll) + p(5)*To(f)%AV(pp,ll)
+          du = To(f)%uo(pp,ll) - u
+          dv = To(f)%vo(pp,ll) - v
           func = func + du*du + dv*dv
+          !print*, f, pp, ll,  To(f)%OU(pp,ll), To(f)%OV(pp,ll)           ! DEBUG
           n = n + 1
         endif
       enddo
+      enddo
     enddo
     func = 0.5D0 * func / n
+    !stop 'DEBUG'
 
   end function func
   ! ...
@@ -721,7 +820,7 @@ contains
 
     ! ... Local variables
     ! ...
-    integer f,l,n
+    integer f,pp,ll,n
     real(dp) u,v,du,dv
 
     ! ... p(5)
@@ -734,19 +833,21 @@ contains
     xi(:) = 0.0D0
     n     = 0.0D0
     do f=1,size(To)
-      do l=1,To(f)%Nm
-        if (To(f)%valid(l)) then
-          u = p(1)*To(f)%OU(l) + p(2)*To(f)%AU(l) + p(3)*To(f)%AV(l)
-          v = p(1)*To(f)%OV(l) + p(4)*To(f)%AU(l) + p(5)*To(f)%AV(l)
-          du = To(f)%uo(l) - u
-          dv = To(f)%vo(l) - v
-          xi(1) = xi(1) + du*To(f)%OU(l) + dv*To(f)%OV(l)
-          xi(2) = xi(2) + du*To(f)%AU(l)
-          xi(3) = xi(3) + du*To(f)%AV(l)
-          xi(4) = xi(4) + dv*To(f)%AU(l)
-          xi(5) = xi(5) + dv*To(f)%AV(l)
+      do pp=1,To(f)%Np
+      do ll=1,To(f)%Nt-1
+        if (To(f)%valid(pp,ll)) then
+          u = p(1)*To(f)%OU(pp,ll) + p(2)*To(f)%AU(pp,ll) + p(3)*To(f)%AV(pp,ll)
+          v = p(1)*To(f)%OV(pp,ll) + p(4)*To(f)%AU(pp,ll) + p(5)*To(f)%AV(pp,ll)
+          du = To(f)%uo(pp,ll) - u
+          dv = To(f)%vo(pp,ll) - v
+          xi(1) = xi(1) + du*To(f)%OU(pp,ll) + dv*To(f)%OV(pp,ll)
+          xi(2) = xi(2) + du*To(f)%AU(pp,ll)
+          xi(3) = xi(3) + du*To(f)%AV(pp,ll)
+          xi(4) = xi(4) + dv*To(f)%AU(pp,ll)
+          xi(5) = xi(5) + dv*To(f)%AV(pp,ll)
           n = n + 1
         endif
+      enddo
       enddo
     enddo
     xi(:) = -xi(:)/n
@@ -771,7 +872,7 @@ contains
 
     ! ... Local variables
     ! ...
-    integer f,l,ii
+    integer f,pp,ll,ii
     real(dp) um,vm
 
     ! ... p(5)
@@ -785,15 +886,17 @@ contains
     if (iflag.eq.1) then
       ii = 0
       do f=1,size(To)
-        do l=1,To(f)%Nm
-          if (To(f)%valid(l)) then
-            um = p(1)*To(f)%OU(l) + p(2)*To(f)%AU(l) + p(3)*To(f)%AV(l)
-            vm = p(1)*To(f)%OV(l) + p(4)*To(f)%AU(l) + p(5)*To(f)%AV(l)
+        do pp=1,To(f)%Np
+        do ll=1,To(f)%Nt-1
+          if (To(f)%valid(pp,ll)) then
+            um = p(1)*To(f)%OU(pp,ll) + p(2)*To(f)%AU(pp,ll) + p(3)*To(f)%AV(pp,ll)
+            vm = p(1)*To(f)%OV(pp,ll) + p(4)*To(f)%AU(pp,ll) + p(5)*To(f)%AV(pp,ll)
             ii = ii + 1
-            Fvec(ii) = To(f)%uo(l) - um
+            Fvec(ii) = To(f)%uo(pp,ll) - um
             ii = ii + 1
-            Fvec(ii) = To(f)%vo(l) - vm
+            Fvec(ii) = To(f)%vo(pp,ll) - vm
           endif
+        enddo
         enddo
       enddo
       if  (ii.ne.M) call crash('Error in number of matchings')
@@ -803,21 +906,23 @@ contains
     if (iflag.eq.2) then
       ii = 0
       do f=1,size(To)
-        do l=1,To(f)%Nm
-          if (To(f)%valid(l)) then
+        do pp=1,To(f)%Np
+        do ll=1,To(f)%Nt-1
+          if (To(f)%valid(pp,ll)) then
             ii = ii + 1
-            FJAC(ii,1) = -To(f)%OU(l) * fit_dop1
-            FJAC(ii,2) = -To(f)%AU(l) * fit_dop2
-            FJAC(ii,3) = -To(f)%AV(l) * fit_dop3
+            FJAC(ii,1) = -To(f)%OU(pp,ll) * fit_dop1
+            FJAC(ii,2) = -To(f)%AU(pp,ll) * fit_dop2
+            FJAC(ii,3) = -To(f)%AV(pp,ll) * fit_dop3
             FJAC(ii,4) =  0.0D0
             FJAC(ii,5) =  0.0D0
             ii = ii + 1
-            FJAC(ii,1) = -To(f)%OV(l) * fit_dop1
+            FJAC(ii,1) = -To(f)%OV(pp,ll) * fit_dop1
             FJAC(ii,2) =  0.0D0
             FJAC(ii,3) =  0.0D0
-            FJAC(ii,4) = -To(f)%AU(l) * fit_dop4
-            FJAC(ii,5) = -To(f)%AV(l) * fit_dop5
+            FJAC(ii,4) = -To(f)%AU(pp,ll) * fit_dop4
+            FJAC(ii,5) = -To(f)%AV(pp,ll) * fit_dop5
           endif
+        enddo
         enddo
       enddo
       if  (ii.ne.M) call crash('Error in number of matchings')

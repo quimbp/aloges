@@ -39,6 +39,7 @@
 ! - say                                                                    !
 ! - strcat                                                                 !
 ! - token_read                                                             !
+! - vprint
 ! -------------------------------------------------------------------------!
 
 module module_tools
@@ -766,6 +767,86 @@ contains
     enddo
 
   end function ReadVector
+  ! ...
+  ! ===================================================================
+  ! ...
+  subroutine vprint(label,A,mode,fmt)
+
+    character(len=*), intent(in)                 :: label
+    real(dp), dimension(:), intent(in)           :: A
+    character(len=1), intent(in), optional       :: mode
+    character(len=*), intent(in), optional       :: fmt 
+
+    ! ... Local variables:
+    ! ...
+    integer N,nlines,line,col,rest,ii,i1,i2,i3,i4,i5,ll
+    character(len=maxlen) sll
+    character(len=maxlen) lfmt
+
+    ll = len(label)
+    write(sll,*) ll+2
+    sll = compress(sll)
+
+    lfmt = '(T2,A,T'//trim(sll)//',5'//trim(fmt)//')'
+
+    N = size(A)
+    rest = mod(N,5)
+    nlines = (N - rest)/5
+
+    if ((mode.eq.'H').or.(mode.eq.'h')) then
+      ii = 1
+      do line=1,nlines
+        write(*,lfmt) A(ii:ii+4)
+        ii = ii + 5
+      enddo
+      if (rest.gt.0) write(*,lfmt) A(ii:N)
+    else
+      do line=1,nlines
+        i1 = line
+        i2 = i1 + nlines + H(rest.ge.1)
+        i3 = i2 + nlines + H(rest.ge.2)
+        i4 = i3 + nlines + H(rest.ge.3)
+        i5 = i4 + nlines + H(rest.ge.4)
+        if (line.eq.1) then
+          write(*,lfmt) label, A(i1), A(i2), A(i3), A(i4), A(i5)
+        else
+          write(*,lfmt) ' ', A(i1), A(i2), A(i3), A(i4), A(i5)
+        endif
+      enddo
+      i1 = line
+      i2 = i1 + nlines + 1
+      i3 = i2 + nlines + 1
+      i4 = i3 + nlines + 1
+      if (line.eq.1) then
+        sll = label
+      else
+        sll = ' '
+      endif
+      if (rest.eq.4) then
+        write(*,lfmt) sll(1:ll), A(i1), A(i2), A(i3), A(i4)
+      else if (rest.eq.3) then
+        write(*,lfmt) sll(1:ll), A(i1), A(i2), A(i3)
+      else if (rest.eq.2) then
+        write(*,lfmt) sll(1:ll), A(i1), A(i2)
+      else 
+        write(*,lfmt) sll(1:ll), A(i1)
+      endif
+    endif
+
+    contains
+      integer function H(flag)
+  
+        logical, intent(in)     :: flag
+
+        if (flag) then
+          H = 1
+        else
+          H = 0
+        endif
+
+     end function H
+
+  end subroutine vprint 
   ! ...
   ! ===================================================================
   ! ...

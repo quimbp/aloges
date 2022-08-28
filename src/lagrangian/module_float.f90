@@ -64,8 +64,8 @@ logical                                          :: WithReleaseXo   = .False.
 logical                                          :: WithReleaseYo   = .False.
 logical                                          :: WithReleaseZo   = .False.
 logical                                          :: WithReleaseTime = .False.
-logical                                          :: WithReleaseRho  = .False.
-logical                                          :: WithReleaseSize = .False.
+!logical                                          :: WithReleaseRho  = .False.
+!logical                                          :: WithReleaseSize = .False.
 real(dp)                                         :: Release_xo
 real(dp)                                         :: Release_yo
 real(dp)                                         :: Release_zo      = 0.0D0

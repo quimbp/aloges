@@ -90,6 +90,7 @@ subroutine options
   integer                                        :: na,i
   real(dp), dimension(:), allocatable            :: AAA
   character(len=maxlen)                          :: word
+  character(len=maxlen)                          :: experiment
   character(len=400)                             :: OUlist=''
   character(len=400)                             :: OVlist=''
   character(len=400)                             :: OWlist=''
@@ -105,6 +106,7 @@ subroutine options
   character(len=400)                             :: DVMlist=''
   character(len=400)                             :: FITlist=''
   character(len=400)                             :: Alphalist=''
+  character(len=400)                             :: PBlist=''
 
 
     ! ... Fill in the help information
@@ -387,11 +389,17 @@ subroutine options
     call linearg('-yo',WithReleaseYo,Release_yo)
     call linearg('-zo',WithReleaseZo,Release_zo)
     call linearg('-to',WithReleaseTime,Release_time)
-    call linearg('-ro',WithReleaseRho,Release_rho)
-    call linearg('-so',WithReleaseSize,Release_size)
+    !call linearg('-ro',WithReleaseRho,Release_rho)
+    !call linearg('-so',WithReleaseSize,Release_size)
     call linearg('-save_release',WithRfn,Release_SaveFile)
 
-    if ( WithReleaseRho.or.WithReleaseSize) Particle_buoyant = .True.
+    call linearg('-particle',Particle_buoyant,PBlist)
+    if (Particle_buoyant) then
+      word = token_read(PBlist,'density'); if (len_trim(word).gt.0) read(word,*) Release_rho
+      word = token_read(PBlist,'size'); if (len_trim(word).gt.0) read(word,*) Release_size
+    endif
+    !if ( WithReleaseRho.or.WithReleaseSize) Particle_buoyant = .True.
+
     if (Particle_buoyant) then
       if (.not.model_density) call crash('Buoyant particle needs density specification')
     endif
@@ -500,9 +508,9 @@ subroutine options
     endif
     if (WindResponse.and.WindDriven) call crash('Incompatible use of A, beta and theta parameters')
     if (count([Withbeta,WithTheta]).eq.1) call crash('Both beta and theta values required')
-    if (Winds) then
-      if (count([WindResponse,WindDriven]).eq.0) call crash('-Wind forcing requires specification of wind paramteres')
-    endif
+    !if (Winds) then
+    !  if (count([WindResponse,WindDriven]).eq.0) call crash('-Wind forcing requires specification of wind paramteres')
+    !endif
 
     ! ... Wind Response matrix A11, A12, A21, A22:
     ! ...
@@ -588,6 +596,17 @@ subroutine options
       word = token_read(FITlist,'vmin'); if (len_trim(word).gt.0) read(word,*) fit_vmin
       word = token_read(FITlist,'vmax'); if (len_trim(word).gt.0) read(word,*) fit_vmax
       word = token_read(FITlist,'out'); if (len_trim(word).gt.0)  read(word,*) fit_fout
+      word = token_read(FITlist,'diag'); if (len_trim(word).gt.0)  read(word,*) fit_diag
+      word = token_read(FITlist,'exp'); if (len_trim(word).gt.0)  read(word,*) experiment
+      word = token_read(FITlist,'ftol'); if (len_trim(word).gt.0)  read(word,*) fit_Ftol
+      word = token_read(FITlist,'xtol'); if (len_trim(word).gt.0)  read(word,*) fit_Xtol
+      word = token_read(FITlist,'gtol'); if (len_trim(word).gt.0)  read(word,*) fit_Gtol
+      word = token_read(FITlist,'factor'); if (len_trim(word).gt.0)  read(word,*) fit_Factor
+      word = token_read(FITlist,'nprint'); if (len_trim(word).gt.0)  read(word,*) fit_Nprint
+      if (len_trim(experiment).gt.0) then
+        fit_fout = trim(experiment)//'.out'
+        fit_diag = trim(experiment)//'.diag'
+      endif
       word = token_read(FITlist,'first')
       if (len_trim(word).gt.0)  then
         AAA = ReadVector(trim(word))
@@ -642,6 +661,12 @@ subroutine options
       ! ...
       if (WithClim) then
         if (.not.WithTini.or..not.WithTlen) call crash('Climatology requires options -from and -for')
+      endif
+
+      ! ... If winds are used, the method needs to be specified
+      ! ...
+      if (Winds) then
+        if (count([WindResponse,WindDriven]).eq.0) call crash('-Wind forcing requires specification of wind paramteres')
       endif
     endif
 

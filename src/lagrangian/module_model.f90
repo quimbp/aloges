@@ -683,6 +683,7 @@ contains
         write(*,*) 'Particle DVM not activated'
       endif
 
+      write(*,*) 'Alpha coefficients     : ', alpha  ! AAAA
       write(*,*) 'Wind forcing           : ', Winds
 
       write(*,*) 'Wind response method   : ', WindResponse
@@ -1487,7 +1488,9 @@ contains
         write(iu,'(T1,A)') '# Command line: ' // trim(lcom)
         write(iu,'(T1,A)') '# -------------------------------------------------&
                         &--------------------------------------------------------'
-        write(iu,'(T1,A)') '#  lon      lat      depth         date            &
+    !    write(iu,'(T1,A)') '#  lon      lat      depth         date            &
+    !&u        v         w        temp     psal     dens     dist  S'
+        write(iu,'(T1,A)') '#  lon        lat          depth          date            &
     &u        v         w        temp     psal     dens     dist  S'
       enddo
 
@@ -1675,6 +1678,7 @@ contains
       !fmt = '(T1,A20,2(1X,F9.4),1X,F6.1,X,2(1X,F7.3),1X,G9.2,3(F8.3,X),F6.1)'
       !write(iu,fmt) trim(date%iso()), axx
       fmt = '(T1,2(F9.4,1X),F6.1,X,A20,2(F9.3),1X,G10.3,3(F8.3,X),F7.1,I3)'
+      fmt = '(T1,2(F11.6,1X),F9.3,X,A20,2(F9.3),1X,G10.3,3(F8.3,X),F7.1,I3)'   ! TEST PREC
       write(iu,fmt) axx(1:3), trim(date%iso()), axx(4:), code
  
     enddo

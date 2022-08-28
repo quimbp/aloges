@@ -1259,6 +1259,7 @@ end function date2num
   ! =====================================================================
   ! ...
   subroutine dms2dec(gg,mm,ss,deg) 
+    ! ... Converts degrees, minutes and seconds (integers) to decimal degrees (double precission).
 
     integer, intent(in)                            :: gg,mm,ss
     real(dp), intent(out)                          :: deg
@@ -1272,6 +1273,7 @@ end function date2num
   ! =====================================================================
   ! ...
   subroutine dec2dms(deg,gg,mm,ss) 
+    ! ... Converts decimal degrees (double precission) to degrees, minutes and seconds (integers)
 
     real(dp), intent(in)                           :: deg
     integer, intent(out)                           :: gg,mm,ss
@@ -1291,6 +1293,15 @@ end function date2num
   ! =====================================================================
   ! ...
   subroutine SunRise_and_SunSet (lon,lat,date,hSunrise,hSunset)
+    ! ... Fortran 90 subroutines based on the C code distributed by Mike Chirico:
+ 
+    ! ... http://souptonuts.sourceforge.net/code/sunrise.c.html
+    ! ... Copyright (GPL) 2004   Mike Chirico mchirico@comcast.net
+    ! ... Updated: Sun Nov 28 15:15:05 EST 2004
+    ! ... Program adapted by Mike Chirico mchirico@comcast.net
+    ! ... Reference:
+    ! ... http://prdownloads.sourceforge.net/souptonuts/working_with_time.tar.gz?download
+    ! ... http://www.srrb.noaa.gov/highlights/sunrise/sunrise.html
 
     real(dp), intent(in)                         :: lon
     real(dp), intent(in)                         :: lat
