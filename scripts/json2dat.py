@@ -1,3 +1,33 @@
+# ======================================================================== #
+# ALOGES PROJECT                                                           #
+# Quim Ballabrera, August 2022                                              #
+# Institut de Ciencies del Mar, CSIC                                       #
+# Last Modified: 2022-08-29                                                #
+#                                                                          #
+# Copyright (C) 2022, Joaquim Ballabrera                                   #
+#                                                                          #
+# This program is free software: you can redistribute it and/or modify     #
+# it under the terms of the GNU Lesser General Public License as published #
+# by the Free Software Foundation, either version 3 of the License, or     #
+# (at your option) any later version.                                      #
+#                                                                          #
+# This program is distributed in the hope that it will be useful,          #
+# but WITHOUT ANY WARRANTY; without even the implied warranty of           #
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.                     #
+# See the Lesser GNU General Public License for more details.              #
+#                                                                          #
+# You should have received a copy of the GNU Lesser General                #
+# Public License along with this program.                                  #
+# If not, see <http://www.gnu.org/licenses/>.                              #
+# -------------------------------------------------------------------------#
+#
+# Converter from GEOJSON to DATA trajectory formats
+# Edit to remove or configure the Spike detection. 
+# To convert from GEOJSON to DATA
+# python json2dat INPUT_FILE OUTPUT_FILE
+# To interpolate from GEOJSON to DATA
+# pyhon json2data INTERPOL FROM=DATE DT=dt KIND=[0..8] INPUT_FILE OUTPUT_FILE
+
 import json
 import sys
 import datetime
@@ -14,12 +44,17 @@ INTERPOLATION_METHODS = {0: 'linear',
                          7: 'previous', 
                          8: 'next' }
 
-VERSION = "1.0"
+VERSION = "1.0"          # Initial code
+VERSION = "1.1"          # Check for spikes, 20220829
+
 NOW = datetime.datetime.now()
 
 INTERPOL = False
 INTERPOL_DT   = 30 * 60    # seconds
 INTERPOL_KIND = INTERPOLATION_METHODS[0]
+
+CHECK_SPIKES = True
+CHECK_SPIKES_DEPARTURE = 3
 
 # Release Depth
 #
@@ -38,7 +73,7 @@ for ff in args:
     WithHelp = True
 
 if nargs < 3 or WithHelp:
-  print('\njson2dat: python json2dat [FROM=INITIAL_DATE] [DT=SECONDS] [KIND=INTERPOLATION_KIND] in out')
+  print('\njson2dat: python json2dat [INTERPOL] [FROM=INI_DATE] [DT=DT_SECONDS] [KIND=INTERP_KIND] in out')
   print('     Converts a GEOJSON trajectory file to a tabular text file.')
   print('     Version 1.0, August 2022.')
   print('')
@@ -197,6 +232,41 @@ DP = np.array(DP)
 # ...
 # .........................................................
 
+# Check for spikes
+if CHECK_SPIKES:
+  n = len(XP)
+  REMOVE = []
+  for i in range(n):
+    Xi = []
+    Yi = []
+    if i-2 >= 0:
+      Xi.append(XP[i-2])
+      Yi.append(YP[i-2])
+    if i-1 >= 0:
+      Xi.append(XP[i-1])
+      Yi.append(YP[i-1])
+    if i+1 <= n-1:
+      Xi.append(XP[i+1])
+      Yi.append(YP[i+1])
+    if i+2 <= n-1:
+      Xi.append(XP[i+2])
+      Yi.append(YP[i+2])
+    Xim = np.mean(Xi); Xis = np.std(Xi)
+    Yim = np.mean(Yi); Yis = np.std(Yi)
+    if abs(XP[i]-Xim) > CHECK_SPIKES_DEPARTURE*Xis:
+      print('X Spike ', i, XP[i], Xim, Xis, DP[i].isoformat())
+      REMOVE.append(i)
+    elif abs(YP[i]-Yim) > CHECK_SPIKES_DEPARTURE*Yis:
+      print('Y Spike ', i, YP[i], Yim, Yis, DP[i].isoformat() )
+      REMOVE.append(i)
+
+  if len(REMOVE) > 0:
+    print("Removing indexes: ", REMOVE)
+    XP = np.delete(XP,REMOVE,axis=0)
+    YP = np.delete(YP,REMOVE,axis=0)
+    TP = np.delete(TP,REMOVE,axis=0)
+    DP = np.delete(DP,REMOVE,axis=0)
+
 
 if ( not INTERPOL):
   with open(Ofile,'w') as F:
@@ -224,10 +294,6 @@ if ( not INTERPOL):
 # ----------------------------------------------------------------------
 # If we are here is because we need to interpolate the trajectory data:
 #
-
-dt = DP[2] - DP[1]
-dt = dt.total_seconds()/60.0
-dt = np.rint(dt/10.0)*10.0
 
 if not WithD0:
   d0 = DP[0]
