@@ -343,6 +343,7 @@ contains
     Jcost = func(p)
     dJcost = dfunc(p)
     write(iu,'(T2,A,5F15.5)') 'Solution         : ', p
+    write(iu,'(T2,A,F6.4)')   '||A||_2          : ', sqrt(p(2)**2+p(3)**2+p(4)**2+p(5)**2)
     write(iu,'(T2,A,G15.5)')  'Final cost       : ', Jcost
     write(iu,'(T2,A,5G15.5)') 'Final gradient   : ', dJcost
     write(iu,'(T2,A,I3)')     'Exit parameter   : ', Ninfo  
@@ -353,6 +354,7 @@ contains
     if (verb.ge.1) then
       write(*,*)
       write(*,'(T2,A,5F15.5)') 'Solution         : ', p
+      write(*,'(T2,A,F6.4)')   '||A||_2          : ', sqrt(p(2)**2+p(3)**2+p(4)**2+p(5)**2)
       write(*,'(T2,A,G15.5)')  'Final cost       : ', Jcost
       write(*,'(T2,A,5G15.5)') 'Final gradient   : ', dJcost
       write(*,'(T2,A,I3)')     'Exit parameter   : ', Ninfo  
