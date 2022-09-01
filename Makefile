@@ -38,7 +38,6 @@ clean:
 	(rm -f bin/afort)
 
 afort:
-	#(cd scripts;sed 's@#ALOGES_ROOT.*@ALOGES_ROOT="'"${PWD}"'"@' afort.template > ../bin/afort; chmod +x ../bin/afort)
 	(cd scripts; sed 's@#ALOGES_ROOT.*@ALOGES_ROOT=${PWD}@' afort.template > afort.tmp1)
 	(cd scripts; sed 's@#FC.*@FC=${FC}@' afort.tmp1 > afort.tmp2)
 	(cd scripts; sed 's@#FFLAGS.*@FFLAGS="'"${FFLAGS}"'"@' afort.tmp2 > afort.tmp3)

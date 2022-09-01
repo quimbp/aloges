@@ -55,24 +55,33 @@ contains
 ! =====================================================================
 ! =====================================================================
 ! ...
-  subroutine cdf_copyatts (ver,id1,v1,id2,v2,natts)
+  subroutine cdf_copyatts (ver,id1,v1,id2,v2,natts,disregard)
   ! ... Copies the attributes from variable v1 in file id1 to the
   ! ... variable v2 in file id2.
 
-    logical, intent(in)                     :: ver
-    integer, intent(in)                     :: id1,v1,id2,v2
-    integer, intent(out)                    :: natts
+    logical, intent(in)                                       :: ver
+    integer, intent(in)                                       :: id1,v1,id2,v2
+    integer, intent(out)                                      :: natts
+    character(len=maxlen), intent(in), optional               :: disregard
 
     ! ... Local variables:
     ! ...
-    integer err,vtype,ndim,j,att_type,att_len
+    logical copy
+    integer err,vtype,ndim,j,att_type,att_len,ndis
     character(len=120) name,att_name
     integer, dimension(100)  :: dimids
+    character(len=maxlen) ldis
 
-    character(len=180)                      :: tmpt
+    character(len=4000)                     :: tmpt
     integer, dimension(:), allocatable      :: tmpi
     real(sp), dimension(:), allocatable     :: tmp4
     real(dp), dimension(:), allocatable     :: tmp8
+
+    if (present(disregard)) then
+      ldis = trim(disregard)
+    else
+      ldis = ' '
+    endif
 
     ! ... Information from first file:
     ! ..
@@ -87,50 +96,53 @@ contains
 
     do j=1,natts
       err = NF90_INQ_ATTNAME (id1,v1,j,att_name)
-      err = NF90_INQUIRE_ATTRIBUTE (id1,v1,att_name,xtype=att_type)
-      err = NF90_INQUIRE_ATTRIBUTE (id1,v1,att_name,len=att_len)
-      if (att_type.eq.NF90_BYTE) then
-        allocate (tmpi(att_len))
-        err = NF90_GET_ATT(id1,v1,att_name,tmpi)
-        err = NF90_PUT_ATT(id2,v2,TRIM(att_name),tmpi)
-        deallocate (tmpi)
-      endif
-      if (att_type.EQ.NF90_CHAR) then
-        if (att_len.gt.len(tmpt)) call crash('Increase size tmpt')
-        err = NF90_GET_ATT(id1,v1,att_name,tmpt)
-        call cdf_error (err,'Unable to get text attribute')
-        err = NF90_PUT_ATT(id2,v2,TRIM(att_name),tmpt(1:att_len))
-        call cdf_error (err,'Unable to write text attribute')
-      endif
-      if (att_type.eq.NF90_SHORT) then
-        allocate (tmpi(att_len))
-        err = NF90_GET_ATT(id1,v1,att_name,tmpi)
-        CALL cdf_error (err,'Unable to get short attribute')
-        if (TRIM(att_name).NE.'_FillValue') then
+      copy = index(ldis,trim(att_name)).le.0
+      if (copy) then
+        err = NF90_INQUIRE_ATTRIBUTE (id1,v1,att_name,xtype=att_type)
+        err = NF90_INQUIRE_ATTRIBUTE (id1,v1,att_name,len=att_len)
+        if (att_type.eq.NF90_BYTE) then
+          allocate (tmpi(att_len))
+          err = NF90_GET_ATT(id1,v1,att_name,tmpi)
           err = NF90_PUT_ATT(id2,v2,TRIM(att_name),tmpi)
-        ELSE
-          err = NF90_PUT_ATT(id2,v2,TRIM(att_name),tmpi)
+          deallocate (tmpi)
         endif
-        CALL cdf_error (err,'Unable to write short attribute')
-        deallocate (tmpi)
-      endif
-      if (att_type.EQ.NF90_INT) then
-        allocate (tmpi(att_len))
-        err = NF90_GET_ATT(id1,v1,att_name,tmpi)
-        err = NF90_PUT_ATT(id2,v2,TRIM(att_name),tmpi)
-        deallocate (tmpi)
-      endif
-      if (att_type.EQ.NF90_FLOAT) then
-        allocate (tmp4(att_len))
-        err = NF90_GET_ATT(id1,v1,att_name,tmp4)
-        err = NF90_PUT_ATT(id2,v2,TRIM(att_name),tmp4)
-        deallocate (tmp4)
-      endif
-      if (att_type.EQ.NF90_DOUBLE) then
-        allocate (tmp8(att_len))
-        err = NF90_GET_ATT(id1,v1,att_name,tmp8)
-        err = NF90_PUT_ATT(id2,v2,TRIM(att_name),tmp8)
-        deallocate (tmp8)
+        if (att_type.EQ.NF90_CHAR) then
+          if (att_len.gt.len(tmpt)) call crash('Increase size tmpt')
+          err = NF90_GET_ATT(id1,v1,att_name,tmpt)
+          call cdf_error (err,'Unable to get text attribute')
+          err = NF90_PUT_ATT(id2,v2,TRIM(att_name),tmpt(1:att_len))
+          call cdf_error (err,'Unable to write text attribute')
+        endif
+        if (att_type.eq.NF90_SHORT) then
+          allocate (tmpi(att_len))
+          err = NF90_GET_ATT(id1,v1,att_name,tmpi)
+          CALL cdf_error (err,'Unable to get short attribute')
+          if (TRIM(att_name).NE.'_FillValue') then
+            err = NF90_PUT_ATT(id2,v2,TRIM(att_name),tmpi)
+          ELSE
+            err = NF90_PUT_ATT(id2,v2,TRIM(att_name),tmpi)
+          endif
+          CALL cdf_error (err,'Unable to write short attribute')
+          deallocate (tmpi)
+        endif
+        if (att_type.EQ.NF90_INT) then
+          allocate (tmpi(att_len))
+          err = NF90_GET_ATT(id1,v1,att_name,tmpi)
+          err = NF90_PUT_ATT(id2,v2,TRIM(att_name),tmpi)
+          deallocate (tmpi)
+        endif
+        if (att_type.EQ.NF90_FLOAT) then
+          allocate (tmp4(att_len))
+          err = NF90_GET_ATT(id1,v1,att_name,tmp4)
+          err = NF90_PUT_ATT(id2,v2,TRIM(att_name),tmp4)
+          deallocate (tmp4)
+        endif
+        if (att_type.EQ.NF90_DOUBLE) then
+          allocate (tmp8(att_len))
+          err = NF90_GET_ATT(id1,v1,att_name,tmp8)
+          err = NF90_PUT_ATT(id2,v2,TRIM(att_name),tmp8)
+          deallocate (tmp8)
+        endif
       endif
     enddo
 
