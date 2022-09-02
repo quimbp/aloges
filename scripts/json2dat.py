@@ -224,6 +224,11 @@ if TP[0] == TP[1]:
   TP = TP[1:]
   DP = DP[1:]
 
+# Use the last trajectory value rather than the event=1
+#
+T1 = TP[-1]
+D1 = DP[-1]
+
 
 XP = np.array(XP)
 YP = np.array(YP)
@@ -312,7 +317,7 @@ print('Interpolation method: ', INTERPOL_KIND)
 
 
 TI0 = DI0.timestamp()
-nsteps = int(np.rint((T1 - TI0)/INTERPOL_DT)+1)
+nsteps = int(np.floor((T1 - TI0)/INTERPOL_DT)+1)
 
 TIME = np.array([TI0+i*INTERPOL_DT for i in range(nsteps)])
 DATE = []
@@ -341,6 +346,7 @@ with open(Ofile,'w') as F:
   F.write("#           >> INTERPOLATED TRAJECTORY : %s <<\n" % (INTERPOL_KIND))
   F.write("# -----------------------------------------------------------\n")
   for i in range(len(TIME)):
-    F.write("%12.6f  %12.6f   %9.3f    %s\n" % (XI[i],YI[i], DEPTH, DATE[i].replace(microsecond=0).isoformat()))
+    if XI[i] != -999 and YI[i] != -999:
+      F.write("%12.6f  %12.6f   %9.3f    %s\n" % (XI[i],YI[i], DEPTH, DATE[i].replace(microsecond=0).isoformat()))
 
 print('Interpolated output saved in ', Ofile)
