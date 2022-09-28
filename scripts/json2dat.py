@@ -53,8 +53,8 @@ INTERPOL = False
 INTERPOL_DT   = 30 * 60    # seconds
 INTERPOL_KIND = INTERPOLATION_METHODS[0]
 
-CHECK_SPIKES = True
-CHECK_SPIKES_DEPARTURE = 3
+CHECK_SPIKES = False
+CHECK_SPIKES_DEPARTURE = 4
 
 # Release Depth
 #
@@ -79,6 +79,7 @@ if nargs < 3 or WithHelp:
   print('')
   print('     Options:')
   print('       INITIAL_DATE expressed as ISO format (E.g.: D0=2022-12-31T23:00:00).')
+  print('       FOR          number of days.')
   print('       DT           is the interpolation time step in seconds (E.g. DT=1800).')
   print('       KIND         is the interpolation kind. Must be an integer from 0 to 8 (E.g. KIND=0).\n')
   print('     Interpolation options, INTERPOLATION_KIND:')
@@ -98,17 +99,23 @@ if nargs < 3 or WithHelp:
 Ifile = args[-2]
 Ofile = args[-1]
 
-WithD0 = False
-WithDT = False
-WithKn = False
+WithD0  = False
+WithDT  = False
+WithKn  = False
+WithLen = False
 for ff in args:
   FF = ff.upper()
 
+  if 'CHECK' in FF:
+    CHECK_SPIKES = True
   if 'INTERPOL' in FF:
     INTERPOL = True
   if 'FROM' in FF:
     WithD0 = True
     Dini = ff
+  if 'FOR' in FF:
+    WithLen = True
+    tlen = ff
   if 'DT' in FF:
     WithDT = True
     DT = ff
@@ -129,6 +136,10 @@ if WithKn:
   i = kinda.find('=') + 1
   Kind = int(kinda[i:])
   INTERPOL_KIND = INTERPOLATION_METHODS[Kind]
+
+if WithLen:
+  i = tlen.find('=') + 1
+  TLEN = int(tlen[i:])
 
 # .........................................................
 # ... Read the data:
@@ -196,10 +207,10 @@ for F in FEATURES:
         DEPTH = RELEASE_DEPTH
 
     else:
-      x1 = F['geometry']['coordinates']
-      d1 = F['properties']['time']['data'][0]
-      D1 = datetime.datetime.strptime(d1[0:19],'%Y-%m-%dT%H:%M:%S')
-      T1 = D1.timestamp()
+      x10 = F['geometry']['coordinates']
+      d10 = F['properties']['time']['data'][0]
+      D10 = datetime.datetime.strptime(d10[0:19],'%Y-%m-%dT%H:%M:%S')
+      T10 = D10.timestamp()
 
   else:
 
@@ -224,12 +235,6 @@ if TP[0] == TP[1]:
   TP = TP[1:]
   DP = DP[1:]
 
-# Use the last trajectory value rather than the event=1
-#
-T1 = TP[-1]
-D1 = DP[-1]
-
-
 XP = np.array(XP)
 YP = np.array(YP)
 TP = np.array(TP)
@@ -237,8 +242,31 @@ DP = np.array(DP)
 # ...
 # .........................................................
 
+print("GEOJSON initial date: ", DP[0])
+print("GEOJSON final date: ", DP[-1])
+
+# Check time series limits
+#
+if WithD0:
+  DI0 = datetime.datetime.strptime(INTERPOL_D0,'%Y-%m-%dT%H:%M:%S')
+else:
+  DI0 = DP[0]
+TI0 = DI0.timestamp()
+
+if WithLen:
+  T1 = TI0 + TLEN*86400
+  D1 = datetime.datetime.fromtimestamp(T1)
+else:
+  T1 = TP[-1]
+  D1 = DP[-1]
+
+print("Requested initial date: ", DI0)
+print("Requested final date: ", D1)
+
+
 # Check for spikes
 if CHECK_SPIKES:
+  print("\nChecking for spikes...")
   n = len(XP)
   REMOVE = []
   for i in range(n):
@@ -274,6 +302,19 @@ if CHECK_SPIKES:
 
 
 if ( not INTERPOL):
+  n = len(XP)
+  REMOVE = []
+  for i in range(n):
+    if TP[i] < TI0 or TP[i] > T1:
+      REMOVE.append(i)
+
+  if len(REMOVE) > 0:
+    print("Cropping time series: ", REMOVE)
+    XP = np.delete(XP,REMOVE,axis=0)
+    YP = np.delete(YP,REMOVE,axis=0)
+    TP = np.delete(TP,REMOVE,axis=0)
+    DP = np.delete(DP,REMOVE,axis=0)
+
   with open(Ofile,'w') as F:
     F.write("# ALOGES JSON2DAT.PY\n")
     F.write("# -----------------------------------------------------------\n")
@@ -285,7 +326,7 @@ if ( not INTERPOL):
     F.write("# code_sn        : %s\n" % (code_sn))
     F.write("# type           : %s\n" % (ptype))
     F.write("# Event 0 point  : %8.4f, %8.4f,  %s \n" % (x0[0], x0[1], D0.replace(microsecond=0).isoformat()))
-    F.write("# Event 1 point  : %8.4f, %8.4f,  %s \n" % (x1[0], x1[1], D1.replace(microsecond=0).isoformat()))
+    F.write("# Event 1 point  : %8.4f, %8.4f,  %s \n" % (x10[0], x10[1], D10.replace(microsecond=0).isoformat()))
     F.write("# -----------------------------------------------------------\n")
     for i in range(len(DP)):
       F.write("%12.6f  %12.6f   %9.3f    %s\n" % (XP[i],YP[i], DEPTH, DP[i].replace(microsecond=0).isoformat()))
@@ -300,14 +341,14 @@ if ( not INTERPOL):
 # If we are here is because we need to interpolate the trajectory data:
 #
 
-if not WithD0:
-  d0 = DP[0]
-  if d0.minute < 30:
-    DI0 = d0.replace(minute=0,second=0)
-  elif d0.minute > 30:
-    DI0 = d0.replace(hour=d0.hour+1,minute=0,second=0)
-else:
-  DI0 = datetime.datetime.strptime(INTERPOL_D0,'%Y-%m-%dT%H:%M:%S')
+#if not WithD0:
+#  d0 = DP[0]
+#  if d0.minute < 30:
+#    DI0 = d0.replace(minute=0,second=0)
+#  elif d0.minute > 30:
+#    DI0 = d0.replace(hour=d0.hour+1,minute=0,second=0)
+#else:
+#  DI0 = datetime.datetime.strptime(INTERPOL_D0,'%Y-%m-%dT%H:%M:%S')
    
 
 print(" ")
@@ -342,7 +383,7 @@ with open(Ofile,'w') as F:
   F.write("# code_sn        : %s\n" % (code_sn))
   F.write("# type           : %s\n" % (ptype))
   F.write("# Event 0 point  : %8.4f, %8.4f,  %s \n" % (x0[0], x0[1], D0.replace(microsecond=0).isoformat()))
-  F.write("# Event 1 point  : %8.4f, %8.4f,  %s \n" % (x1[0], x1[1], D1.replace(microsecond=0).isoformat()))
+  F.write("# Event 1 point  : %8.4f, %8.4f,  %s \n" % (x10[0], x10[1], D10.replace(microsecond=0).isoformat()))
   F.write("#           >> INTERPOLATED TRAJECTORY : %s <<\n" % (INTERPOL_KIND))
   F.write("# -----------------------------------------------------------\n")
   for i in range(len(TIME)):
