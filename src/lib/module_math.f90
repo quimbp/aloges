@@ -32,6 +32,10 @@ interface randn
   module procedure randn_r,randn_v,randn_a
 end interface randn
 
+interface arange
+  module procedure arange_dp
+end interface arange
+
 contains
 ! ...
 ! =====================================================================
@@ -301,6 +305,40 @@ contains
 
     return
   end function haversine
+  ! ...
+  ! ===================================================================
+  ! ...
+  pure function arange_dp(amin, amax, adelta) result(arange)
+    ! ...
+    ! ... Returns a double precision vector from amin to amax with 
+    ! ... an optional step of adelta.
+    ! ...
+
+    real(dp), intent(in)                  :: amin 
+    real(dp), intent(in)                  :: amax 
+    real(dp), intent(in), optional        :: adelta 
+    real(dp), dimension(:), allocatable   :: arange
+
+    ! ... Loal variables
+    ! ...
+    integer  i, nlen
+    real(dp) delta
+
+    if (present(adelta))then
+      delta = adelta
+    else
+      delta = 1
+    endif
+
+    nlen = (amax-amin+0.5*delta)/delta + 1
+    allocate(arange(nlen))
+
+    do i=1,nlen
+      arange(i) = amin + (i-1)*delta
+    enddo
+
+    return
+  end function arange_dp
   ! ...
   ! ===================================================================
   ! ...

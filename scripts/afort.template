@@ -12,8 +12,8 @@ version="2.0"
 #CDFINC=
 #CDFLIB=
 
-INC="-I${ALOGES}/include ${CDFINC}"
-LIB="-L${ALOGES}/lib -laloges ${CDFLIB}"
+INC="-I${ALOGES_ROOT}/include ${CDFINC}"
+LIB="-L${ALOGES_ROOT}/lib -laloges ${CDFLIB}"
 
 Nargs=$#
 
