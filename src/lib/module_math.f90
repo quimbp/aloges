@@ -24,8 +24,10 @@
 
 module module_math
 
+use, intrinsic :: IEEE_ARITHMETIC, ONLY : IEEE_VALUE, IEEE_QUIET_NAN
 use module_types
 use module_constants
+
 implicit none
 
 interface randn
@@ -33,6 +35,7 @@ interface randn
 end interface randn
 
 interface arange
+  module procedure arange_i
   module procedure arange_dp
 end interface arange
 
@@ -308,6 +311,40 @@ contains
   ! ...
   ! ===================================================================
   ! ...
+  pure function arange_i(amin, amax, adelta) result(arange)
+    ! ...
+    ! ... Returns a double precision vector from amin to amax with 
+    ! ... an optional step of adelta.
+    ! ...
+
+    integer, intent(in)                  :: amin 
+    integer, intent(in)                  :: amax 
+    integer, intent(in), optional        :: adelta 
+    integer, dimension(:), allocatable   :: arange
+
+    ! ... Loal variables
+    ! ...
+    integer  i, nlen
+    integer delta
+
+    if (present(adelta))then
+      delta = adelta
+    else
+      delta = 1
+    endif
+
+    nlen = (amax-amin+0.5*delta)/delta + 1
+    allocate(arange(nlen))
+
+    do i=1,nlen
+      arange(i) = amin + (i-1)*delta
+    enddo
+
+    return
+  end function arange_i
+  ! ...
+  ! ===================================================================
+  ! ...
   pure function arange_dp(amin, amax, adelta) result(arange)
     ! ...
     ! ... Returns a double precision vector from amin to amax with 
@@ -334,11 +371,121 @@ contains
     allocate(arange(nlen))
 
     do i=1,nlen
-      arange(i) = amin + (i-1)*delta
+      arange(i) = amin + (i-1.0D0)*delta
     enddo
 
     return
   end function arange_dp
+  ! ...
+  ! ===================================================================
+  ! ...
+  real(dp) function mean(A,W)
+    ! ... Calculates the weighted mean = 1/N * Sum W(i)*A(i)
+    ! ... Weights are optional.
+
+    real(dp), dimension(:), intent(in)     :: A
+    real(dp), dimension(:), optional       :: W
+
+    integer n
+    real(dp) nan,Sw
+
+    ! ... nan:
+    ! ...
+    nan = ieee_value(1.0_dp,ieee_quiet_nan)
+
+    mean = nan
+    n = size(A)
+    if (n.eq.0) return
+
+    if (present(W)) then
+      Sw   = sum(W)
+      mean = dot_product(W,A)/Sw
+    else
+      mean = sum(A)/N
+    endif
+
+  end function mean
+  ! ...
+  ! ===================================================================
+  ! ...
+  real(dp) function variance (A,W)
+
+    ! ... Calculates the variance = FACTOR * Sum (A(i)-mean(A))**2
+    ! ... The value of FACTOR depends of W. By default, W=0, FACTOR = 1/(N-1)
+    ! ... However, if W=1, the biased variance is calculated, i.e. FACTOR=1/N
+    ! ... If W has to be used as a weight it must be a vector with the same
+    ! ... size than A.
+    ! ...
+    ! ... Weights are optional.
+    ! ...
+
+    real(dp), dimension(:), intent(in)     :: A
+    real(dp), dimension(:), optional       :: W
+
+    logicaL                                    :: weight = .false.
+    logical                                    :: biased = .false.
+    integer N,i
+    real(dp) xsum1,xsum2,ai,wi,Sw
+    real(dp) nan
+
+
+    ! ... nan:
+    ! ...
+    nan = ieee_value(1.0_dp,ieee_quiet_nan)
+
+    variance = nan
+    N = SIZE(A)
+    if (N.EQ.0) return
+
+    if (PRESENT(W)) then
+      if (SIZE(W).EQ.1) then
+        if (W(1).EQ.0) then
+          biased = .false.
+        else if (W(1).EQ.1) then
+          biased = .true.
+        else
+          STOP 'ERROR in variance: Invalid normalization. Use 0 (unbiased) or 1 (biased)'
+        endif
+      else if (SIZE(W).EQ.N) then
+        weight = .true.
+      else
+        STOP 'ERROR in variance: Size W must be 1 or N'
+      endif
+    endif
+
+    if (weight) then
+      Sw    = 0D0
+      xsum1 = 0D0
+      xsum2 = 0D0
+      do i=1,N
+        wi = w(i)
+        ai = A(i)
+        Sw    = Sw    + wi
+        xsum1 = xsum1 + wi*ai
+        xsum2 = xsum2 + wi*ai*ai
+      enddo
+      xsum1 = xsum1 / Sw
+      xsum2 = xsum2/Sw-xsum1*xsum1
+      variance = Sw * xsum2 /(Sw - 1D0)
+    else
+      xsum1 = 0D0
+      xsum2 = 0D0
+      do i=1,N
+        ai = A(i)
+        xsum1 = xsum1 + ai
+        xsum2 = xsum2 + ai*ai
+      enddo
+      xsum1 = xsum1 / N
+      xsum2 = xsum2 / N - xsum1*xsum1
+      IF (biased) then
+        variance = xsum2
+      else
+        variance = N*xsum2/(N-1D0)
+      endif
+    endif
+    IF (variance.LT.0) variance = 0D0
+
+  end function variance
   ! ...
   ! ===================================================================
   ! ...
