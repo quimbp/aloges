@@ -35,7 +35,7 @@ LIBDIR = ../../lib/
 INC = -I$(INCDIR) $(CDFINC)
 LIB = -L$(LIBDIR) -laloges $(CDFLIB)
 
-TARGET = alm
+TARGET = aloges
 OBJ = module_alm.o module_forcing.o module_float.o module_model.o module_options.o \
       module_fitting.o
 

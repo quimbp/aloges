@@ -188,7 +188,7 @@ contains
       allocate(GRD%var(myvar)%dimids(vndims))
       GRD%var(myvar)%dimids = dimids(1:vndims)
 
-      ! ... Check for axis
+      ! ... Check for axes
       ! ...
       vaxis = ''
       err  = NF90_GET_ATT(fid,myvar,'axis',vaxis)
@@ -346,6 +346,7 @@ contains
     ! ...
     GRD%idt = -1
     GRD%tname = 'NONE'
+
     if (len_trim(tname).gt.0) then
       ! ... The variable name has been given by the user
       if (tname.ne.'-') then
@@ -831,7 +832,6 @@ contains
       if (tmax.gt.GRD%tmax) call crash('Domain tmax < Grid tmax')
     endif
 
-
     ! ... X - Y cropping
     ! ...
     if (GRD%grid2d) stop 'Crop of 2D grid not yet coded'
@@ -898,7 +898,11 @@ contains
     ! ... T cropping: Only if not climatology
     ! ...
     ia = max(locate(GRD%t,tmin),1)
-    ib = min(locate(GRD%t,tmax),GRD%nt)
+    ib = -1
+    do i=1,GRD%nt
+      if (GRD%t(i).le.tmax+0.000001) ib = i
+    enddo
+    !ib = min(locate(GRD%t,tmax),GRD%nt)
 
     GRD%la = ia; GRD%lb = ib; nx = ib-ia+1; GRD%nt = nx
 
@@ -998,7 +1002,7 @@ contains
         write(*,*) 'Final   time     : ', GRD%file_tmax
       else
         di = GRD%file_date(1)
-        df = GRD%file_date(GRD%nt)
+        df = GRD%file_date(GRD%file_nt)
         write(*,*) 'Initial date     :    ', trim(di%iso())
         write(*,*) 'Final   date     :    ', trim(df%iso())
       endif
@@ -1203,14 +1207,13 @@ contains
     spval = GRD%var(Varid)%missing_value
   endif
 
-
   if (present(step)) then
     l  = GRD%la + step - 1
   else
     l = GRD%la
   endif
 
-  if (l.GT.GRD%nt) call crash('in GRID_READ3D step > Nt')
+  if (l.GT.GRD%file_nt) call crash('in GRID_READ3D step > Nt')
 
   if (verb) write(*,'(T2, "READ_GRID3D: varid = ",i2," step = ", i3)') varid, step
 
