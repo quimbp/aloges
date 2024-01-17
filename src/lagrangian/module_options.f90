@@ -701,7 +701,7 @@ subroutine options
     &option -idt, that specifies the time step of the internal loop. &
     &The program writes a trajectory file (NetCDF) and the final position of &
     &the floats (ASCII). The names can be specified using options -trajectory &
-    &and -end, respctively.')
+    &and -end, respectively.')
   call HLP%add_option ('-OU token=value [token=value...]','Input ocean U field (required)','')
   call HLP%add_option ('-OV token=value [token=value...]','Input ocean V field (optional)','')
   call HLP%add_option ('-OT token=value [token=value...]','Input ocean temperature field (optional)','')
