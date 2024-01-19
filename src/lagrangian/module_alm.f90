@@ -161,10 +161,12 @@ contains
     ! ... alm_zmax = 0
     ! ... alm_zmin = -DEPTH
     ! ...
-    ptype = -1
-    if (zo.gt.0.0D0) return   ! Allowed to float at the surface
-    ptype = 0
-    if (zo.le.alm_zmin) return   ! Stranded at the bottom
+    if (alm_nz.gt.1) then
+      !ptype = -1
+      !if (zo.gt.0.0D0) return   ! Not allowed to float at the surface
+      ptype = 0
+      if (zo.lt.alm_zmin) return   ! Stranded at the bottom
+    endif
 
     i = (xo-alm_xmin)/alm_dx + 1
     j = (yo-alm_ymin)/alm_dy + 1
@@ -185,9 +187,9 @@ contains
                 (1.0D0-t)*u*alm_mask(i,j+1,k)
 
     if (f.ge.0.5) then
-      ptype = 1
+      ptype = 1             ! Water
     else
-      ptype = 0
+      ptype = 0             ! Land
     endif
 
   end function point_type

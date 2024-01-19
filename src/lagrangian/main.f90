@@ -108,11 +108,10 @@ else
 endif
 alm_tlen = anint(alm_tfin - alm_tini)
 
-model_dini = num2date(model_tini,units=model_time_units, &
-                      calendar=model_time_calendar)
-model_dfin = num2date(model_tfin,units=model_time_units, &
-                      calendar=model_time_calendar)
-
+model_dini = num2date(alm_tini,units=alm_time_units, &
+                      calendar=alm_time_calendar)
+model_dfin = num2date(alm_tfin,units=alm_time_units, &
+                      calendar=alm_time_calendar)
 
 if (option_fitting) then
   ! ... If this option is requested, the program goes to the
@@ -138,11 +137,9 @@ call model_ini()
 call float_ini()
 if (Nfloats.eq.0) call crash('No valid floats')
 
-
 ! ... Create output trajectory file
 ! ...
 call trajectory_create(trajectory_name,Nfloats)
-
 
 ! ... Run the model 
 ! ...

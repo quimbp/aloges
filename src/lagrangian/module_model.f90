@@ -46,7 +46,7 @@ real(dp)                                         :: model_tfin  = 0.0D0
 real(dp)                                         :: model_tlen  = 0.0D0
 real(dp)                                         :: model_time  = 0.0D0
 real(dp)                                         :: model_daysec= 0.0D0
-real(dp)                                         :: model_dt    = 3600.0D0
+real(dp)                                         :: model_dt    = 600.0D0
 real(dp)                                         :: model_sign  = 1.0D0
 real(dp)                                         :: model_velmin = 1D-5  ! m/s ! Pereiro, 2019
 type(type_date)                                  :: model_dini, model_dfin
@@ -717,7 +717,7 @@ contains
       endif
     endif
 
-    !stop '8888'
+!    stop '8888'
     return
 
   end subroutine model_ini
@@ -1394,20 +1394,22 @@ contains
       call check()
 
 
-      err = NF90_PUT_ATT(output_id,0,'Version',VERSION)
-      err = NF90_PUT_ATT(output_id,0,'Date',now%iso())
+      err = NF90_PUT_ATT(output_id,0,'Conventions','CF-1.6')
+      err = NF90_PUT_ATT(output_id,0,'source','Aloges Lagrangian Model')
+      err = NF90_PUT_ATT(output_id,0,'version',VERSION)
+      err = NF90_PUT_ATT(output_id,0,'date',now%iso())
       err = NF90_PUT_ATT(output_id,0,'rk_order',rk_order)
       err = NF90_PUT_ATT(output_id,0,'model_dt',model_dt)
 
       if (Winds) then
-        err = NF90_PUT_ATT(output_id,0,'Wind_forcing','True')
-        err = NF90_PUT_ATT(output_id,0,'WindDepth',WindDepth)
+        err = NF90_PUT_ATT(output_id,0,'wind_forcing','True')
+        err = NF90_PUT_ATT(output_id,0,'windDepth',WindDepth)
         err = NF90_PUT_ATT(output_id,0,'A11',A11)
         err = NF90_PUT_ATT(output_id,0,'A12',A12)
         err = NF90_PUT_ATT(output_id,0,'A21',A21)
         err = NF90_PUT_ATT(output_id,0,'A22',A22)
       else
-        err = NF90_PUT_ATT(output_id,0,'Wind_forcing','False')
+        err = NF90_PUT_ATT(output_id,0,'wind_forcing','False')
       endif
 
       if (WithOT) then
@@ -1424,13 +1426,13 @@ contains
       if (model_density) then
         err = NF90_PUT_ATT(output_id,0,'water_dens','True')
         if (WithEOS) then
-          err = NF90_PUT_ATT(output_id,0,'WithEOS','True')
+          err = NF90_PUT_ATT(output_id,0,'withEOS','True')
         else
-          err = NF90_PUT_ATT(output_id,0,'WithEOS','False')
+          err = NF90_PUT_ATT(output_id,0,'withEOS','False')
         endif
-        err = NF90_PUT_ATT(output_id,0,'Water_density_method',water_density_method)
+        err = NF90_PUT_ATT(output_id,0,'water_density_method',water_density_method)
         if (water_density_method.eq.0.or.water_density_method.eq.1) &
-          err = NF90_PUT_ATT(output_id,0,'Reference_Water_density',model_value_rho)
+          err = NF90_PUT_ATT(output_id,0,'reference_Water_density',model_value_rho)
         err = NF90_PUT_ATT(output_id,0,'EOS_rho0',EOS_rho0)
         err = NF90_PUT_ATT(output_id,0,'EOS_a0',EOS_a0)
         err = NF90_PUT_ATT(output_id,0,'EOS_b0',EOS_b0)
@@ -1444,16 +1446,16 @@ contains
       endif
 
       if (Particle_buoyant) then
-        err = NF90_PUT_ATT(output_id,0,'Particle_buoyant','True')
-        err = NF90_PUT_ATT(output_id,0,'Water_viscosity',Water_visc)
-        err = NF90_PUT_ATT(output_id,0,'Particle_size',Release_size)
-        err = NF90_PUT_ATT(output_id,0,'Particle_density',Release_rho)
+        err = NF90_PUT_ATT(output_id,0,'particle_buoyant','True')
+        err = NF90_PUT_ATT(output_id,0,'water_viscosity',Water_visc)
+        err = NF90_PUT_ATT(output_id,0,'particle_size',Release_size)
+        err = NF90_PUT_ATT(output_id,0,'particle_density',Release_rho)
       else
-        err = NF90_PUT_ATT(output_id,0,'Particle_buoyant','False')
+        err = NF90_PUT_ATT(output_id,0,'particle_buoyant','False')
       endif
 
       call get_commandline(lcom)
-      err = NF90_PUT_ATT(output_id,0,'Command_line',TRIM(lcom))
+      err = NF90_PUT_ATT(output_id,0,'command_line',TRIM(lcom))
       call check()
 
       err = NF90_ENDDEF(output_id)

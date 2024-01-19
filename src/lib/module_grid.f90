@@ -249,7 +249,7 @@ contains
     real(dp), dimension(:), allocatable          :: wrk1d
     real(dp), dimension(:,:), allocatable        :: wrk2d
     real(dp), dimension(:,:,:), allocatable      :: wrk3d
-    character(len=maxlen) time_units,calendar
+    character(len=maxlen) time_units,calendar,vname
 
     if (GRD%Cartesian) then
       Coordinate_transform = 1.0D0
@@ -286,6 +286,19 @@ contains
           exit
         endif
       enddo
+      ! ... If still nothing, check for usual options
+      ! ...
+      if (GRD%xname.eq.'NONE') then
+        do i=1,GRD%nvars
+          vname = uppercase(GRD%vname(i))
+          if (vname.eq.'LONGITUDE'.or.      &
+              vname.eq.'LON') then
+            GRD%idx = i
+            GRD%xname = GRD%vname(i)
+            GRD%var(i)%axis = 'X'
+          endif
+        enddo
+      endif
     endif
           
     ! ... Y variable:
@@ -313,6 +326,19 @@ contains
           exit
         endif
       enddo
+      ! ... If still nothing, check for usual options
+      ! ...
+      if (GRD%yname.eq.'NONE') then
+        do i=1,GRD%nvars
+          vname = uppercase(GRD%vname(i))
+          if (vname.eq.'LATITUDE'.or.      &
+              vname.eq.'LAT') then
+            GRD%idy = i
+            GRD%yname = GRD%vname(i)
+            GRD%var(i)%axis = 'Y'
+          endif
+        enddo
+      endif
     endif
           
     ! ... Z variable:
@@ -340,6 +366,19 @@ contains
           exit
         endif
       enddo
+      ! ... If still nothing, check for usual options
+      ! ...
+      if (GRD%zname.eq.'NONE') then
+        do i=1,GRD%nvars
+          vname = uppercase(GRD%vname(i))
+          if (vname.eq.'DEPTH'.or.      &
+              vname.eq.'Z') then
+            GRD%idz = i
+            GRD%zname = GRD%vname(i)
+            GRD%var(i)%axis = 'Z'
+          endif
+        enddo
+      endif
     endif
           
     ! ... T variable:
@@ -368,6 +407,19 @@ contains
           exit
         endif
       enddo
+      ! ... If still nothing, check for usual options
+      ! ...
+      if (GRD%tname.eq.'NONE') then
+        do i=1,GRD%nvars
+          vname = uppercase(GRD%vname(i))
+          if (vname.eq.'TIME'.or.      &
+              vname.eq.'T') then
+            GRD%idt = i
+            GRD%tname = GRD%vname(i)
+            GRD%var(i)%axis = 'T'
+          endif
+        enddo
+      endif
     endif
 
     ! ... Now that we have identified the axis variables, get the
@@ -953,6 +1005,11 @@ contains
     write(*,*) '-------------------------------'
     write(*,*) trim(Label)
     write(*,*) 'Filename         : ', trim(GRD%filename)
+    write(*,*) 'X axis name      : ', trim(GRD%xname)
+    write(*,*) 'Y axis name      : ', trim(GRD%yname)
+    write(*,*) 'Z axis name      : ', trim(GRD%zname)
+    write(*,*) 'T axis name      : ', trim(GRD%tname)
+    write(*,*) 'Variable name    : ', trim(GRD%varname)
     write(*,*) 'Axes X, Y, Z, T  : ',x,y,z,t
     if (GRD%Cartesian) then
       write(*,*) 'Coordinates      : Cartesian '

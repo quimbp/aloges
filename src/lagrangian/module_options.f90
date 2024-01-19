@@ -175,6 +175,17 @@ subroutine options
       if (index(uplist,'CLIM').gt.0) OUClim = .True.
       if (index(uplist,'CLIM').gt.0) GOU%Climatology = .True.
       if (count([model_fixed_ou,WithOU]).eq.0) call crash('For -OU, missing file or val tokens')
+      if (verb.gt.0) then
+        write(*,*) '| Zonal ocean velocity options'
+        write(*,*) '|   wind variable: ', trim(OUvname)
+        write(*,*) '|   x axis name  : ', trim(OUxname)
+        write(*,*) '|   y axis name  : ', trim(OUyname)
+        write(*,*) '|   z axis name  : ', trim(OUzname)
+        write(*,*) '|   t axis name  : ', trim(OUtname)
+        write(*,*) '|   Is climatology   : ', OUClim
+        write(*,*) '|   Fixed value flag : ', model_fixed_ou
+        if (model_fixed_ou) write(*,*) '|  Fixed value value: ', model_value_ou
+      endif
     endif
 
     if (WithVterm) then
@@ -194,6 +205,17 @@ subroutine options
       if (index(uplist,'CLIM').gt.0) OVClim = .True.
       if (index(uplist,'CLIM').gt.0) GOV%Climatology = .True.
       if (count([model_fixed_ov,WithOV]).eq.0) call crash('For -OV, missing file or val tokens')
+      if (verb.gt.0) then
+        write(*,*) '| Meridional ocean velocity options'
+        write(*,*) '|   wind variable: ', trim(OVvname)
+        write(*,*) '|   x axis name  : ', trim(OVxname)
+        write(*,*) '|   y axis name  : ', trim(OVyname)
+        write(*,*) '|   z axis name  : ', trim(OVzname)
+        write(*,*) '|   t axis name  : ', trim(OVtname)
+        write(*,*) '|   Is climatology   : ', OVClim
+        write(*,*) '|   Fixed value flag : ', model_fixed_ov
+        if (model_fixed_ou) write(*,*) '|  Fixed value value: ', model_value_ov
+      endif
     endif
     
 
@@ -213,6 +235,17 @@ subroutine options
       if (index(uplist,'CLIM').gt.0) OWClim = .True.
       if (index(uplist,'CLIM').gt.0) GOW%Climatology = .True.
       if (count([model_fixed_ow,WithOW]).eq.0) call crash('For -OW, missing file or val tokens')
+      if (verb.gt.0) then
+        write(*,*) '| Vertical ocean velocity options'
+        write(*,*) '|   wind variable: ', trim(OWvname)
+        write(*,*) '|   x axis name  : ', trim(OWxname)
+        write(*,*) '|   y axis name  : ', trim(OWyname)
+        write(*,*) '|   z axis name  : ', trim(OWzname)
+        write(*,*) '|   t axis name  : ', trim(OWtname)
+        write(*,*) '|   Is climatology   : ', OWClim
+        write(*,*) '|   Fixed value flag : ', model_fixed_ow
+        if (model_fixed_ou) write(*,*) '|  Fixed value value: ', model_value_ow
+      endif
     endif
 
     if (WithXterm) then
@@ -232,6 +265,17 @@ subroutine options
       if (index(uplist,'CLIM').gt.0) AUClim = .True.
       if (index(uplist,'CLIM').gt.0) GAU%Climatology = .True.
       if (count([model_fixed_au,WithAU]).eq.0) call crash('For -AU, missing file or val tokens')
+      if (verb.gt.0) then
+        write(*,*) '| Zonal surface wind options'
+        write(*,*) '|   wind variable: ', trim(AUvname)
+        write(*,*) '|   x axis name  : ', trim(AUxname)
+        write(*,*) '|   y axis name  : ', trim(AUyname)
+        write(*,*) '|   z axis name  : ', trim(AUzname)
+        write(*,*) '|   t axis name  : ', trim(AUtname)
+        write(*,*) '|   Is climatology   : ', AUClim
+        write(*,*) '|   Fixed value flag : ', model_fixed_au
+        if (model_fixed_ou) write(*,*) '|  Fixed value value: ', model_value_au
+      endif
     endif
 
     if (WithYterm) then
@@ -251,6 +295,17 @@ subroutine options
       if (index(uplist,'CLIM').gt.0) AVClim = .True.
       if (index(uplist,'CLIM').gt.0) GAV%Climatology = .True.
       if (count([model_fixed_av,WithAV]).eq.0) call crash('For -AV, missing file or val tokens')
+      if (verb.gt.0) then
+        write(*,*) '| Meridional surface wind options'
+        write(*,*) '|   wind variable: ', trim(AVvname)
+        write(*,*) '|   x axis name  : ', trim(AVxname)
+        write(*,*) '|   y axis name  : ', trim(AVyname)
+        write(*,*) '|   z axis name  : ', trim(AVzname)
+        write(*,*) '|   t axis name  : ', trim(AVtname)
+        write(*,*) '|   Is climatology   : ', AVClim
+        write(*,*) '|   Fixed value flag : ', model_fixed_av
+        if (model_fixed_ou) write(*,*) '|  Fixed value value: ', model_value_av
+      endif
     endif
 
     if (WithRterm) then
@@ -696,7 +751,7 @@ subroutine options
     &number and position of the floats may be read from an ASCII file &
     &(LON, LAT, DEPTH, RELEASE_TIME [,...]) or passed though command line &
     &using options -xo and -yo (and optionally -to or -do). In the later case, &
-    &a random cloud of NFLOATS may also be generated using the option -rand. &
+    &a random cloud of NFLOATS may also be generated using the option -random. &
     &The number of internal time steps can be modified using the &
     &option -idt, that specifies the time step of the internal loop. &
     &The program writes a trajectory file (NetCDF) and the final position of &
@@ -715,7 +770,8 @@ subroutine options
   call HLP%add_option ('-A22        value','Component a22 of the atmosphere response matrix','0.0')
   call HLP%add_option ('-release    filename ','Initial position release file name. &
    &It must exist if no initial coordinates are specified (options -xo and -yo)','')
-  call HLP%add_option ('-from       INITIAL_DATE','Date at which the Lagrangian simulation will start','')
+  call HLP%add_option ('-from       INITIAL_DATE','Date at which the Lagrangian simulation will start. &
+ & Format YYYY-MM-DDTHH:MM:SS','')
   call HLP%add_option ('-for        TIME_PERIOD','Length of the Lagrangian simulation','')
   call HLP%add_option ('-dt         DT (in seconds)','Runge-Kutta time step value','600')
   call HLP%add_option ('-reverse           ','Perform backward integration','')
@@ -738,7 +794,7 @@ subroutine options
   call HLP%add_option ('-mu         value','Non-dimensioanl amplitude of the gaussian multiplicative noise','0')
   call HLP%add_option ('-va         value','Amplitude of the gaussian istropic velocity fluctuation','0')
   call HLP%add_option ('-alpha      value','Non-dimensional ocean velocity multiplicator','1.0')
-  call HLP%add_option ('-rand       NFLOATS','Option to request a simulation with NFLOATS randomly &
+  call HLP%add_option ('-random     NFLOATS','Option to request a simulation with NFLOATS randomly &
     &generated floats per each release position.','1')
   call HLP%add_option ('-Rx         RADIUS_X','Longitude radius for releasing random floats &
    &around specified release location','0.02')

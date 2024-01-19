@@ -106,6 +106,7 @@ contains
       Release_zo = 0.0D0
     endif
 
+
     if (WithReleaseTime) then
       ! ... Check how the user has defined the release time
       ! ... Either it has entered a value in seconds
@@ -141,6 +142,7 @@ contains
 
       if (Nfloats.gt.1) then
         do flo=2,Nfloats
+          print*, 'flo = ', flo
           is_land = .True.
           do while (is_land) 
             call random_number(rnd)
@@ -149,7 +151,10 @@ contains
             yyr = deg2rad*(Release_yo + Radius_y*rnd(2))
             zzr = Release_zo + Radius_z*rnd(3) 
             ttr = Release_to + Radius_t*rnd(4)
+            print*, 'to point_type ...'
             i = point_type(xxr,yyr,zzr)
+            print*, 'i = ', i, xxr, yyr, zzr, ttr
+            print*, '... from point_type'
             if (i.eq.1) then 
               is_land = .False.
             else
