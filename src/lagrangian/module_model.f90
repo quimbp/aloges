@@ -106,10 +106,15 @@ integer                                          :: ADVECTION_LAYER = 0
 ! ... The atmospheric term only applies at depths shallower than WindDepth.
 ! ...
 logical                                          :: WindResponse = .False.
+logical                                          :: WindSigma    = .False.
 real(dp)                                         :: A11       = 0.0_dp
 real(dp)                                         :: A12       = 0.0_dp
 real(dp)                                         :: A21       = 0.0_dp
 real(dp)                                         :: A22       = 0.0_dp
+real(dp)                                         :: sA11      = 0.0_dp
+real(dp)                                         :: sA12      = 0.0_dp
+real(dp)                                         :: sA21      = 0.0_dp
+real(dp)                                         :: sA22      = 0.0_dp
 
 ! ... Wind-driven current regression to local winds
 ! ...       U_wd = beta * exp (alpha*j) * (Windx + j Windy)
@@ -262,6 +267,8 @@ contains
     real(dp) f1,f2,ff,a1,a2,wx,wy,tt,uo,vo,wo
     real(dp) t1,t2
     real(dp) veps,vx,vy,vz,tk,sk,rhok,wok
+    real(dp) randvect(4)
+    real(dp) nA11,nA12,nA21,nA22
 
     if (verb.ge.4) write(*,*) 'RHS time, xo  : ', t, xo
 
@@ -393,8 +400,22 @@ contains
       else
         a2 = time_interpol(GAV,AVrhs,t,xo)
       endif
-      wx = A11*a1 + A12*a2
-      wy = A21*a1 + A22*a2
+
+      if (WindSigma) then
+        ! TEST: Random wind factor
+        call RANDOM_NUMBER(randvect)
+        nA11 = A11  +  sA11 * 2.0D0*(randvect(1)-0.5) 
+        nA12 = A12  +  sA12 * 2.0D0*(randvect(2)-0.5) 
+        nA21 = A21  +  SA21 * 2.0D0*(randvect(3)-0.5) 
+        nA22 = A22  +  sA22 * 2.0D0*(randvect(4)-0.5) 
+        wx = nA11*a1 + nA12*a2
+        wy = nA21*a1 + nA22*a2
+        if (verb.ge.5) &
+          write(*,*) 'RHS Random Wind drift factor: ', nA11,nA12,nA21,nA22
+      else
+        wx = A11*a1 + A12*a2
+        wy = A21*a1 + A22*a2
+      endif
       if (verb.ge.4) then
         write(*,*) 'RHS Wind components,   a1, a2 : ', a1, a2
         write(*,*) 'RHS Wind contribution, Wx, Wy : ', wx, wy

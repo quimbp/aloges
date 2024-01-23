@@ -560,6 +560,16 @@ subroutine options
         read(word,*) WDriven_theta
       endif
       word = token_read(WDlist,'depth'); if (len_trim(word).gt.0) read(word,*) WindDepth
+      word = token_read(WDlist,'sigma')
+      if (len_trim(word).gt.0) then
+        WindSigma = .True.
+        AAA = ReadVector(trim(word))
+        if (size(AAA).ne.4) call crash('Incompatible number of Sigma values')
+        sA11 = AAA(1)
+        sA12 = AAA(2)
+        sA21 = AAA(3)
+        sA22 = AAA(4)
+      endif
     endif
     if (WindResponse.and.WindDriven) call crash('Incompatible use of A, beta and theta parameters')
     if (count([Withbeta,WithTheta]).eq.1) call crash('Both beta and theta values required')

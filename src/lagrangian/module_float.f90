@@ -150,11 +150,8 @@ contains
             xxr = deg2rad*(Release_xo + Radius_x*rnd(1))
             yyr = deg2rad*(Release_yo + Radius_y*rnd(2))
             zzr = Release_zo + Radius_z*rnd(3) 
-            ttr = Release_to + Radius_t*rnd(4)
-            print*, 'to point_type ...'
+            ttr = max(Release_to + Radius_t*rnd(4),Release_to)
             i = point_type(xxr,yyr,zzr)
-            print*, 'i = ', i, xxr, yyr, zzr, ttr
-            print*, '... from point_type'
             if (i.eq.1) then 
               is_land = .False.
             else
