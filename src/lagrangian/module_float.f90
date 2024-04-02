@@ -58,6 +58,7 @@ integer                                          :: Nfloats = 0
 type(type_float), dimension(:), pointer          :: FLT      ! Array of buoys
 type(type_float)                                 :: FLTk     ! A buoy
 
+logical                                          :: Release_by_mask = .False.
 logical                                          :: Release_by_file = .False.
 logical                                          :: Release_by_pos  = .False.
 logical                                          :: WithReleaseXo   = .False.
@@ -74,6 +75,7 @@ real(dp)                                         :: Release_rho     = 1027.0D0
 real(dp)                                         :: Release_size    = 1D-4 ! 2r
 character(len=maxlen)                            :: Release_file    = ''
 character(len=maxlen)                            :: Release_time    = ''
+character(len=maxlen)                            :: Release_mask    = ''
 
 ! ... Release of a random cloud of particles:
 ! ...

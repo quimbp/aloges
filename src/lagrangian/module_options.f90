@@ -86,6 +86,8 @@ subroutine options
   logical                                        :: WithBeta  = .False.
   logical                                        :: WithTheta = .False.
   logical                                        :: WithRk    = .False.
+  logical                                        :: WithRelse = .False.
+  logical                                        :: btest     = .False.
 
   integer                                        :: na,i
   real(dp), dimension(:), allocatable            :: AAA
@@ -105,6 +107,7 @@ subroutine options
   character(len=400)                             :: WDlist=''
   character(len=400)                             :: DVMlist=''
   character(len=400)                             :: FITlist=''
+  character(len=400)                             :: RELlist=''
   character(len=400)                             :: Alphalist=''
   character(len=400)                             :: PBlist=''
 
@@ -439,13 +442,58 @@ subroutine options
 
     ! ... Float release
     ! ...
-    call linearg('-rel',Release_by_file,Release_file)
-    call linearg('-xo',WithReleaseXo,Release_xo)
-    call linearg('-yo',WithReleaseYo,Release_yo)
-    call linearg('-zo',WithReleaseZo,Release_zo)
-    call linearg('-to',WithReleaseTime,Release_time)
-    !call linearg('-ro',WithReleaseRho,Release_rho)
-    !call linearg('-so',WithReleaseSize,Release_size)
+    call linearg('-rel',WithRelse,RELlist)
+    if (WithRelse) then
+      word = token_read(RELlist,'mask')
+      if (len_trim(word).gt.0) then
+        Release_by_mask = .True.
+        Release_mask = trim(word)
+      else 
+        word = token_read(RELlist,'file')
+        if (len_trim(word).gt.0) then
+          Release_by_file = .True.
+          Release_file = trim(word)
+        else
+          Release_by_pos = .True.
+          word = token_read(RELlist,'xo')
+          if (len_trim(word).gt.0) then
+            WithReleaseXo = .True.
+            read(word,*) Release_xo
+          endif
+          word = token_read(RELlist,'yo')
+          if (len_trim(word).gt.0) then
+            WithReleaseYo = .True.
+            read(word,*) Release_yo
+          endif
+          word = token_read(RELlist,'zo')
+          if (len_trim(word).gt.0) then
+            WithReleaseZo = .True.
+            read(word,*) Release_zo
+          endif
+          word = token_read(RELlist,'to')
+          if (len_trim(word).gt.0) then
+            WithReleaseTime = .True.
+            read(word,*) Release_time
+          endif
+          print*, WithReleaseXo
+          print*, WithReleaseYo
+          btest = WithReleaseXo.and.WithReleaseYo
+          if (.not.btest) then
+            call crash('Options -xo and -yo required')
+          endif
+        endif
+      endif
+    else
+      call crash('Option -release required')
+    endif
+
+!    call linearg('-rel',Release_by_file,Release_file)
+!    call linearg('-xo',WithReleaseXo,Release_xo)
+!    call linearg('-yo',WithReleaseYo,Release_yo)
+!    call linearg('-zo',WithReleaseZo,Release_zo)
+!    call linearg('-to',WithReleaseTime,Release_time)
+!    !call linearg('-ro',WithReleaseRho,Release_rho)
+!    !call linearg('-so',WithReleaseSize,Release_size)
     call linearg('-save_release',WithRfn,Release_SaveFile)
 
     call linearg('-particle',Particle_buoyant,PBlist)
@@ -472,7 +520,7 @@ subroutine options
     call linearg('-rt',WithRt,Radius_t)
 
 
-    Release_by_pos = WithReleaseXo .or. WithReleaseYo 
+!    Release_by_pos = WithReleaseXo .or. WithReleaseYo 
 
     if (Release_by_file.and.Release_by_pos) then
       call crash('Incompatible release options')
