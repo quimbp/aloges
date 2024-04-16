@@ -25,6 +25,7 @@ module module_model
 
 use module_types
 use module_constants
+use module_nc
 use module_math
 use module_time
 use module_grid
@@ -1321,7 +1322,7 @@ contains
       call check()
 
       if (input_timeid.le.0) then
-        call cdf_copyatts(.False.,input_id,input_timeid,output_id,output_timeid,natts)
+        call nc_copyatts(.False.,input_id,input_timeid,output_id,output_timeid,natts)
       else
         err = NF90_PUT_ATT(output_id,output_timeid,'units',trim(model_time_units))
         call check()
@@ -1521,7 +1522,7 @@ contains
 
     contains
       subroutine check()
-        call cdf_error(err,'while creating output NetCDF trajectory file.')
+        call nc_error(err,'while creating output NetCDF trajectory file.')
       end subroutine check
 
   end subroutine trajectory_create
@@ -1557,7 +1558,7 @@ contains
       ! ...
       time_out(1) = time
       err = NF90_PUT_VAR(output_id,output_timeid,time_out,[output_record],[1])
-      call cdf_error(err,'Error writing trajectory time')
+      call nc_error(err,'Error writing trajectory time')
 
 
       ! ... Longitude
@@ -1567,7 +1568,7 @@ contains
         if (FLT(i)%released) xx(i) = FLT(i)%x*rad2deg
       enddo
       err = NF90_PUT_VAR(output_id,output_lonid,xx,[1,output_record],[Nfloats,1])
-      call cdf_error(err,'Error writing trajectory longitude')
+      call nc_error(err,'Error writing trajectory longitude')
 
       ! ... Latitude
       ! ...
@@ -1576,7 +1577,7 @@ contains
         if (FLT(i)%released) xx(i) = FLT(i)%y*rad2deg
       enddo
       err = NF90_PUT_VAR(output_id,output_latid,xx,[1,output_record],[Nfloats,1])
-      call cdf_error(err,'Error writing trajectory latitude')
+      call nc_error(err,'Error writing trajectory latitude')
 
       ! ... Depth
       ! ...
@@ -1585,7 +1586,7 @@ contains
         if (FLT(i)%released) xx(i) = abs(FLT(i)%z)
       enddo
       err = NF90_PUT_VAR(output_id,output_zid,xx,[1,output_record],[Nfloats,1])
-      call cdf_error(err,'Error writing trajectory depth')
+      call nc_error(err,'Error writing trajectory depth')
 
       ! ... Velocity values are specified at the previus step:
       ! ...
@@ -1598,7 +1599,7 @@ contains
           if (FLT(i)%released) xx(i) = FLT(i)%u
         enddo
         err = NF90_PUT_VAR(output_id,output_uid,xx,[1,output_record-1],[Nfloats,1])
-        call cdf_error(err,'Error writing trajectory zonal velocity')
+        call nc_error(err,'Error writing trajectory zonal velocity')
 
         ! ... V
         ! ...
@@ -1607,7 +1608,7 @@ contains
           if (FLT(i)%released) xx(i) = FLT(i)%v
         enddo
         err = NF90_PUT_VAR(output_id,output_vid,xx,[1,output_record-1],[Nfloats,1])
-        call cdf_error(err,'Error writing trajectory meridional velocity')
+        call nc_error(err,'Error writing trajectory meridional velocity')
 
         ! ... W
         ! ...
@@ -1616,7 +1617,7 @@ contains
           if (FLT(i)%released) xx(i) = FLT(i)%w
         enddo
         err = NF90_PUT_VAR(output_id,output_wid,xx,[1,output_record-1],[Nfloats,1])
-        call cdf_error(err,'Error writing trajectory vertical velocity')
+        call nc_error(err,'Error writing trajectory vertical velocity')
 
       endif
 
@@ -1627,7 +1628,7 @@ contains
         if (FLT(i)%released) xx(i) = abs(FLT(i)%dist)
       enddo
       err = NF90_PUT_VAR(output_id,output_did,xx,[1,output_record],[Nfloats,1])
-      call cdf_error(err,'Error writing trajectory distance')
+      call nc_error(err,'Error writing trajectory distance')
 
       ! ... Temperature
       ! ...
@@ -1637,7 +1638,7 @@ contains
           if (FLT(i)%released) xx(i) = FLT(i)%Wtemp
         enddo
         err = NF90_PUT_VAR(output_id,output_tempid,xx,[1,output_record],[Nfloats,1])
-        call cdf_error(err,'Error writing water temperature')
+        call nc_error(err,'Error writing water temperature')
       endif
 
       ! ... Salinity
@@ -1648,7 +1649,7 @@ contains
           if (FLT(i)%released) xx(i) = FLT(i)%Wpsal
         enddo
         err = NF90_PUT_VAR(output_id,output_psalid,xx,[1,output_record],[Nfloats,1])
-        call cdf_error(err,'Error writing water salinity')
+        call nc_error(err,'Error writing water salinity')
       endif
 
       ! ... Water density
@@ -1659,7 +1660,7 @@ contains
           if (FLT(i)%released) xx(i) = FLT(i)%Wdens
         enddo
         err = NF90_PUT_VAR(output_id,output_rid,xx,[1,output_record],[Nfloats,1])
-        call cdf_error(err,'Error writing water density')
+        call nc_error(err,'Error writing water density')
       endif
 
   else
@@ -1736,9 +1737,9 @@ contains
 
     if (output_format.eq.0) then
       err = NF90_PUT_VAR(output_id,output_status,code)
-      call cdf_error(err,'Error writing output code')
+      call nc_error(err,'Error writing output code')
       err = NF90_CLOSE(output_id)
-      call cdf_error(err,'while closing output NetCDF trajectory file.')
+      call nc_error(err,'while closing output NetCDF trajectory file.')
       if (verb.ge.1) write(*,*) 'Successfully closed NetCDF file ',trim(trajectory_name)
     else
       do i=1,Nfloats

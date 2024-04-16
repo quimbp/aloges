@@ -106,21 +106,21 @@ contains
     character(len=80) dname
 
     err = NF90_OPEN(filename,0,fid)
-    call cdf_error(err,'TRAJ_READ: error opening '//trim(filename))
+    call nc_error(err,'TRAJ_READ: error opening '//trim(filename))
 
     err = NF90_INQUIRE_DIMENSION(fid,1,name=dname,len=np)
-    call cdf_error(err,'TRAJ_READ: error reading first dimension')
+    call nc_error(err,'TRAJ_READ: error reading first dimension')
     err = NF90_INQUIRE_DIMENSION(fid,2,name=dname,len=nt)
-    call cdf_error(err,'TRAJ_READ: error reading second dimension')
+    call nc_error(err,'TRAJ_READ: error reading second dimension')
 
     err = NF90_INQ_VARID(fid,'lon',idx)
-    call cdf_error(err,'TRAJ_READ: error inquiring about lon')
+    call nc_error(err,'TRAJ_READ: error inquiring about lon')
     err = NF90_INQ_VARID(fid,'lat',idy)
-    call cdf_error(err,'TRAJ_READ: error inquiring about lat')
+    call nc_error(err,'TRAJ_READ: error inquiring about lat')
     err = NF90_INQ_VARID(fid,'depth',idz)
-    call cdf_error(err,'TRAJ_READ: error inquiring about depth')
+    call nc_error(err,'TRAJ_READ: error inquiring about depth')
     err = NF90_INQ_VARID(fid,'time',idt)
-    call cdf_error(err,'TRAJ_READ: error inquiring about time')
+    call nc_error(err,'TRAJ_READ: error inquiring about time')
 
     TR%N = np
     TR%nsteps = nt
@@ -132,13 +132,13 @@ contains
     allocate(TR%z(np,nt))
 
     err = NF90_GET_VAR(fid,idt,TR%t)
-    call cdf_error(err,'TRAJ_READ: error reading time')
+    call nc_error(err,'TRAJ_READ: error reading time')
     err = NF90_GET_VAR(fid,idx,TR%x)
-    call cdf_error(err,'TRAJ_READ: error reading lon')
+    call nc_error(err,'TRAJ_READ: error reading lon')
     err = NF90_GET_VAR(fid,idy,TR%y)
-    call cdf_error(err,'TRAJ_READ: error reading lat')
+    call nc_error(err,'TRAJ_READ: error reading lat')
     err = NF90_GET_VAR(fid,idz,TR%z)
-    call cdf_error(err,'TRAJ_READ: error reading depth')
+    call nc_error(err,'TRAJ_READ: error reading depth')
 
     err = NF90_CLOSE(fid)
 

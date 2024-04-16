@@ -504,22 +504,22 @@ contains
 
     if (verb.ge.2) write(*,*) 'Opening NetCDF trajectory ', trim(filename)
     err = NF90_OPEN(filename,0,fid)
-    call cdf_error(err,'TRAJECTORY_READ_NC: error opening '//trim(filename))
+    call nc_error(err,'TRAJECTORY_READ_NC: error opening '//trim(filename))
 
     err = NF90_INQUIRE_DIMENSION(fid,1,name=dname,len=np)
-    call cdf_error(err,'TRAJECTORY_READ_NC: error reading first dimension')
+    call nc_error(err,'TRAJECTORY_READ_NC: error reading first dimension')
     err = NF90_INQUIRE_DIMENSION(fid,2,name=dname,len=nt)
-    call cdf_error(err,'TRAJECTORY_READ_NC: error reading second dimension')
+    call nc_error(err,'TRAJECTORY_READ_NC: error reading second dimension')
     if (verb.ge.2) write(*,*) 'Np, Nt : ', Np, Nt
 
     err = NF90_INQ_VARID(fid,'lon',idx)
-    call cdf_error(err,'TRAJECTORY_READ_NC: error inquiring about lon')
+    call nc_error(err,'TRAJECTORY_READ_NC: error inquiring about lon')
     err = NF90_INQ_VARID(fid,'lat',idy)
-    call cdf_error(err,'TRAJECTORY_READ_NC: error inquiring about lat')
+    call nc_error(err,'TRAJECTORY_READ_NC: error inquiring about lat')
     err = NF90_INQ_VARID(fid,'depth',idz)
-    call cdf_error(err,'TRAJECTORY_READ_NC: error inquiring about depth')
+    call nc_error(err,'TRAJECTORY_READ_NC: error inquiring about depth')
     err = NF90_INQ_VARID(fid,'time',idt)
-    call cdf_error(err,'TRAJECTORY_READ_NC: error inquiring about time')
+    call nc_error(err,'TRAJECTORY_READ_NC: error inquiring about time')
 
     T%filename = trim(filename)
     T%Np = np
@@ -531,13 +531,13 @@ contains
     T%valid(:,:) = .True.
 
     err = NF90_GET_VAR(fid,idx,T%x)
-    call cdf_error(err,'TRAJECTORY_READ_NC: error reading lon')
+    call nc_error(err,'TRAJECTORY_READ_NC: error reading lon')
     err = NF90_GET_VAR(fid,idy,T%y)
-    call cdf_error(err,'TRAJECTORY_READ_NC: error reading lat')
+    call nc_error(err,'TRAJECTORY_READ_NC: error reading lat')
     err = NF90_GET_VAR(fid,idz,T%z)
-    call cdf_error(err,'TRAJECTORY_READ_NC: error reading depth')
+    call nc_error(err,'TRAJECTORY_READ_NC: error reading depth')
     err = NF90_GET_VAR(fid,idt,T%t(1,:))
-    call cdf_error(err,'TRAJECTORY_READ_NC: error reading time')
+    call nc_error(err,'TRAJECTORY_READ_NC: error reading time')
 
 
     ! ... Convert time to dates:
@@ -545,9 +545,9 @@ contains
     time_units = ''
     calendar = ''
     err = NF90_GET_ATT (fid,idt,'units',time_units)
-    call cdf_error(err,'Time variable without UNITS attribute')
+    call nc_error(err,'Time variable without UNITS attribute')
     err = NF90_GET_ATT (fid,idt,'calendar',calendar)
-    call cdf_error(err,'Time variable without CALENDAR attribute')
+    call nc_error(err,'Time variable without CALENDAR attribute')
     call check_calendar(calendar)
 
     do ll=1,T%nt

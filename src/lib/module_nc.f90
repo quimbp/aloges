@@ -1,27 +1,43 @@
+! ======================================================================== !
+! ALOGES PROJECT                                                           !
+! Quim Ballabrera, April 2022                                              !
+! Institut de Ciencies del Mar, CSIC                                       !
+! Last Modified: 2024-04-16                                                !
+!                                                                          !
+! Copyright (C) 2022, Joaquim Ballabrera                                   !
+!                                                                          !
+! This program is free software: you can redistribute it and/or modify     !
+! it under the terms of the GNU Lesser General Public License as published !
+! by the Free Software Foundation, either version 3 of the License, or     !
+! (at your option) any later version.                                      !
+!                                                                          !
+! This program is distributed in the hope that it will be useful,          !
+! but WITHOUT ANY WARRANTY; without even the implied warranty of           !
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.                     !
+! See the Lesser GNU General Public License for more details.              !
+!                                                                          !
+! You should have received a copy of the GNU Lesser General                !
+! Public License along with this program.                                  !
+! If not, see <http://www.gnu.org/licenses/>.                              !
+!
+! List of routines:                                                        !
+! - nc_open                                                                !
+! - nc_dump
+! - nc_copyatts
+! - nc_error
+! -------------------------------------------------------------------------!
+
 module module_nc
 
 use netcdf
+use module_types
 
 implicit none
-
-integer, parameter                                   :: dp = 8
-integer, parameter                                   :: maxlen = 360
-
 
 type type_nc_dimension
   character(len=maxlen)                              :: name
   integer                                            :: len
 end type type_nc_dimension
-
-type type_nc_variable
-  character(len=maxlen)                              :: name
-  integer                                            :: type
-  integer                                            :: ndims
-  integer                                            :: natts
-  integer, dimension(:), pointer                     :: dimids
-  type(type_nc_attribute), dimension(:), pointer     :: attribute
-
-end type type_nc_variable
 
 type type_nc_attribute
   character(len=maxlen)                              :: name
@@ -33,8 +49,16 @@ type type_nc_attribute
   character(len=maxlen)                              :: tval
 end type type_nc_attribute
 
-type type_dataset
+type type_nc_variable
+  character(len=maxlen)                              :: name
+  integer                                            :: type
+  integer                                            :: ndims
+  integer                                            :: natts
+  integer, dimension(:), pointer                     :: dimids
+  type(type_nc_attribute), dimension(:), pointer     :: attribute
+end type type_nc_variable
 
+type type_dataset
   character(len=maxlen)                              :: filename
   integer                                            :: err
   integer                                            :: fid
@@ -52,11 +76,13 @@ type type_dataset
     procedure                   :: read1D        => nc_variable_read1d
     procedure                   :: read2D        => nc_variable_read2d
     procedure                   :: size          => nc_variable_size  
-
 end type type_dataset
 
 contains
-
+! ...
+! =====================================================================
+! =====================================================================
+! ...
   subroutine nc_open(SD,filename) 
 
     class(type_dataset), intent(inout)               :: SD
@@ -460,38 +486,118 @@ contains
     enddo
 
   end function nc_variable_size
+  ! ...
+  ! ===================================================================
+  ! ...
+  subroutine nc_copyatts (ver,id1,v1,id2,v2,natts,disregard)
+  ! ... Copies the attributes from variable v1 in file id1 to the
+  ! ... variable v2 in file id2.
+
+    logical, intent(in)                                       :: ver
+    integer, intent(in)                                       :: id1,v1,id2,v2
+    integer, intent(out)                                      :: natts
+    character(len=maxlen), intent(in), optional               :: disregard
+
+    ! ... Local variables:
+    ! ...
+    logical copy
+    integer err,vtype,ndim,j,att_type,att_len,ndis
+    character(len=120) name,att_name
+    integer, dimension(100)  :: dimids
+    character(len=maxlen) ldis
+
+    character(len=4000)                     :: tmpt
+    integer, dimension(:), allocatable      :: tmpi
+    real(sp), dimension(:), allocatable     :: tmp4
+    real(dp), dimension(:), allocatable     :: tmp8
+
+    if (present(disregard)) then
+      ldis = trim(disregard)
+    else
+      ldis = ' '
+    endif
+
+    ! ... Information from first file:
+    ! ..
+    if (v1.eq.NF90_GLOBAL) then
+      err = NF90_INQUIRE (id1,nAttributes=natts)
+      if (ver) write(*,*) 'Number of global attributes ', natts
+    else
+      err = NF90_INQUIRE_VARIABLE (id1,v1,name,vtype,ndim,dimids,natts)
+      call nc_error (err,'CDF_COPYATTS Error: Unable to inquire variable')
+      if (ver) write(*,*) 'Variable ', v1, ' has ', natts, ' attributes'
+    endif
+
+    do j=1,natts
+      err = NF90_INQ_ATTNAME (id1,v1,j,att_name)
+      copy = index(ldis,trim(att_name)).le.0
+      if (copy) then
+        err = NF90_INQUIRE_ATTRIBUTE (id1,v1,att_name,xtype=att_type)
+        err = NF90_INQUIRE_ATTRIBUTE (id1,v1,att_name,len=att_len)
+        if (att_type.eq.NF90_BYTE) then
+          allocate (tmpi(att_len))
+          err = NF90_GET_ATT(id1,v1,att_name,tmpi)
+          err = NF90_PUT_ATT(id2,v2,TRIM(att_name),tmpi)
+          deallocate (tmpi)
+        endif
+        if (att_type.EQ.NF90_CHAR) then
+          if (att_len.gt.len(tmpt)) stop 'ERROR NC_COPYATTS: Increase size tmpt'
+          err = NF90_GET_ATT(id1,v1,att_name,tmpt)
+          call nc_error (err,'Unable to get text attribute')
+          err = NF90_PUT_ATT(id2,v2,TRIM(att_name),tmpt(1:att_len))
+          call nc_error (err,'Unable to write text attribute')
+        endif
+        if (att_type.eq.NF90_SHORT) then
+          allocate (tmpi(att_len))
+          err = NF90_GET_ATT(id1,v1,att_name,tmpi)
+          CALL nc_error (err,'Unable to get short attribute')
+          if (TRIM(att_name).NE.'_FillValue') then
+            err = NF90_PUT_ATT(id2,v2,TRIM(att_name),tmpi)
+          ELSE
+            err = NF90_PUT_ATT(id2,v2,TRIM(att_name),tmpi)
+          endif
+          CALL nc_error (err,'Unable to write short attribute')
+          deallocate (tmpi)
+        endif
+        if (att_type.EQ.NF90_INT) then
+          allocate (tmpi(att_len))
+          err = NF90_GET_ATT(id1,v1,att_name,tmpi)
+          err = NF90_PUT_ATT(id2,v2,TRIM(att_name),tmpi)
+          deallocate (tmpi)
+        endif
+        if (att_type.EQ.NF90_FLOAT) then
+          allocate (tmp4(att_len))
+          err = NF90_GET_ATT(id1,v1,att_name,tmp4)
+          err = NF90_PUT_ATT(id2,v2,TRIM(att_name),tmp4)
+          deallocate (tmp4)
+        endif
+        if (att_type.EQ.NF90_DOUBLE) then
+          allocate (tmp8(att_len))
+          err = NF90_GET_ATT(id1,v1,att_name,tmp8)
+          err = NF90_PUT_ATT(id2,v2,TRIM(att_name),tmp8)
+          deallocate (tmp8)
+        endif
+      endif
+    enddo
+
+    return
+  end subroutine nc_copyatts
+  ! ...
+  ! ===================================================================
+  ! ...
+  subroutine nc_error(err,message)
+
+    integer, intent(in)                            :: err
+    character(len=*)                               :: message 
+
+    if (err.eq.0) return 
+
+    ! ... If here, it has been an error
+    ! ...
+    write(0,*) '> ERROR: ', trim(message)
+    write(0,*) '> ',trim(NF90_STRERROR(err))
+    stop 1
+
+  end subroutine nc_error
 
 end module module_nc
-
-
-
-program main
-
-  use module_nc
-
-  type(type_dataset)                                 :: SD
-  character(len=maxlen)                              :: filename
-
-  integer, dimension(:), allocatable                 :: n
-  real(8), dimension(:), allocatable                 :: X
-  real(8), dimension(:,:), allocatable               :: U
-
-  filename = './latest.nc'
-  call SD%open(filename)
-  call SD%dump()
-
-  X = SD%Read1D('lon_rho',[1],[10])
-  print*, 'X = ', X
-  X = SD%Read1D('lat_rho',[1],[10])
-  print*, 'X = ', X
-
-  X = SD%Read1D('temp',[350,200,1,1],[1,1,13,1])
-  print*, 'temp = ', X
-
-  n = SD%size('temp')
-  print*, 'n = ', n
-
-  U = SD%Read2D('temp',[350,200,1,1],[10,5,1,1])
-  print*, 'U = ', U
-  print*, SIZE(U,1), SIZE(U,2)
-end program main

@@ -26,6 +26,7 @@ module module_forcing
 use netcdf
 use module_types
 use module_constants
+use module_nc
 use module_tools
 use module_grid 
 
@@ -461,47 +462,47 @@ contains
     ! ...
     if (withOU) then
       err = NF90_INQ_VARID(GOU%fid,trim(OUvname),GOU%varid)
-      call cdf_error(err,'Variable '//trim(OUvname)//' in file '//trim(OUfilename))
+      call nc_error(err,'Variable '//trim(OUvname)//' in file '//trim(OUfilename))
       GOU%varname = trim(OUvname)
     endif
     if (withOV) then
       err = NF90_INQ_VARID(GOV%fid,trim(OVvname),GOV%varid)
-      call cdf_error(err,'Variable '//trim(OVvname)//' in file '//trim(OVfilename))
+      call nc_error(err,'Variable '//trim(OVvname)//' in file '//trim(OVfilename))
       GOV%varname = trim(OVvname)
     endif
     if (withOW) then
       err = NF90_INQ_VARID(GOW%fid,trim(OWvname),GOW%varid)
-      call cdf_error(err,'Variable '//trim(OWvname)//' in file '//trim(OWfilename))
+      call nc_error(err,'Variable '//trim(OWvname)//' in file '//trim(OWfilename))
       GOW%varname = trim(OWvname)
     endif
     if (withOT) then
       err = NF90_INQ_VARID(GOT%fid,trim(OTvname),GOT%varid)
-      call cdf_error(err,'Variable '//trim(OTvname)//' in file '//trim(OTfilename))
+      call nc_error(err,'Variable '//trim(OTvname)//' in file '//trim(OTfilename))
       GOT%varname = trim(OTvname)
     endif
     if (withOS) then
       err = NF90_INQ_VARID(GOS%fid,trim(OSvname),GOS%varid)
-      call cdf_error(err,'Variable '//trim(OSvname)//' in file '//trim(OSfilename))
+      call nc_error(err,'Variable '//trim(OSvname)//' in file '//trim(OSfilename))
       GOS%varname = trim(OSvname)
     endif
     if (withOR) then
       err = NF90_INQ_VARID(GOR%fid,trim(ORvname),GOR%varid)
-      call cdf_error(err,'Variable '//trim(ORvname)//' in file '//trim(ORfilename))
+      call nc_error(err,'Variable '//trim(ORvname)//' in file '//trim(ORfilename))
       GOR%varname = trim(ORvname)
     endif
     if (withOC) then
       err = NF90_INQ_VARID(GOC%fid,trim(OCvname),GOC%varid)
-      call cdf_error(err,'Variable '//trim(OCvname)//' in file '//trim(OCfilename))
+      call nc_error(err,'Variable '//trim(OCvname)//' in file '//trim(OCfilename))
       GOC%varname = trim(OCvname)
     endif
     if (withAU) then
       err = NF90_INQ_VARID(GAU%fid,trim(AUvname),GAU%varid)
-      call cdf_error(err,'Variable '//trim(AUvname)//' in file '//trim(AUfilename))
+      call nc_error(err,'Variable '//trim(AUvname)//' in file '//trim(AUfilename))
       GAU%varname = trim(AUvname)
     endif
     if (withAV) then
       err = NF90_INQ_VARID(GAV%fid,trim(AVvname),GAV%varid)
-      call cdf_error(err,'Variable '//trim(AVvname)//' in file '//trim(AVfilename))
+      call nc_error(err,'Variable '//trim(AVvname)//' in file '//trim(AVfilename))
       GAV%varname = trim(AVvname)
     endif
 

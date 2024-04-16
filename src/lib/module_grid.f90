@@ -26,6 +26,7 @@ module module_grid
 use netcdf
 use module_types
 use module_constants
+use module_nc
 use module_tools
 use module_time
 
@@ -153,7 +154,7 @@ contains
 
     !write(*,*) 'Opening grid file: ', trim(filename)
     err = NF90_OPEN(filename,NF90_NOWRITE,fid)
-    call cdf_error(err,'opening '//trim(filename))
+    call nc_error(err,'opening '//trim(filename))
 
     GRD%filename = trim(filename)
     GRD%fid      = fid
@@ -473,7 +474,7 @@ contains
         allocate(GRD%lon2(nx,ny))
         allocate(GRD%x2(nx,ny))
         err = NF90_GET_VAR(GRD%fid,GRD%idx,GRD%file_lon2)
-        call cdf_error(err,'Reading two-dimensional X grid')
+        call nc_error(err,'Reading two-dimensional X grid')
         GRD%lon2(:,:) = GRD%file_lon2(:,:)
         GRD%x2(:,:) = Coordinate_transform*GRD%lon2(:,:)
         GRD%file_xmin = minval(GRD%x2)
@@ -484,7 +485,7 @@ contains
         allocate(GRD%lon1(nx))
         allocate(GRD%x1(nx))
         err = NF90_GET_VAR(GRD%fid,GRD%idx,GRD%file_lon1)
-        call cdf_error(err,'Reading one-dimensional X grid')
+        call nc_error(err,'Reading one-dimensional X grid')
         GRD%lon1(:) = GRD%file_lon1(:)
         GRD%x1(:) = Coordinate_transform*GRD%lon1(:)
         GRD%file_xmin = minval(GRD%x1)
@@ -537,7 +538,7 @@ contains
         allocate(GRD%lat2(nx,ny))
         allocate(GRD%y2(nx,ny))
         err = NF90_GET_VAR(GRD%fid,GRD%idy,GRD%file_lat2)
-        call cdf_error(err,'Reading two-dimensional Y grid')
+        call nc_error(err,'Reading two-dimensional Y grid')
         GRD%lat2(:,:) = GRD%file_lat2(:,:)
         GRD%y2(:,:) = Coordinate_transform*GRD%lat2(:,:)
         GRD%file_ymin = minval(GRD%y2)
@@ -548,7 +549,7 @@ contains
         allocate(GRD%lat1(ny))
         allocate(GRD%y1(ny))
         err = NF90_GET_VAR(GRD%fid,GRD%idy,GRD%file_lat1)
-        call cdf_error(err,'Reading one-dimensional Y grid')
+        call nc_error(err,'Reading one-dimensional Y grid')
         GRD%lat1(:) = GRD%file_lat1(:)
         GRD%y1(:) = Coordinate_transform*GRD%lat1(:)
         GRD%file_ymin = minval(GRD%y1)
@@ -584,7 +585,7 @@ contains
       allocate(GRD%file_z(nz))
       allocate(GRD%z(nz))
       err = NF90_GET_VAR(GRD%fid,GRD%idz,GRD%file_z)
-      call cdf_error(err,'Reading Z levels')
+      call nc_error(err,'Reading Z levels')
       GRD%z(:) = -abs(GRD%file_z(:))
       GRD%file_zmin = minval(GRD%z)
       GRD%file_zmax = maxval(GRD%z)
@@ -635,7 +636,7 @@ contains
       allocate(GRD%t(nt))
       allocate(GRD%date(nt))
       err = NF90_GET_VAR(GRD%fid,GRD%idt,GRD%file_t)
-      call cdf_error(err,'Reading T levels')
+      call nc_error(err,'Reading T levels')
 
       ! ... Now, convert time to dates:
       ! ... 
@@ -730,21 +731,21 @@ contains
             ! -------------------------------- X
             allocate (wrk1d(nx))
             err = NF90_GET_VAR(GRD%fid,var,wrk1d)
-            call cdf_error(err,'ERROR in getting X mask')
+            call nc_error(err,'ERROR in getting X mask')
             where(wrk1d.eq.GRD%var(var)%missing_value) GRD%var(var)%mask(:,1,1) = 0.0_dp
             deallocate(wrk1d)
           else if (GRD%var(var)%dimy) then
             ! -------------------------------- Y
             allocate (wrk1d(ny))
             err = NF90_GET_VAR(GRD%fid,var,wrk1d)
-            call cdf_error(err,'ERROR in getting Y mask')
+            call nc_error(err,'ERROR in getting Y mask')
             where(wrk1d.eq.GRD%var(var)%missing_value) GRD%var(var)%mask(1,:,1) = 0.0_dp
             deallocate(wrk1d)
           else if (GRD%var(var)%dimz) then
             ! -------------------------------- Z
             allocate (wrk1d(nz))
             err = NF90_GET_VAR(GRD%fid,var,wrk1d)
-            call cdf_error(err,'ERROR in getting Z mask')
+            call nc_error(err,'ERROR in getting Z mask')
             where(wrk1d.eq.GRD%var(var)%missing_value) GRD%var(var)%mask(1,1,:) = 0.0_dp
             deallocate(wrk1d)
           endif
@@ -756,21 +757,21 @@ contains
               ! -------------------------------- XY
               allocate (wrk2d(nx,ny))
               err = NF90_GET_VAR(GRD%fid,var,wrk2d)
-              call cdf_error(err,'ERROR in getting XY mask')
+              call nc_error(err,'ERROR in getting XY mask')
               where(wrk2d.eq.GRD%var(var)%missing_value) GRD%var(var)%mask(:,:,1) = 0.0_dp
               deallocate(wrk2d)
             else if (GRD%var(var)%dimz) then
               ! -------------------------------- XZ
               allocate (wrk2d(nx,nz))
               err = NF90_GET_VAR(GRD%fid,var,wrk2d)
-              call cdf_error(err,'ERROR in getting XZ mask')
+              call nc_error(err,'ERROR in getting XZ mask')
               where(wrk2d.eq.GRD%var(var)%missing_value) GRD%var(var)%mask(:,1,:) = 0.0_dp
               deallocate(wrk2d)
             else
               ! -------------------------------- XT
               allocate (wrk1d(nx))
               err = NF90_GET_VAR(GRD%fid,var,wrk1d,[1,1],[nx,1])
-              call cdf_error(err,'ERROR in getting X mask')
+              call nc_error(err,'ERROR in getting X mask')
               where(wrk1d.eq.GRD%var(var)%missing_value) GRD%var(var)%mask(:,1,1) = 0.0_dp
               deallocate(wrk1d)
             endif
@@ -779,14 +780,14 @@ contains
               ! -------------------------------- YZ
               allocate (wrk2d(ny,nz))
               err = NF90_GET_VAR(GRD%fid,var,wrk2d)
-              call cdf_error(err,'ERROR in getting YZ mask')
+              call nc_error(err,'ERROR in getting YZ mask')
               where(wrk2d.eq.GRD%var(var)%missing_value) GRD%var(var)%mask(1,:,:) = 0.0_dp
               deallocate(wrk2d)
             else
               ! -------------------------------- YT
               allocate (wrk1d(ny))
               err = NF90_GET_VAR(GRD%fid,var,wrk1d,[1,1],[ny,1])
-              call cdf_error(err,'ERROR in getting Y mask')
+              call nc_error(err,'ERROR in getting Y mask')
               where(wrk1d.eq.GRD%var(var)%missing_value) GRD%var(var)%mask(1,:,1) = 0.0_dp
               deallocate(wrk1d)
             endif
@@ -794,7 +795,7 @@ contains
             ! -------------------------------- ZT
             allocate (wrk1d(nz))
             err = NF90_GET_VAR(GRD%fid,var,wrk1d,[1,1],[nz,1])
-            call cdf_error(err,'ERROR in getting Z mask')
+            call nc_error(err,'ERROR in getting Z mask')
             where(wrk1d.eq.GRD%var(var)%missing_value) GRD%var(var)%mask(1,1,:) = 0.0_dp
             deallocate(wrk1d)
           endif    
@@ -805,28 +806,28 @@ contains
             ! -------------------------------- YZT
             allocate (wrk2d(ny,nz))
             err = NF90_GET_VAR(GRD%fid,var,wrk2d,[1,1,1],[ny,nz,1])
-            call cdf_error(err,'ERROR in getting YZ mask')
+            call nc_error(err,'ERROR in getting YZ mask')
             where(wrk2d.eq.GRD%var(var)%missing_value) GRD%var(var)%mask(1,:,:) = 0.0_dp
             deallocate(wrk2d)
           else if (.not.GRD%var(var)%dimy) then
             ! -------------------------------- XZT
             allocate (wrk2d(nx,nz))
             err = NF90_GET_VAR(GRD%fid,var,wrk2d,[1,1,1],[nx,nz,1])
-            call cdf_error(err,'ERROR in getting XZ mask')
+            call nc_error(err,'ERROR in getting XZ mask')
             where(wrk2d.eq.GRD%var(var)%missing_value) GRD%var(var)%mask(:,1,:) = 0.0_dp
             deallocate(wrk2d)
           else if (.not.GRD%var(var)%dimz) then
             ! -------------------------------- XYT
             allocate (wrk2d(nx,ny))
             err = NF90_GET_VAR(GRD%fid,var,wrk2d,[1,1,1],[nx,ny,1])
-            call cdf_error(err,'ERROR in getting XY mask')
+            call nc_error(err,'ERROR in getting XY mask')
             where(wrk2d.eq.GRD%var(var)%missing_value) GRD%var(var)%mask(:,:,1) = 0.0_dp
             deallocate(wrk2d)
           else 
             ! -------------------------------- XYZ
             allocate (wrk3d(nx,ny,nz))
             err = NF90_GET_VAR(GRD%fid,var,wrk3d)
-            call cdf_error(err,'ERROR in getting XYZ mask')
+            call nc_error(err,'ERROR in getting XYZ mask')
             where(wrk3d.eq.GRD%var(var)%missing_value) GRD%var(var)%mask = 0.0_dp
             deallocate(wrk3d)
           endif
@@ -836,7 +837,7 @@ contains
           ! -------------------------------- XYZ
           allocate (wrk3d(nx,ny,nz))
           err = NF90_GET_VAR(GRD%fid,var,wrk3d,[1,1,1,1],[nx,ny,nz,1])
-          call cdf_error(err,'ERROR in getting XYZ mask')
+          call nc_error(err,'ERROR in getting XYZ mask')
           where(wrk3d.eq.GRD%var(var)%missing_value) GRD%var(var)%mask = 0.0_dp
           deallocate(wrk3d)
 
@@ -1294,13 +1295,13 @@ contains
     else
       call crash('in GRID_READ3D. Unknown what the three dimensions are')
     endif
-    call cdf_error(err,'Reading three dimensional field in GRID_READ3D')
+    call nc_error(err,'Reading three dimensional field in GRID_READ3D')
 
   else if (GRD%var(Varid)%ndims.EQ.4) then
     ! ... Read 4-Dim :
     ! ...
     err = NF90_GET_VAR(GRD%fid,Varid,F,(/GRD%ia,GRD%ja,GRD%ka,l/),(/GRD%nx,GRD%ny,GRD%nz,1/))
-    call cdf_error(err,'Reading four dimensional field in GRID_READ3D')
+    call nc_error(err,'Reading four dimensional field in GRID_READ3D')
 
   else
 
@@ -1383,17 +1384,17 @@ contains
     ! ... Read 2-Dim :
     ! ...
     err = NF90_GET_VAR(GRD%fid,Varid,F,(/GRD%ia,GRD%ja/),(/GRD%nx,GRD%ny/))
-    call cdf_error(err,'Reading two dimensional firld in GRID_READ2D')
+    call nc_error(err,'Reading two dimensional firld in GRID_READ2D')
 
   else if (GRD%var(Varid)%ndims.EQ.3) then
     ! ... Read 3-Dim :
     ! ...
     if (GRD%var(Varid)%dimz) then
       err = NF90_GET_VAR(GRD%fid,Varid,F,(/GRD%ia,GRD%ja,k/),(/GRD%nx,GRD%ny,1/))
-      call cdf_error(err,'Reading three dimensional field in GRID_READ2D')
+      call nc_error(err,'Reading three dimensional field in GRID_READ2D')
     else if (GRD%var(Varid)%dimt) then
       err = NF90_GET_VAR(GRD%fid,Varid,F,(/GRD%ia,GRD%ja,l/),(/GRD%nx,GRD%ny,1/))
-      call cdf_error(err,'Reading three dimensional field in GRID_READ2D')
+      call nc_error(err,'Reading three dimensional field in GRID_READ2D')
     else
       call crash('Reading three dimensional field in GRID_READ2D: No Z or T')
     endif
@@ -1402,7 +1403,7 @@ contains
     ! ... Read 4-Dim :
     ! ...
     err = NF90_GET_VAR(GRD%fid,Varid,F,(/GRD%ia,GRD%ja,k,l/),(/GRD%nx,GRD%ny,1,1/))
-    call cdf_error(err,'Reading four dimensional field in GRID_READ2D')
+    call nc_error(err,'Reading four dimensional field in GRID_READ2D')
 
   else
 
