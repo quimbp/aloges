@@ -325,7 +325,7 @@ contains
     class(type_dataset), intent(inout)               :: SD
     character(len=*), intent(in)                     :: varname
     integer, dimension(:), intent(in), optional      :: po, pf
-    real(8), dimension(:), allocatable               :: X
+    real(dp), dimension(:), allocatable              :: X
    
     ! ... Local variables
     ! ... 
@@ -391,7 +391,7 @@ contains
     class(type_dataset), intent(inout)               :: SD
     character(len=*), intent(in)                     :: varname
     integer, dimension(:), intent(in), optional      :: po, pf
-    real(8), dimension(:,:), allocatable             :: X
+    real(dp), dimension(:,:), allocatable            :: X
    
     ! ... Local variables
     ! ... 

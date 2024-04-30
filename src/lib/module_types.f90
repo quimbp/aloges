@@ -23,11 +23,13 @@
 
 module module_types
 
+use iso_fortran_env, only: int32,  real32, real64
+
 implicit none
 
-integer, parameter                               :: sp = kind(0.0)    ! Single precision
-
-integer, parameter                               :: dp = kind(0.0D0)  ! Double precision
+integer, parameter                               :: i4 = int32        ! integer
+integer, parameter                               :: sp = real32       ! Single precision
+integer, parameter                               :: dp = real64       ! Double precision
 integer, parameter                               :: maxlen  = 180     ! Max char length
 
 end module module_types

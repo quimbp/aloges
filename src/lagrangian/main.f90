@@ -35,7 +35,7 @@ call date_now(now)
  
 ! ... Initial messaje
 ! ...
-call hello()
+!call hello()
 
 
 ! ... Managing the users's command line options
@@ -154,14 +154,14 @@ contains
 ! ...
 ! ====================================================================
 ! ...
-  subroutine hello
-
-    write(*,*) '========================================================='
-    write(*,*) '=                 Aloges Lagrangian Model               ='
-    write(*,*) '=                     Version: ',version,'                      ='
-    write(*,*) '========================================================='
-
-  end subroutine hello
+!  subroutine hello
+!
+!    write(*,*) '========================================================='
+!    write(*,*) '=                 Aloges Lagrangian Model               ='
+!    write(*,*) '=                     Version: ',version,'                      ='
+!    write(*,*) '========================================================='
+!
+!  end subroutine hello
   ! ...
   ! ====================================================================
   ! ...

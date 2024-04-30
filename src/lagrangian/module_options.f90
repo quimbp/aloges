@@ -116,6 +116,10 @@ subroutine options
     ! ...
     call program_help(HLP,VERSION,AUTHOR)
 
+    ! ...
+    ! ...
+    call header(HLP)
+
     na = lineargs()
     if (na.eq.0) call crash('Use option --help for options')
 

@@ -30,6 +30,7 @@
 module module_help
 
 use module_tools
+use iso_fortran_env
 
 implicit none
 integer, parameter                                 :: MAXOPTIONS = 50
@@ -228,6 +229,8 @@ write(*,*) '====================================================================
 write(*,*) 'Program: ' // trim(HLP%progname)
 write(*,*) 'Version: ' // trim(HLP%version)
 write(*,*) 'By ' // trim(HLP%author)
+write(*,*) 'Compiler version: ', compiler_version()
+write(*,*) 'Compiler options: ', compiler_options()
 write(*,*) '======================================================================='
 
 end subroutine header
