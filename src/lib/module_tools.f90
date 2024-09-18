@@ -30,6 +30,7 @@
 ! - line_word                                                              !
 ! - locate                                                                 !
 ! - lowercase                                                              !
+! - ls                                                                     !
 ! - numlines                                                               !
 ! - numwords                                                               !
 ! - unitfree                                                               !
@@ -44,6 +45,7 @@ module module_tools
 
 use module_types
 use module_constants
+use module_math, only: randname
 
 implicit none
 
@@ -355,6 +357,37 @@ contains
     return
     end function lowercase
   ! ...
+  ! ===================================================================
+  ! ...
+  function ls(dirname) result(list)
+
+    character(len=*), intent(in)              :: dirname
+    character(maxlen), dimension(:), allocatable           :: list
+
+    integer nl,i,iu
+    character(len=8) tmpname
+    character(len=maxlen) aa
+
+    ! ... Random filename for temporal storage
+    ! ... Send the contents of the selected folder to thar filename
+    tmpname = '/tmp/'//randname(8)
+    call system('echo ls '//compress(dirname)//' -1 > '//tmpname)
+    call system('ls '//compress(dirname)//' -1 > '//tmpname)
+
+    iu = unitfree()
+    open(iu,file=tmpname,status='old')
+    nl = numlines(iu)
+
+    allocate(list(nl))
+
+    do i=1,nl
+      read(iu,'(A)') aa
+      list(i) = trim(aa)
+    enddo
+
+    close(iu,status='delete')
+
+  end function ls
   ! ===================================================================
   ! ...
   integer function numlines (iu,type)

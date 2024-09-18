@@ -20,6 +20,8 @@
 ! Public License along with this program.                                  !
 ! If not, see <http://www.gnu.org/licenses/>.                              !
 ! - randn                                                                  !
+! - randname                                                               !
+! - randseries                                                             !
 ! -------------------------------------------------------------------------!
 
 module module_math
@@ -162,7 +164,7 @@ contains
   ! ...
   ! ===================================================================
   ! ...
-  function rndname(len,iseed) result(name)
+  function randname(len,iseed) result(name)
 
   integer, intent(in)                            :: len
   integer, optional                              :: iseed
@@ -191,7 +193,7 @@ contains
   enddo
 
   return
-  end function rndname
+  end function randname
   ! ...
   ! ===================================================================
   ! ...
