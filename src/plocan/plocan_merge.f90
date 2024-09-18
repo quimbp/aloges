@@ -21,6 +21,15 @@ real(kind=4), dimension(:), allocatable                :: lon,lat
 real(kind=8), dimension(:,:), allocatable              :: f8
 
 
+call getarg(1,word)
+if (word(1:2).eq.'-h'.or.word(1:2).eq.'-H') then
+  write(*,*)
+  write(*,*) 'plocan_merge'
+  write(*,*) 'It looks for files in the current folder whose name is of the form '
+  write(*,*) 'CODAR_PLOC_*.nc  and merges them into file codar.nc'
+  stop
+endif
+
 PATH = './CODAR_PLOC_*.nc'
 outfile = 'codar.nc'
 
