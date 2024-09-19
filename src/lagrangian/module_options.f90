@@ -804,7 +804,7 @@ subroutine options
   ! ... The help
   ! ...
   HLP%version = version
-  HLP%progname = 'ALM'
+  HLP%progname = 'ALOGES'
   HLP%author = author
   call HLP%set_summary('Reads the zonal and meridional velocity components &
     &from a NetCDF file and calculates trajectories from the time-evolving &
