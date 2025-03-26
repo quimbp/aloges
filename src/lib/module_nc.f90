@@ -19,12 +19,13 @@
 ! You should have received a copy of the GNU Lesser General                !
 ! Public License along with this program.                                  !
 ! If not, see <http://www.gnu.org/licenses/>.                              !
-!
+!                                                                          !
 ! List of routines:                                                        !
 ! - nc_open                                                                !
-! - nc_dump
-! - nc_copyatts
-! - nc_error
+! - nc_dump                                                                !
+! - nc_copyatts                                                            !
+! - nc_error                                                               !
+! - nc_axis_id                                                             !
 ! -------------------------------------------------------------------------!
 
 module module_nc
@@ -599,5 +600,133 @@ contains
     stop 1
 
   end subroutine nc_error
+  ! ...
+  ! ===================================================================
+  ! ...
+  function nc_axis_id(fid,axis) result(idx)
+
+    integer, intent(in)                                  :: fid
+    character(len=1), intent(in)                         :: axis
+    integer                                              :: idx
+
+    ! ... Local variables
+    ! ...
+    integer err,ndims,nvars,ngatts,unlimid
+    integer var,vtype,vndims,dimids(10),vnatts
+    character(len=40) vname,uname
+    character(len=1) vaxis
+
+    idx = -1
+    err = NF90_INQUIRE(fid,ndims,nvars,ngatts,unlimid)
+    if (err.NE.NF90_NOERR) return
+
+    do var=1,nvars
+      vname = ''
+      vaxis = ''
+      err = NF90_INQUIRE_VARIABLE (fid,var,vname,vtype,vndims,dimids,vnatts)
+      err = NF90_GET_ATT(fid,var,'axis',vaxis)
+      if (err.EQ.NF90_NOERR) then
+        vaxis = to_upper(vaxis)
+        if (vaxis.eq.axis) then 
+          idx   = var
+          return
+        endif
+      endif
+    enddo
+
+    ! ... If we have not found the axis, we check the name
+    ! ...
+    if (axis.eq.'X') uname = 'LON'
+    if (axis.eq.'Y') uname = 'LAT'
+    if (axis.eq.'Z') uname = 'DEP'
+    if (axis.eq.'T') uname = 'TIM'
+ 
+    if (idx.eq.-1) then
+      do var=1,nvars
+        vname = ''
+        err = NF90_INQUIRE_VARIABLE (fid,var,vname,vtype,vndims,dimids,vnatts)
+        vname = to_upper(vname)
+        if (vname(1:3).eq.uname) then
+          idx = var
+          return
+        endif
+      enddo
+    endif
+
+  contains
+
+    function to_upper(A) result(t)
+    ! ... Returns string in uppercase
+
+      character(len=*), intent(in)   :: A
+      character(len=len(A))          :: t
+
+      ! ... Local variables
+      ! ...
+      integer i,j
+
+      do i=1,len(A)
+        j = iachar(A(i:i))
+        if (j>= iachar("a") .and. j<=iachar("z") ) then
+          t(i:i) = achar(iachar(A(i:i))-32)
+        else
+          t(i:i) = A(i:i)
+        end if
+      enddo
+
+      return
+    end function to_upper
+
+  end function nc_axis_id
+  ! ...
+  ! ===================================================================
+  ! ...
+  function nc_axis_size(fid,idx) result(nx)
+
+    integer, intent(in)                                  :: fid
+    integer, intent(in)                                  :: idx
+    integer                                              :: nx
+
+    ! ... Local variables
+    ! ...
+    integer err,ndims,nvars,ngatts,unlimid
+    integer vtype,vndims,dimids(10),vnatts,idi
+    character(len=40) vname
+
+    nx = 1
+    if (idx.le.0) return
+
+    err = NF90_INQUIRE_VARIABLE (fid,idx,vname,vtype,vndims,dimids,vnatts)
+    if (err.NE.NF90_NOERR) return
+
+    idi = dimids(1)
+    err = NF90_INQUIRE_DIMENSION(fid,idi,len=nx)
+
+  end function nc_axis_size
+  ! ...
+  ! ===================================================================
+  ! ...
+  function nc_axis_dim(fid,idx) result(idi)
+
+    integer, intent(in)                                  :: fid
+    integer, intent(in)                                  :: idx
+    integer                                              :: idi
+
+    ! ... Local variables
+    ! ...
+    integer err,ndims,nvars,ngatts,unlimid
+    integer vtype,vndims,dimids(10),vnatts
+    character(len=40) vname
+
+    idi = -1
+    if (idx.le.0) return
+
+    err = NF90_INQUIRE_VARIABLE (fid,idx,vname,vtype,vndims,dimids,vnatts)
+    if (err.NE.NF90_NOERR) return
+
+    idi = dimids(1)
+    return
+
+  end function nc_axis_dim
 
 end module module_nc

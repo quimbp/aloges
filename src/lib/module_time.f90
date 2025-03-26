@@ -1193,7 +1193,7 @@ recursive function date2num(date,units) result(time)
     time = time - TimeRef
 
     if (trim(time_units).eq.'seconds') then
-      time = time * 86400.0D0
+      time = anint(time * 86400.0D0)
     else if (trim(time_units).eq.'minutes') then
       time = time * 1440.0D0
     else if (trim(time_units).eq.'hours') then
