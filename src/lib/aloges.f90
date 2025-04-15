@@ -34,6 +34,8 @@ use module_lineargs
 use module_help
 use module_trajectories
 use module_minpack
+use module_matrix
+use module_enkf
 
 implicit none
 

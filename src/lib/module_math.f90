@@ -535,9 +535,10 @@ contains
   ! ...
   subroutine svdcmp(A,U,W,V)
 
-    real(dp), dimension(:,:), intent(in)               :: A
-    real(dp), dimension(:,:), intent(out), allocatable :: U,V
-    real(dp), dimension(:),   intent(out), allocatable :: W
+    real(dp), dimension(:,:), intent(in)                  :: A
+    real(dp), dimension(size(A,1),size(A,2)), intent(out) :: U
+    real(dp), dimension(size(A,2),size(A,2)), intent(out) :: V
+    real(dp), dimension(size(A,2)), intent(out)           :: W
 
     ! ... local variables
     ! ...
@@ -548,10 +549,6 @@ contains
 
     m = size(A,1)
     n = size(A,2)
-
-    allocate(U(m,n))
-    allocate(V(n,n))
-    allocate(W(n))
 
     U = A
 
@@ -1233,6 +1230,128 @@ contains
     enddo
 
     end subroutine indexx
+  ! ...
+  ! ===================================================================
+  ! ...
+  subroutine ludcmp(a,indx,d)
+
+    real(dp), dimension(:,:), intent(inout)     :: a
+    integer, dimension(:), intent(out)          :: indx
+    real(dp), intent(out)                       :: d
+
+    ! ... Local variables
+    ! ...
+    real(dp), parameter                         :: TINY=1.0D-20
+    integer n,i,imax,j,k
+    real(dp) vv(size(a,1))
+
+    n = size(a,1)
+    d = 1.d0
+    vv = maxval(abs(a),dim=2)
+    if (any(vv.EQ.0.0)) stop  'singular matrix in ludcmp'
+    vv(:) = 1.d0/vv(:)
+
+    do j=1,n
+      imax = (j-1)+imaxloc(vv(j:n)*abs(a(j:n,j)))
+      if (j /= imax) then
+        call swap(a(imax,:),a(j,:))
+        d = -d
+        vv(imax) = vv(j)
+      endif
+      indx(j) = imax
+      if (a(j,j).EQ.0.0) a(j,j) = TINY
+      a(j+1:n,j) = a(j+1:n,j)/a(j,j)
+      a(j+1:n,j+1:n) = a(j+1:n,j+1:n) - out_product(a(j+1:n,j),a(j,j+1:n))
+    enddo
+
+  end subroutine ludcmp
+  ! ...
+  ! ===================================================================
+  ! ...
+  subroutine swap(a,b)
+    real(dp), dimension(:), intent(inout)  :: a,b
+    real(dp), dimension(size(a)) :: c
+    c(:) = a(:)
+    a(:) = b(:)
+    b(:) = c(:)
+  end subroutine swap
+  ! ...
+  ! ===================================================================
+  ! ...
+  subroutine lubksb(a,indx,b)
+
+    real(8), dimension(:,:), intent(in)    :: a
+    integer, dimension(:), intent(in)      :: indx
+    real(8), dimension(:), intent(inout)   :: b
+
+    ! ... Local variables
+    ! ...
+    integer n,i,ii,ll
+    real(8) summ
+
+    n = size(a,1)
+
+    ii = 0
+    do i=1,n
+      ll    = indx(i)
+      summ  = b(ll)
+      b(ll) = b(i)
+      if (ii.ne.0) then
+        summ = summ - dot_product(a(i,ii:i-1),b(ii:i-1))
+      else if (summ.ne.0.0) then
+        ii = i
+      endif
+      b(i) = summ
+    enddo
+    do i=n,1,-1
+      b(i) = (b(i)-dot_product(a(i,i+1:n),b(i+1:n))) / a(i,i)
+    enddo
+
+  end subroutine lubksb
+  ! ...
+  ! ===================================================================
+  ! ...
+  integer pure function imaxloc(a)
+
+    real(8), dimension(:), intent(in)    :: a
+
+    integer imax(1)
+
+    imax = maxloc(a(:))
+    imaxloc = imax(1)
+  end function imaxloc
+  ! ...
+  ! ===================================================================
+  ! ...
+  function matrinv (A) result(B)
+
+  real(dp), dimension(:,:), intent(in)       :: A
+  real(dp), dimension(size(A,1),size(A,2))   :: B
+
+  integer n,i,j,err
+  integer indx(size(A,1))
+  real(dp) d
+  real(dp), dimension(size(A,1),size(A,2))   :: C
+
+  n = size(A,1)
+  if (size(A,2).ne.n) stop 'ERROR in matrinv: Input array not square'
+
+  ! ... Saving matrix
+  ! ...
+  C(:,:) = A(:,:)
+
+  B(:,:) = 0.0D0
+  do i=1,n
+    B(i,i) = 1.0D0
+  ENDDO
+
+  CALL ludcmp (C,indx,d)
+  DO j=1,N
+    CALL lubksb (C,indx,B(:,j))
+  ENDDO
+
+  RETURN
+  END function matrinv
   ! ...
   ! ===================================================================
   ! ...
