@@ -36,7 +36,7 @@ TARGET = ../../lib/libaloges.a
 OBJ = module_types.o module_constants.o module_nc.o module_math.o  \
       module_tools.o module_time.o module_grid.o module_lineargs.o \
       module_help.o module_trajectories.o module_minpack.o         \
-      module_matrix.o module_enkf.o
+      module_matrix.o module_enkf.o module_sysdyn.o
 
 all: $(OBJ) $(LIBDIR) $(INCDIR) aloges.mod
 	rm -f $(TARGET)
@@ -56,6 +56,7 @@ clean:
 	if test -d $(INCDIR); then rm -f $(INCDIR)module_trajectories.mod; fi
 	if test -d $(INCDIR); then rm -f $(INCDIR)module_minpack.mod; fi
 	if test -d $(INCDIR); then rm -f $(INCDIR)module_enkf.mod; fi
+	if test -d $(INCDIR); then rm -f $(INCDIR)module_sysdyn.mod; fi
 	if test -d $(INCDIR); then rm -f $(INCDIR)aloges.mod; fi
 
 $(INCDIR):
@@ -104,6 +105,9 @@ module_minpack.o: module_types.o module_minpack.f90
 
 module_enkf.o: module_types.o module_constants.o module_math.o module_enkf.f90
 	$(FC) -c $(FFLAGS) $(INC) module_enkf.f90
+
+module_sysdyn.o: module_types.o module_constants.o module_math.o module_tools.o module_sysdyn.f90
+	$(FC) -c $(FFLAGS) $(INC) module_sysdyn.f90
 
 aloges.mod: $(OBJ)
 	$(FC) -c $(FFLAGS) $(INC) aloges.f90

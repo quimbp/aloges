@@ -36,6 +36,7 @@ use module_trajectories
 use module_minpack
 use module_matrix
 use module_enkf
+use module_sysdyn
 
 implicit none
 
