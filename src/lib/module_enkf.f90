@@ -188,7 +188,7 @@ contains
 
     do i=1,nsys
       xf(i) = sum(E(i,:))/ne
-      Ea(i,:) = E(i,:) - xf(i)   ! Ensemble anomaly
+      Ea(i,:) = sqrt(alpha)*(E(i,:) - xf(i))   ! Ensemble anomaly
     enddo
 
     if (verb) then
@@ -203,7 +203,7 @@ contains
     ! ...
     do i=1,nobs
       Hxf(i)   = sum(HE(i,:))/ne
-      HE(i,:)  = HE(i,:) - Hxf(i)
+      HE(i,:)  = sqrt(alpha)*(HE(i,:) - Hxf(i))
       innov(i) = yo(i) - Hxf(i)
     enddo
 
@@ -382,7 +382,7 @@ contains
     ! ...
     do i=1,nsys
       xf(i) = sum(E(i,:))/ne
-      Ea(i,:) = E(i,:) - xf(i)
+      Ea(i,:) = sqrt(alpha)*(E(i,:) - xf(i))
     enddo
 
     if (verb) then
@@ -397,7 +397,7 @@ contains
     ! ...
     do i=1,nobs
       Hxf(i) = sum(HE(i,:))/ne
-      HE(i,:) = HE(i,:) - Hxf(i)
+      HE(i,:) = sqrt(alpha)*(HE(i,:) - Hxf(i))
       innov(i) = yo(i) - Hxf(i)
     enddo
 
