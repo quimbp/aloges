@@ -83,6 +83,106 @@ contains
 ! =====================================================================
 ! =====================================================================
 ! ...
+  function rk1(param,t,x,dt,F) result(xn)
+  ! ... Runge-Kutta order 1 schema for time integration of the ODE: dx/dt = F
+  ! ... Euler's method
+
+    real(dp), dimension(:), intent(in)     :: param
+    real(dp), intent(in)                   :: t
+    real(dp), dimension(:), intent(in)     :: x
+    real(dp), intent(in)                   :: dt
+    real(dp), dimension(size(x))           :: xn
+
+    interface
+      pure function F(p, t, x) result(y)
+        implicit none
+        real(8), dimension(:), intent(in) :: p
+        real(8), intent(in)               :: t
+        real(8), dimension(:), intent(in) :: x
+        real(8), dimension(size(x))       :: y
+      end function f
+    end interface
+
+    ! ... Local variables:
+    ! ...
+    real(dp), dimension(size(x))           :: k1
+
+    k1 = dt * F(param, t, x)
+
+    xn(:) = x(:) + k1(:)
+
+  end function rk1
+  ! ...
+  ! ...
+  ! ===================================================================
+  ! ...
+  function rk2(param,t,x,dt,F) result(xn)
+  ! ... Runge-Kutta order 2 schema for time integration of the ODE: dx/dt = F
+  ! ... Mid-point's method
+
+    real(dp), dimension(:), intent(in)     :: param
+    real(dp), intent(in)                   :: t
+    real(dp), dimension(:), intent(in)     :: x
+    real(dp), intent(in)                   :: dt
+    real(dp), dimension(size(x))           :: xn
+
+    interface
+      pure function F(p, t, x) result(y)
+        implicit none
+        real(8), dimension(:), intent(in) :: p
+        real(8), intent(in)               :: t
+        real(8), dimension(:), intent(in) :: x
+        real(8), dimension(size(x))       :: y
+      end function f
+    end interface
+
+    ! ... Local variables:
+    ! ...
+    real(dp), dimension(size(x))           :: k1,k2
+
+    k1 = dt * F(param, t, x)
+    k2 = dt * F(param, t+0.5D0*dt, x+0.5D0*k1)
+
+    xn(:) = x(:) + k2(:)
+
+  end function rk2
+  ! ...
+  ! ===================================================================
+  ! ...
+  function rk3(param,t,x,dt,F) result(xn)
+  ! ... Runge-Kutta order 3 schema for time integration of the ODE: dx/dt = F
+  ! ... Heun's or Nystrom method
+
+    real(dp), dimension(:), intent(in)     :: param
+    real(dp), intent(in)                   :: t
+    real(dp), dimension(:), intent(in)     :: x
+    real(dp), intent(in)                   :: dt
+    real(dp), dimension(size(x))           :: xn
+
+    interface
+      pure function F(p, t, x) result(y)
+        implicit none
+        real(8), dimension(:), intent(in) :: p
+        real(8), intent(in)               :: t
+        real(8), dimension(:), intent(in) :: x
+        real(8), dimension(size(x))       :: y
+      end function f
+    end interface
+
+    ! ... Local variables:
+    ! ...
+    real(dp), dimension(size(x))           :: k1,k2,k3
+
+    k1 = dt * F(param, t, x)
+    k2 = dt * F(param, t+0.5D0*dt, x+0.5*k1)
+    k3 = dt * F(param, t+dt, x-k1+2.0D0*k2)
+
+    xn(:) = x(:) + (k1(:) + 4.0D0*k2(:) + k3(:)) / 6.0D0
+
+  end function rk3
+  ! ...
+  ! ===================================================================
+  ! ...
   function rk4(param,t,x,dt,F) result(xn)
   ! ... Runge-Kutta order 4 schema for time integration of the ODE: dx/dt = F
 
@@ -114,6 +214,45 @@ contains
     xn(:) = x(:) + (k1(:) + 2.0D0*k2(:) + 2.0D0*k3(:) + k4(:)) / 6.0D0
 
   end function rk4
+  ! ...
+  ! ===================================================================
+  ! ...
+  function rk5(param,t,x,dt,F) result(xn)
+  ! ... Runge-Kutta order 5 schema for time integration of the ODE: dx/dt = F
+  ! ... Cash-Karp method
+
+    real(dp), dimension(:), intent(in)     :: param
+    real(dp), intent(in)                   :: t
+    real(dp), dimension(:), intent(in)     :: x
+    real(dp), intent(in)                   :: dt
+    real(dp), dimension(size(x))           :: xn
+
+    interface
+      pure function F(p, t, x) result(y)
+        implicit none
+        real(8), dimension(:), intent(in) :: p
+        real(8), intent(in)               :: t
+        real(8), dimension(:), intent(in) :: x
+        real(8), dimension(size(x))       :: y
+      end function f
+    end interface
+
+    ! ... Local variables:
+    ! ...
+    real(dp), dimension(size(x))           :: k1,k2,k3,k4,k5,k6
+
+    k1 = dt * F(param, t, x)
+    k2 = dt * F(param, t + dt * 0.2d0, x + k1 * 0.2d0)
+    k3 = dt * F(param, t + dt * 0.3d0, x + k1 * 3.0d0 / 40.0d0 + k2 * 9.0d0 / 40.0d0)
+    k4 = dt * F(param, t + dt * 0.6d0, x + k1 * 0.3d0 - k2 * 0.9d0 + k3 * 1.2d0)
+    k5 = dt * F(param, t + dt, x - k1 * 11.0d0 / 54.0d0 + k2 * 2.5d0 - k3 * 70.0d0 / 27.0d0 + k4 * 35.0d0 / 27.0d0)
+    k6 = dt * F(param, t + dt * 0.875d0, x + k1 * 1631.0d0 / 55296.0d0 + k2 * 175.0d0 / 512.0d0 + &
+              k3 * 575.0d0 / 13824.0d0 + k4 * 44275.0d0 / 110592.0d0 + k5 * 253.0d0 / 4096.0d0)
+
+    xn = x + (k1 * 37.0d0 / 378.0d0 + k3 * 250.0d0 / 621.0d0 + k4 * 125.0d0 / 594.0d0 + &
+            k6 * 512.0d0 / 1771.0d0)
+
+  end function rk5
   ! ...
   ! ===================================================================
   ! ...
@@ -217,7 +356,8 @@ contains
 
       ! ... Update the system
       ! ...
-      xn = rk4(MODEL%p,t,x,MODEL%dt,l63_rhs)
+      print*, 'rk5'
+      xn = rk5(MODEL%p,t,x,MODEL%dt,l63_rhs)
       t = t + MODEL%dt
       x(:) = xn(:)
 
@@ -237,15 +377,77 @@ contains
 
     ! ... Local variables
     ! ...
-    integer i
+    integer i,n
 
-    if (present(label)) write(*,'(A)') trim(label)
-    write(*,'(A)') trim(MODEL%name)
-    write(*,'(A)') 'Model parameters: ' 
-    do i=1,MODEL%npar
-      write(*,*) trim(MODEL%pname(i))//' = ', MODEL%p(i)
-    enddo
-    write(*,*) 'dt = ', MODEL%dt
+
+    WRITE(*,'(A)') "==========================================="
+    WRITE(*,'(A)') "         LORENZ 1963 DYNAMICAL MODEL"
+    WRITE(*,'(A)') "==========================================="
+
+    if (present(label)) then
+      WRITE(*,'(A)') ""
+      WRITE(*,'(A)') ">> " // trim(label)
+    endif
+    WRITE(*,'(A)') ""
+    WRITE(*,'(A)') ">> Model Parameters:"
+    WRITE(*,'(A,F10.6)') "    Sigma (σ)       = ", MODEL%p(1)
+    WRITE(*,'(A,F10.6)') "    Rho (ρ)         = ", MODEL%p(2)
+    WRITE(*,'(A,F10.6)') "    Beta (β)        = ", MODEL%p(3)
+    WRITE(*,'(A,F10.6)') "    Time Step (dt)  = ", MODEL%dt
+
+    WRITE(*,'(A)') ""
+    WRITE(*,'(A)') ">> Initial Conditions:"
+    WRITE(*,'(A,F10.6)') "    t₀              = ", MODEL%to
+    WRITE(*,'(A,F10.6)') "    x₀              = ", MODEL%xo(1)
+    WRITE(*,'(A,F10.6)') "    y₀              = ", MODEL%xo(2)
+    WRITE(*,'(A,F10.6)') "    z₀              = ", MODEL%xo(3)
+
+    if (allocated(MODEL%t)) then
+      n = size(MODEL%t) - 1
+
+      WRITE(*,'(A)') ""
+      WRITE(*,'(A)') ">> Simulation Status:"
+      WRITE(*,'(A,I10)') "    Time Steps      = ",   n+1
+      WRITE(*,'(A,F10.6)') "    Start Time      = ", MODEL%t(0)
+      WRITE(*,'(A,F10.6)') "    End Time        = ", MODEL%t(n)
+
+      WRITE(*,'(A)') ""
+      WRITE(*,'(A)') ">> Final Values:"
+      WRITE(*,'(A,F10.6)') "    x               = ", MODEL%x(1,n)
+      WRITE(*,'(A,F10.6)') "    y               = ", MODEL%x(2,n)
+      WRITE(*,'(A,F10.6)') "    z               = ", MODEL%x(3,n)
+
+    else
+
+      WRITE(*,'(A)') ""
+      WRITE(*,'(A)') ">> Simulation Status:"
+      WRITE(*,'(A)') "    [ No simulation has been run yet ]"
+
+    endif
+
+    WRITE(*,'(A)') "==========================================="
+
+
+!    if (present(label)) write(*,'(A)') trim(label)
+!    write(*,'(A)') trim(MODEL%name)
+!    write(*,'(A)') 'Model parameters: ' 
+!    do i=1,MODEL%npar
+!      write(*,*) trim(MODEL%pname(i))//' = ', MODEL%p(i)
+!    enddo
+!    write(*,*) 'dt = ', MODEL%dt
+!    write(*,'(A)') 'Initial conditions:'
+!    write(*,*) 'to: ', MODEL%to
+!    write(*,*) 'xo: ', MODEL%xo
+!    if (allocated(MODEL%t)) then
+!      write(*,'(A)') 'Latest simulation:'
+!      write(*,*) 'Time steps: ', size(MODEL%t)
+!      write(*,*) 'From: ', MODEL%t(0)
+!      write(*,*) 'to:   ', MODEL%t(size(MODEL%t)-1)
+!    else
+!      write(*,'(A)') 'No simulation yet'
+!    endif
+! 
+      
     
   end subroutine l63_show
   ! ...
