@@ -19,8 +19,14 @@
 ! You should have received a copy of the GNU Lesser General                !
 ! Public License along with this program.                                  !
 ! If not, see <http://www.gnu.org/licenses/>.                              !
-! ... rk4                                                                  !
 ! ...                                                                      !
+! ... Model Lorenz 1963                                                    !
+! ... Model Lotka-Volterra PZ                                              !
+! ... rk1                                                                  !
+! ... rk2                                                                  !
+! ... rk3                                                                  !
+! ... rk4                                                                  !
+! ... rk5                                                                  !
 ! -------------------------------------------------------------------------!
 
 module module_sysdyn

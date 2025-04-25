@@ -33,10 +33,10 @@ INCDIR = ../../include/
 INC = $(CDFINC)
 
 TARGET = ../../lib/libaloges.a
-OBJ = module_types.o module_constants.o module_nc.o module_math.o  \
-      module_tools.o module_time.o module_grid.o module_lineargs.o \
-      module_help.o module_trajectories.o module_minpack.o         \
-      module_matrix.o module_enkf.o module_sysdyn.o
+OBJ = module_types.o module_constants.o module_nc.o module_math.o   \
+      module_tools.o module_time.o module_grid.o module_lineargs.o  \
+      module_help.o module_trajectories.o module_minpack.o          \
+      module_matrix.o module_enkf.o module_sysdyn.o module_interp.o
 
 all: $(OBJ) $(LIBDIR) $(INCDIR) aloges.mod
 	rm -f $(TARGET)
@@ -57,6 +57,7 @@ clean:
 	if test -d $(INCDIR); then rm -f $(INCDIR)module_minpack.mod; fi
 	if test -d $(INCDIR); then rm -f $(INCDIR)module_enkf.mod; fi
 	if test -d $(INCDIR); then rm -f $(INCDIR)module_sysdyn.mod; fi
+	if test -d $(INCDIR); then rm -f $(INCDIR)module_interp.mod; fi
 	if test -d $(INCDIR); then rm -f $(INCDIR)aloges.mod; fi
 
 $(INCDIR):
@@ -78,6 +79,9 @@ module_nc.o: module_types.o module_nc.f90
 
 module_math.o: module_types.o module_constants.o module_math.f90
 	$(FC) -c $(FFLAGS) $(INC) module_math.f90
+
+module_interp.o: module_types.o module_constants.o module_interp.f90
+	$(FC) -c $(FFLAGS) $(INC) module_interp.f90
 
 module_tools.o: module_types.o module_constants.o module_math.o module_tools.f90
 	$(FC) -c $(FFLAGS) $(INC) module_tools.f90
