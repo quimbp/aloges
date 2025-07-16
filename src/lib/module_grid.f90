@@ -54,6 +54,8 @@ type type_ncvar
   real(dp)                                       :: add_offset=0.0D0
   real(dp)                                       :: scale_factor=1.0D0
   real(dp), dimension(:,:,:), pointer            :: mask
+  contains
+    procedure                   :: show          => ncvar_show
 end type type_ncvar
 
 ! ... Structure for grids
@@ -1502,6 +1504,26 @@ contains
 
 
   end function grid_point_type
+  ! ...
+  ! ==================================================================
+  ! ...
+  subroutine ncvar_show(VAR,Label)
+
+    class(type_ncvar), intent(in)                :: VAR
+    character(len=*), intent(in), optional       :: Label
+
+    write(*,*)
+    if (present(Label)) write(*,*) '>>>> ', Label
+    write(*,*) 'Name          : ', trim(VAR%name)
+    write(*,*) 'units         : ', trim(VAR%units)
+    write(*,*) 'type          : ', VAR%type 
+    write(*,*) 'ndims         : ', VAR%ndims
+    write(*,*) 'natts         : ', VAR%natts
+    write(*,*) 'Missing value : ', VAR%missing_value
+    write(*,*) 'Offset        : ', VAR%add_offset
+    write(*,*) 'Scale         : ', VAR%scale_factor
+
+  end subroutine ncvar_show
   ! ...
   ! ==================================================================
   ! ...

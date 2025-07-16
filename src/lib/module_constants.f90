@@ -69,11 +69,23 @@ real(dp)               :: inf     ! = 1.0_dp/0.0_dp
 ! ... Physical constants
 ! ...
 real(dp), parameter    :: gravity = 9.80665_dp     ! m / s^2
-real(dp), parameter    :: Omega   = 7.292E-5_dp    ! Earth 1/s
+real(dp), parameter    :: Omega   = 7.292D-5       ! Earth 1/s
 real(dp), parameter    :: Rearth  = 6371315.0_dp   ! Earth radius m
 real(dp), parameter    :: Dearth  = 23.446D0       ! Earth orb. decl. deg
 real(dp), parameter    :: Solar0  = 1365.2D0       ! W/m2
 
+type type_constants
+  real(dp)             :: Earth_Gravity = 9.80665_dp     ! Standard gravity [m/s^2]
+  real(dp)             :: Earth_Omega   = 7.2921159D-5   ! Earth's angular velocity [rad/s]
+  real(dp)             :: Earth_Radius  = 6371315.0_dp   ! Earth radius used in models [m]
+  real(dp)             :: WGS84_Earth_Radius     = 6371008.8_dp                 ! Mean Earth radius (spherical equivalent) [m]
+  real(dp)             :: WGS84_Earth_SemiMajor  = 6378137.0_dp                 ! a, WGS84 semi-major axis [m]
+  real(dp)             :: WGS84_Earth_InvFlatten = 298.257223562997_dp          ! 1/f, WGS84 inverse flattening
+  !real(dp)            :: WGS84_Earth_Flattening = 1.0_dp/WGS84_Earth_InvFlatten
+  !real(dp)            :: WGS84_Earth_SemiMinor  = WGS84_Earth_SemiMajor*(1.0D0-WGS84_Earth_Flattening) ! b, semi-minor axis
+end type type_constants
 
+
+type(type_Constants)                          :: constants
 
 end module module_constants
