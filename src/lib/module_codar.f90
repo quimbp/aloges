@@ -257,18 +257,6 @@ end subroutine codar_att_get
 ! ...
 ! ==========================================================================
 ! ...
-real(dp) function compass_to_polar(compass)
-  real(dp), intent(in) :: compass
-  compass_to_polar = mod(450.0 - compass, 360.0)
-end function compass_to_polar
-
-real(dp) function polar_to_compass(polar)
-  real(dp), intent(in) :: polar
-  polar_to_compass = mod(450.0 - polar, 360.0)
-end function polar_to_compass
-! ...
-! ==========================================================================
-! ...
 subroutine combine_radials_wls(vr, theta, w, u, v, cov_uv, gdop, angle_ref)
 ! ...
 ! ... Weighted LS to combine radials

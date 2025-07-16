@@ -38,6 +38,7 @@ use module_minpack
 use module_matrix
 use module_enkf
 use module_sysdyn
+use module_geodetic
 use module_codar
 
 implicit none

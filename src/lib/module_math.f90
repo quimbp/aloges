@@ -287,64 +287,6 @@ contains
   ! ...
   ! ===================================================================
   ! ...
-  real(dp) function haversine (lon1,lat1,lon2,lat2)
-    ! ...
-    ! ... Function Haversine
-    ! ... Determines the great-circle distance between two points in a
-    ! ... sphere. The input lngitudes and latitudes are given in radians
-    ! ... The retruned distance is in meters.
-    ! ... Earth_Radius = 6371315.0_dp      ! m
-    ! ...
-    real(dp), intent(in)                  :: lon1,lat1
-    real(dp), intent(in)                  :: lon2,lat2
-
-    ! ... Local variables
-    ! ...
-    real(dp) sindx,sindy,dang
-
-    sindx = sin(0.5D0*(lon2-lon1))
-    sindy = sin(0.5D0*(lat2-lat1))
-
-    dang = 2.0d0*asin(sqrt(sindy*sindy + cos(lat2)*cos(lat1)*sindx*sindx))
-    haversine = constants%Earth_Radius * dang
-
-    return
-  end function haversine
-  ! ...
-  ! ===================================================================
-  ! ...
-  subroutine bearing (lon1,lat1,lon2,lat2,azimuth,rev_azimuth)
-    ! ...
-    ! ... Calculation of the azimuth and reverse azimuth from (lon1,lat1) to (lon2,lat2)
-    ! ... The input lngitudes and latitudes are given in radians
-
-    real(dp), intent(in)                  :: lon1,lat1
-    real(dp), intent(in)                  :: lon2,lat2
-    real(dp), intent(out)                 :: azimuth,rev_azimuth
-
-    ! ... Local variables
-    ! ...
-    real(dp) dlon,cdlon,sdlon,x,y,x_rev,y_rev
-
-    dlon = lon2 - lon1
-    cdlon = cos(dlon)
-    sdlon = sin(dlon)
- 
-    ! Azimuth
-    y = sdlon * cos(lat2)
-    x = cos(lat1)*sin(lat2) - sin(lat1)*cos(lat2)*cdlon
-    azimuth = mod(atan2(y, x)*rad2deg+360.0d0, 360.0d0)
-    
-    ! Reverse azimuth
-    y_rev = -sdlon * cos(lat1)
-    x_rev = cos(lat2)*sin(lat1) - sin(lat2)*cos(lat1)*cdlon
-    rev_azimuth = mod(atan2(y_rev, x_rev)*rad2deg+360.0d0, 360.0d0)
-
-    return
-  end subroutine bearing
-  ! ...
-  ! ===================================================================
-  ! ...
   pure function arange_i(amin, amax, adelta) result(arange)
     ! ...
     ! ... Returns a double precision vector from amin to amax with 
