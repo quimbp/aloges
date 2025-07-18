@@ -51,7 +51,15 @@ type type_codar
   integer                                                :: nlines = 0
   integer                                                :: natts    = 0
   integer                                                :: ntables  = 0
+  integer                                                :: Year,Month,Day
+  integer                                                :: Hour,Minute,Second
+  integer                                                :: RangeStart
+  integer                                                :: RangeEnd
+  real(dp)                                               :: TimeCoverage
   real(dp)                                               :: xo,yo
+  real(dp)                                               :: RangeResolution
+  real(dp)                                               :: AngularResolution
+  character(len=4)                                       :: Site = ""
   character(len=20)                                      :: TimeStamp = ""
   type(type_codar_att), dimension(:), allocatable        :: Att
   type(type_codar_table), dimension(:), allocatable      :: Table
@@ -225,6 +233,63 @@ subroutine codar_ruv_read(CODAR,filename)
   key = 'TimeStamp' 
   call codar_att_get(CODAR,key,value)
   CODAR%TimeStamp = trim(value)
+  call line_word(value,1,word)
+  read(word,*) CODAR%Year
+  call line_word(value,2,word)
+  read(word,*) CODAR%Month
+  call line_word(value,3,word)
+  read(word,*) CODAR%Day
+  call line_word(value,4,word)
+  read(word,*) CODAR%Hour
+  call line_word(value,5,word)
+  read(word,*) CODAR%Minute
+  call line_word(value,6,word)
+  read(word,*) CODAR%Second
+
+  ! ... Time coverage
+  ! ...
+  key = 'TimeCoverage' 
+  call codar_att_get(CODAR,key,value)
+  call line_word(value,1,word)
+  read(word,*) CODAR%TimeCoverage
+
+  ! ... Antenna Site
+  ! ...
+  key = 'Site' 
+  call codar_att_get(CODAR,key,value)
+  call line_word(value,1,word)
+  CODAR%Site = trim(word)
+
+  ! ... RangeStart
+  ! ...
+  key = 'RangeStart' 
+  call codar_att_get(CODAR,key,value)
+  call line_word(value,1,word)
+  read(word,*) CODAR%RangeStart
+
+  ! ... RangeEnd
+  ! ...
+  key = 'RangeEnd' 
+  call codar_att_get(CODAR,key,value)
+  call line_word(value,1,word)
+  read(word,*) CODAR%RangeEnd
+
+  ! ... RangeResolution
+  ! ...
+  key = 'RangeResolutionKMeters'
+  call codar_att_get(CODAR,key,value)
+  call line_word(value,1,word)
+  read(word,*) CODAR%RangeResolution
+  CODAR%RangeResolution = CODAR%RangeResolution * 1000.0D0 ! meters
+
+  ! ... AngularResolution
+  ! ...
+  key = 'AngularResolution' 
+  call codar_att_get(CODAR,key,value)
+  call line_word(value,1,word)
+  read(word,*) CODAR%AngularResolution
+
+
 
   return
   
