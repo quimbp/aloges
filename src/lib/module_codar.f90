@@ -47,6 +47,49 @@ type type_codar_table
   real(sp), dimension(:,:), allocatable                  :: Value
 end type type_codar_table
 
+! ... Codar RUV structure Table 1:
+! ...
+! ... Columns
+! ...  1 - Longitude  (deg)
+! ...  2 - Latitude   (deg)
+! ...  3 - U comp     (cm/s)
+! ...  4 - V comp     (cm/s)
+! ...  5 - Vectorflag (GridCode)
+! ...  6 - Spatial quality
+! ...  7 - Temporal quality
+! ...  8 - Pattern distance
+! ...  9 - SNR        (dB)
+! ... 10 - Velocity Maximum
+! ... 11 - Velocity Minimum
+! ... 12 - Spatial Count
+! ... 13 - Temporal Count
+! ... 14 - X Distance (km)
+! ... 15 - Y Distance (km)
+! ... 16 - Range      (km)
+! ... 17 - Bearing    (True)
+! ... 18 - Velocity   (cm/s) 
+! ... 19 - Direction  (True)
+! ... 20 - Spectra    (RngCell)
+! ... 21 - Q201       (flag)
+! ...  .    
+! ...  .    Quality flags
+! ...  .
+
+type type_codar_lluv_fields
+  integer                                                :: lon        = 1
+  integer                                                :: lat        = 2
+  integer                                                :: u          = 3
+  integer                                                :: v          = 4
+  integer                                                :: vectorflag = 5
+  integer                                                :: qspatial   = 6
+  integer                                                :: qtime      = 7
+  integer                                                :: range      = 16
+  integer                                                :: bearing    = 17
+  integer                                                :: velocity   = 18
+  integer                                                :: direction  = 19
+  integer                                                :: spectra    = 20
+end type type_codar_lluv_fields
+
 type type_codar
   integer                                                :: nlines = 0
   integer                                                :: natts    = 0
@@ -61,13 +104,17 @@ type type_codar
   real(dp)                                               :: AngularResolution
   character(len=4)                                       :: Site = ""
   character(len=20)                                      :: TimeStamp = ""
+  character(len=40)                                      :: TimeZone = ""
   type(type_codar_att), dimension(:), allocatable        :: Att
   type(type_codar_table), dimension(:), allocatable      :: Table
 
   contains
-    procedure :: ruv_read => codar_ruv_read
-    procedure :: att_get => codar_att_get
+    procedure :: ruv_read  => codar_ruv_read
+    procedure :: att_get   => codar_att_get
+    procedure :: ruv_write => codar_ruv_write
 end type type_codar
+
+type(type_codar_lluv_fields)  LLUVID
 
 contains 
 ! ...
@@ -246,6 +293,12 @@ subroutine codar_ruv_read(CODAR,filename)
   call line_word(value,6,word)
   read(word,*) CODAR%Second
 
+  ! ... Antenna TimeZone
+  ! ...
+  key = 'TimeZone' 
+  call codar_att_get(CODAR,key,value)
+  CODAR%TimeZone = trim(value)
+
   ! ... Time coverage
   ! ...
   key = 'TimeCoverage' 
@@ -393,7 +446,47 @@ subroutine combine_radials_wls(vr, theta, w, u, v, cov_uv, gdop, angle_ref)
       x1 = cov(1,1)*b(1) + cov(1,2)*b(2)
       x2 = cov(2,1)*b(1) + cov(2,2)*b(2)
     end subroutine solve22
+
   end subroutine combine_radials_wls
+! ...
+! ==========================================================================
+! ...
+subroutine codar_ruv_write(CODAR,filename)
+
+  class(type_codar), intent(inout)         :: CODAR
+  character(len=*), intent(in)             :: filename
+
+  ! ... Local variables
+  ! ...
+  integer iu
+
+  iu = unitfree()
+  write(*,*) 'Creating RUV file: ', trim(filename)
+  open(iu,file=filename,status='unknown')
+
+!      1 %CTF: 1.00
+!      2 %FileType: LLUV rdls "RadialMap"
+!      3 %LLUVSpec: 1.51  2021 07 01
+!      4 %UUID: A23C9091-4F03-4447-BAFA-26D9C32CE744
+!      5 %Manufacturer: CODAR Ocean Sensors. SeaSonde
+!      6 %Site: AREN ""
+!      7 %TimeStamp: 2025 02 05  10 00 00
+!      8 %TimeZone: "UTC" +0.000 0 "Atlantic/Reykjavik"
+!      9 %TimeCoverage: 75.000 Minutes
+!     10 %Origin: 41.5775833    2.5577333
+!     11 %GreatCircle: "WGS84" 6378137.000  298.257223562997
+!     12 %GeodVersion: "CGEO" 2.00  2019 03 05
+
+  write(iu,'(T1,A)') '%CTF: 1.00'
+  write(iu,'(T1,A)') '%FileType: LLUV rdls "RadialMap"'
+  write(iu,'(T1,A)') '%LLUVSpec: 1.51  2021 07 01'
+  write(iu,'(T1,A)') '%UUID: '
+  write(iu,'(T1,A)') '%Manufacturer: CODAR Ocean Sensors. SeaSonde'
+  write(iu,'(T1,A)') '%Site: ' // trim(CODAR%Site)//' ""'
+
+  close(iu)
+
+end subroutine codar_ruv_write
 ! ...
 ! ==========================================================================
 ! ...
