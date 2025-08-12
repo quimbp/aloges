@@ -20,6 +20,24 @@
 ! Public License along with this program.                                  !
 ! If not, see <http://www.gnu.org/licenses/>.                              !
 !                                                                          !
+! NF90 core variable types                                                 !
+! NetCDF Constant	Description		Fortran Type               !
+! NF90_BYTE		Signed 1-byte int	integer(kind=1)     1      !
+! NF90_CHAR		ASCII character		character           2      !
+! NF90_SHORT		2-byte integer		integer(kind=2)     3      !
+! NF90_INT		4-byte integer		integer(kind=4)     4      !
+! NF90_FLOAT		4-byte real		real(kind=4)        5      !
+! NF90_DOUBLE		8-byte real		real(kind=8)        6      !
+!                                                                          !
+! NF90 extended variable types                                             !
+! NetCDF Constant	Description		Fortran Type               !
+! NF90_UBYTE		Unsigned 1-byte int	integer(kind=1)     7      !
+! NF90_USHORT		Unsigned 2-byte int	integer(kind=2)     8      !
+! NF90_UINT		Unsigned 4-byte int	integer(kind=4)     9      !
+! NF90_INT64		Signed 8-byte integer	integer(kind=8)    10      !
+! NF90_UINT64		Unsigned 8-byte integer	integer(kind=8)    11      !
+! NF90_STRING		Variable-length string	character(len=*)   12      !
+!                                                                          !
 ! List of routines:                                                        !
 ! - nc_open                                                                !
 ! - nc_dump                                                                !
@@ -47,7 +65,7 @@ type type_nc_attribute
   logical, dimension(:), allocatable                 :: lval
   integer, dimension(:), allocatable                 :: ival
   real(dp), dimension(:), allocatable                :: dval
-  character(len=maxlen)                              :: tval
+  character(len=maxlen)                              :: sval
 end type type_nc_attribute
 
 type type_nc_variable
@@ -55,6 +73,10 @@ type type_nc_variable
   integer                                            :: type
   integer                                            :: ndims
   integer                                            :: natts
+  logical                                            :: with_missing = .False.
+  real(dp)                                           :: missing_value
+  real(dp)                                           :: add_offset = 0.0D0
+  real(dp)                                           :: scale_factor = 1.0D0
   integer, dimension(:), pointer                     :: dimids
   type(type_nc_attribute), dimension(:), pointer     :: attribute
 end type type_nc_variable
@@ -77,6 +99,7 @@ type type_dataset
     procedure                   :: read1D        => nc_variable_read1d
     procedure                   :: read2D        => nc_variable_read2d
     procedure                   :: size          => nc_variable_size  
+    procedure                   :: varid         => nc_variable_id
 end type type_dataset
 
 contains
@@ -93,7 +116,7 @@ contains
     ! ...
     integer err,fid,ndims,nvars,natts,unlimid
     integer i,j,dlen,alen,vtype,atype,dimids(100)
-    character(len=maxlen) word,word2
+    character(len=maxlen) word,word2,attname
 
 
     err = NF90_OPEN(filename,0,fid)
@@ -144,6 +167,17 @@ contains
         allocate(SD%variable(i)%attribute(natts))
         do j=1,natts
           SD%variable(i)%attribute(j) = nc_read_attribute(fid,i,j)
+        enddo
+        ! ... Retrieve the missing value, offset and scale factors:
+        ! ...
+        do j=1,natts
+          attname = trim(SD%variable(i)%attribute(j)%name)
+          if (attname.eq.'add_offset') SD%variable(i)%add_offset = SD%variable(i)%attribute(j)%dval(1)
+          if (attname.eq.'scale_factor') SD%variable(i)%scale_factor = SD%variable(i)%attribute(j)%dval(1)
+          if (attname.eq.'_FillValue'.or.attname.eq.'missing_value') then
+            SD%variable(i)%with_missing  = .True.
+            SD%variable(i)%missing_value = SD%variable(i)%attribute(j)%dval(1)
+          endif
         enddo
       enddo
     endif
@@ -248,8 +282,9 @@ contains
     type(type_nc_attribute)                  :: ATT
 
     ! ... Local variables
-    integer i,atype,alen,err
-    character(len=maxlen) word,word2
+    integer i,atype,alen,err,iword
+    character(len=maxlen) word,word1
+    character(len=:), allocatable           :: word2
 
     err = NF90_INQ_ATTNAME(fid,varid,attid,word)
     err = NF90_INQUIRE_ATTRIBUTE(fid,varid,word,atype,alen)
@@ -259,12 +294,12 @@ contains
 
     if (atype.EQ.NF90_BYTE) then
       allocate(ATT%lval(alen))
-      !err = NF90_GET_ATT(fid,0,word,SD%attribute(i)%lval)
+      !err = NF90_GET_ATT(fid,varid,word,SD%attribute(i)%lval)
       stop 'NF90_BYTE !'
     endif
     if (atype.EQ.NF90_CHAR) then
-      err = NF90_GET_ATT(fid,varid,word,word2)
-      ATT%tval = trim(word2)
+      err = NF90_GET_ATT(fid,varid,word,word1)
+      ATT%sval = trim(word1)
     endif
     if ((atype.EQ.NF90_SHORT).or.(atype.EQ.NF90_INT)) then
       allocate(ATT%ival(alen))
@@ -273,6 +308,15 @@ contains
     if ((atype.EQ.NF90_FLOAT).or.(atype.EQ.NF90_DOUBLE)) then
       allocate(ATT%dval(alen))
       err = NF90_GET_ATT(fid,varid,word,ATT%dval)
+    endif
+    if (atype.EQ.NF90_STRING) then
+      ! AAAA
+      print*, fid, varid, word, atype
+      err = NF90_GET_ATT(fid,varid,word,word1)
+      print*, 'err = ', err
+      print*, err, NF90_STRERROR(err), word2
+      !ATT%sval = word2(:)
+      print*, 'NF90_STRING: ', trim(ATT%sval)
     endif
 
   end function nc_read_attribute
@@ -293,7 +337,7 @@ contains
     select case (ATT%type)
     
     case (NF90_CHAR)
-      word = trim(word) // ' "' // trim(adjustl(ATT%tval)) // '"'
+      word = trim(word) // ' "' // trim(adjustl(ATT%sval)) // '"'
 
     case (NF90_FLOAT)
       if (ATT%len.eq.1) then
@@ -304,6 +348,11 @@ contains
         stop 
       endif
 
+    case (NF90_STRING)
+      word = trim(word) // ' "' // trim(adjustl(ATT%sval)) // '"'
+
+
+    
     case default
       print*, 'NF90_CHAR : ', NF90_CHAR
       print*, 'NF90_SHORT : ', NF90_SHORT
@@ -398,6 +447,7 @@ contains
     ! ... 
     integer i,varid,dimid,n1,n2,err,ndims,ii,ni(2)
     integer, dimension(:), allocatable               :: ppo,ppf,dpp
+    real(dp) add_offset, scale_factor
 
     varid = -1
     do i=1,SD%nvars
@@ -450,14 +500,24 @@ contains
     n1 = ni(1)
     n2 = ni(2)
 
-
     allocate(X(n1,n2))
-  
     err = NF90_GET_VAR(SD%fid,varid,X,ppo,ppf)
     if (err.NE.0) stop 'ERROR reading variable'
 
-  end function nc_variable_read2d
+    ! ... Process the read data:
+    ! ...
+    add_offset = SD%variable(varid)%add_offset
+    scale_factor = SD%variable(varid)%scale_factor
+    if (SD%variable(varid)%with_missing) then
+      where(X.ne.SD%variable(varid)%missing_value) X = add_offset + scale_factor*X
+    else
+      X = add_offset + scale_factor*X
+    endif
 
+  end function nc_variable_read2d
+  ! ...
+  ! ==================================================================
+  ! ...
   function nc_variable_size(SD,varname) result (D)
 
     class(type_dataset), intent(inout)               :: SD
@@ -541,7 +601,7 @@ contains
           err = NF90_PUT_ATT(id2,v2,TRIM(att_name),tmpi)
           deallocate (tmpi)
         endif
-        if (att_type.EQ.NF90_CHAR) then
+        if (att_type.EQ.NF90_CHAR.or.att_type.EQ.NF90_STRING) then
           if (att_len.gt.len(tmpt)) stop 'ERROR NC_COPYATTS: Increase size tmpt'
           err = NF90_GET_ATT(id1,v1,att_name,tmpt)
           call nc_error (err,'Unable to get text attribute')
@@ -728,5 +788,28 @@ contains
     return
 
   end function nc_axis_dim
+  ! ...
+  ! ===================================================================
+  ! ...
+  function nc_variable_id(SD,varname) result(varid)
+
+    class(type_dataset), intent(inout)               :: SD
+    character(len=*), intent(in)                     :: varname
+    integer                                          :: varid
+   
+    ! ... Local variables
+    ! ... 
+    integer i
+
+    varid = -1
+    do i=1,SD%nvars
+      if (trim(varname).eq.trim(SD%variable(i)%name)) then
+        varid = i
+        exit
+      endif
+    enddo
+    if (varid.lt.0) stop 'ERROR nc_variable_id: Variable not found'
+
+  end function nc_variable_id
 
 end module module_nc
