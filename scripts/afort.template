@@ -1,6 +1,6 @@
 #!/bin/bash
 
-version="2.0"
+version="2.1"
 
 # Library paths to the updated during makefile
 # The Makefile will fill these values accordigly to the specifications
@@ -22,10 +22,11 @@ if [ $Nargs -le 0 ]; then
   exit 1
 fi
 
-# Parsing cfort arguments
+# Parsing afort arguments
 #
 
 user_defined_executable=0
+user_wants_an_object=0
 
 i=1
 options=""
@@ -34,6 +35,9 @@ for argument in "$@"; do
     options="${options} ${argument}"
     if [ "$argument" == "-o" ]; then
       user_defined_executable=1
+    fi
+    if [ "$argument" == "-c" ]; then
+      user_wants_an_object=1
     fi
   fi
   ((i++))
@@ -80,6 +84,11 @@ echo "ALOGES     :: " ${ALOGES}
 echo "CDFINC     :: " ${CDFINC}
 echo "CDFLIB     :: " ${CDFLIB}
 
-echo "${FC} ${FFLAGS} ${options} ${executable} ${filename} ${INC} ${LIB} "
-${FC} ${FFLAGS} ${options} ${executable} ${filename} ${INC} ${LIB}
+if [ "$user_wants_an_object" == "1" ]; then
+  echo "${FC} ${FFLAGS} ${options} ${filename} ${INC} "
+  ${FC} ${FFLAGS} ${options} ${filename} ${INC}
+else
+  echo "${FC} ${FFLAGS} ${options} ${executable} ${filename} ${INC} ${LIB} "
+  ${FC} ${FFLAGS} ${options} ${executable} ${filename} ${INC} ${LIB}
+fi
 
