@@ -78,6 +78,7 @@ type type_nc_variable
   real(dp)                                           :: add_offset = 0.0D0
   real(dp)                                           :: scale_factor = 1.0D0
   integer, dimension(:), pointer                     :: dimids
+  integer, dimension(:), pointer                     :: shape
   type(type_nc_attribute), dimension(:), pointer     :: attribute
 end type type_nc_variable
 
@@ -162,7 +163,11 @@ contains
         SD%variable(i)%type = vtype
         SD%variable(i)%ndims = ndims
         allocate(SD%variable(i)%dimids(ndims))
+        allocate(SD%variable(i)%shape(ndims))
         SD%variable(i)%dimids(:) = dimids(1:ndims)
+        do j=1,ndims
+          SD%variable(i)%shape(j) = SD%dimension(dimids(j))%len
+        enddo
         SD%variable(i)%natts = natts
         allocate(SD%variable(i)%attribute(natts))
         do j=1,natts
@@ -214,7 +219,7 @@ contains
     write(6,'(T1,A)') 'dimensions:'
     do i=1,SD%ndims
       if (i.eq.SD%unlimid) then
-        write(6,'(T9,A," = UNLIMITTED ; // ( ",I4, " currently )" )') trim(SD%dimension(i)%name), &
+        write(6,'(T9,A," = UNLIMITED ; // ( ",I4, " currently )" )') trim(SD%dimension(i)%name), &
                  SD%dimension(i)%len
       else
         write(6,'(T9,A," = ",I4, " ;")') trim(SD%dimension(i)%name), &
@@ -381,6 +386,7 @@ contains
     ! ... 
     integer i,varid,dimid,n,err,ndims
     integer, dimension(:), allocatable               :: ppo,ppf
+    real(dp) add_offset, scale_factor
 
     varid = -1
     do i=1,SD%nvars
@@ -429,6 +435,17 @@ contains
     err = NF90_GET_VAR(SD%fid,varid,X,ppo,ppf)
     if (err.NE.0) stop 'ERROR reading variable'
 
+    ! ... Process the read data:
+    ! ...
+    add_offset = SD%variable(varid)%add_offset
+    scale_factor = SD%variable(varid)%scale_factor
+    if (SD%variable(varid)%with_missing) then
+      where(X.ne.SD%variable(varid)%missing_value) X = add_offset + scale_factor*X
+    else
+      X = add_offset + scale_factor*X
+    endif
+
+    deallocate(ppo,ppf)
 
   end function nc_variable_read1d
   ! ...
@@ -513,6 +530,9 @@ contains
     else
       X = add_offset + scale_factor*X
     endif
+
+    deallocate(ppo,ppf,dpp)
+
 
   end function nc_variable_read2d
   ! ...
