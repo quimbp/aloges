@@ -40,7 +40,7 @@ OS = Ubuntu
 FC = gfortran
 FFLAGS = -O3 
 FFLAGS = -fbounds-check
-FFLAGS = -fbounds-check -ffpe-summary=zero,invalid,overflow,underflow
+FFLAGS = -fbounds-check -ffpe-summary=zero,invalid,overflow,underflow -ffree-line-length-none
 
 INSTALL = install
 AR = ar cq
