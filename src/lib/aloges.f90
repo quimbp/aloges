@@ -25,6 +25,7 @@ module aloges
 
 use module_types
 use module_constants
+use module_dictionary
 use module_nc
 use module_math
 use module_interp

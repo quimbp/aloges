@@ -33,10 +33,11 @@ INCDIR = ../../include/
 INC = $(CDFINC)
 
 TARGET = ../../lib/libaloges.a
-OBJ = module_types.o module_constants.o module_nc.o module_math.o   \
-      module_tools.o module_time.o module_grid.o module_lineargs.o  \
-      module_help.o module_trajectories.o module_minpack.o          \
-      module_matrix.o module_enkf.o module_sysdyn.o module_interp.o \
+OBJ = module_types.o module_constants.o module_dictionary.o         \
+      module_nc.o module_math.o module_tools.o module_time.o        \
+      module_grid.o module_lineargs.o  module_help.o                \
+      module_trajectories.o module_minpack.o module_matrix.o        \
+      module_enkf.o module_sysdyn.o module_interp.o                 \
       module_geodetic.o module_codar.o
 
 all: $(OBJ) $(LIBDIR) $(INCDIR) aloges.mod
@@ -48,6 +49,7 @@ clean:
 	rm -f $(TARGET) *.o *.mod 
 	if test -d $(INCDIR); then rm -f $(INCDIR)module_types.mod; fi
 	if test -d $(INCDIR); then rm -f $(INCDIR)module_constants.mod; fi
+	if test -d $(INCDIR); then rm -f $(INCDIR)module_dictionary.mod; fi
 	if test -d $(INCDIR); then rm -f $(INCDIR)module_math.mod; fi
 	if test -d $(INCDIR); then rm -f $(INCDIR)module_tools.mod; fi
 	if test -d $(INCDIR); then rm -f $(INCDIR)module_time.mod; fi
@@ -74,6 +76,9 @@ module_types.o: module_types.f90
 
 module_constants.o: module_types.o module_constants.f90
 	$(FC) -c $(FFLAGS) $(INC) module_constants.f90
+
+module_dictionary.o: module_types.o module_dictionary.f90
+	$(FC) -c $(FFLAGS) $(INC) module_dictionary.f90
 
 module_nc.o: module_types.o module_nc.f90
 	$(FC) -c $(FFLAGS) $(INC) module_nc.f90
@@ -117,7 +122,7 @@ module_sysdyn.o: module_types.o module_constants.o module_math.o module_tools.o 
 module_geodetic.o: module_types.o module_tools.o module_math.o module_geodetic.f90
 	$(FC) -c $(FFLAGS) $(INC) module_geodetic.f90
 
-module_codar.o: module_types.o module_tools.o module_codar.f90
+module_codar.o: module_types.o module_dictionary.o module_tools.o module_codar.f90
 	$(FC) -c $(FFLAGS) $(INC) module_codar.f90
 
 aloges.mod: $(OBJ)
