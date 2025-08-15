@@ -42,12 +42,15 @@ type type_codar_table
   integer                                                :: Columns
   character(len=maxlen)                                  :: ColumnTypes
   character(len=maxlen)                                  :: Names,Units
+  character(len=4), dimension(40)                        :: Heading
   character(len=10), dimension(:), allocatable           :: Name
   character(len=10), dimension(:), allocatable           :: Unit
   real(sp), dimension(:,:), allocatable                  :: Value
+  contains
+      procedure :: id  => codar_table_typeid
 end type type_codar_table
 
-! ... Codar RUV structure Table 1:
+! ... Codar RUV structure Table 1 (Spec LLUVSpec 1.51):
 ! ...
 ! ... Columns
 ! ...  1 - Longitude  (deg)
@@ -74,22 +77,6 @@ end type type_codar_table
 ! ...  .    
 ! ...  .    Quality flags
 ! ...  .
-
-type type_codar_lluv_fields
-  integer                                                :: lon        = 1
-  integer                                                :: lat        = 2
-  integer                                                :: u          = 3
-  integer                                                :: v          = 4
-  integer                                                :: vectorflag = 5
-  integer                                                :: qspatial   = 6
-  integer                                                :: qtime      = 7
-  integer                                                :: range      = 16
-  integer                                                :: bearing    = 17
-  integer                                                :: velocity   = 18
-  integer                                                :: direction  = 19
-  integer                                                :: spectra    = 20
-end type type_codar_lluv_fields
-
 type type_codar
   integer                                                :: nlines = 0
   integer                                                :: natts    = 0
@@ -114,8 +101,6 @@ type type_codar
     procedure :: ruv_write => codar_ruv_write
 end type type_codar
 
-type(type_codar_lluv_fields)  LLUVID
-
 contains 
 ! ...
 ! ==========================================================================
@@ -129,7 +114,7 @@ subroutine codar_ruv_read(CODAR,filename)
   ! ... Local variables
   ! ...
   logical intable
-  integer i1,i2,i3,i4,jcol
+  integer i,i1,i2,i3,i4,jcol
   integer iu,nlines,natts,ntables,iline,iatt,itable
   integer ncols,nrows,iheader,irow
   character(len=400) line
@@ -244,10 +229,15 @@ subroutine codar_ruv_read(CODAR,filename)
         read(line(i3:i4),*) nrows
         CODAR%Table(itable)%Rows = nrows
         allocate(CODAR%Table(itable)%Value(nrows,ncols))
-      else if (line(1:12).eq.'%ColumnTypes') then
+      else if (line(1:17).eq.'%TableColumnTypes') then
         i3 = index(line,':') + 1
         i4 = len_trim(line)
         CODAR%Table(itable)%ColumnTypes = line(i3:i4)
+        do i=1,CODAR%Table(1)%Columns
+          word = ""
+          call line_word(CODAR%Table(1)%ColumnTypes,i,word)
+          CODAR%Table(itable)%Heading(i) = trim(word)
+        enddo
       else if (line(1:2).eq.'%%') then
         iheader = iheader + 1
         if (iheader.eq.1) then
@@ -342,7 +332,9 @@ subroutine codar_ruv_read(CODAR,filename)
   call line_word(value,1,word)
   read(word,*) CODAR%AngularResolution
 
-
+  ! ... Get the Ids of the variables:
+  ! ... THis information is stored in theColumnTypes of Table 1.
+  ! ... LOND LATD VELU VELV VFLG ESPC ETMP EDTP EASN MAXV MINV ERSC ERTC XDST YDST RNGE BEAR VELO HEAD SPRC
 
   return
   
@@ -487,6 +479,29 @@ subroutine codar_ruv_write(CODAR,filename)
   close(iu)
 
 end subroutine codar_ruv_write
+! ...
+! ==========================================================================
+! ...
+function codar_table_typeid(TABLE,name) result(id)
+
+  class(type_codar_table), intent(in)          :: TABLE
+  character(len=4), intent(in)                 :: name
+  integer                                      :: id
+
+  ! ... Local variables
+  ! ... 
+  integer i
+
+  id = -1
+  do i=1,TABLE%Columns
+    if (TABLE%Heading(i).eq.name) then
+      id = i
+      return
+    endif
+  enddo
+  stop 'ERROR in CODAR_TABLE_TYPEID: Column name not found'
+ 
+  end function codar_table_typeid 
 ! ...
 ! ==========================================================================
 ! ...
