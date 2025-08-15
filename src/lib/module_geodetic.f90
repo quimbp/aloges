@@ -42,6 +42,14 @@ type type_WGS84_constants
 
  type(type_WGS84_constants)                          :: WGS84
 
+interface spdir2uv 
+  module procedure spdir2uv_r, spdir2uv_v
+end interface spdir2uv
+
+interface uv2spdir
+  module procedure uv2spdir_r, uv2spdir_v
+end interface uv2spdir
+
 contains
 ! ...
 ! =====================================================================
@@ -343,6 +351,124 @@ contains
     azimuth2 = modulo(atan2(cosU1*sinLambda, -sinU1*cosU2 + cosU1*sinU2*cosLambda)*rad2deg + 360.0d0, 360.0d0)
 
   end subroutine vincenty_inverse
+  ! ...
+  ! ===================================================================
+  ! ...
+  subroutine spdir2uv_r(spd,ang,deg,u,v) 
+    ! ... Calculates (u,v) coordinates from velocity and angles measured
+    ! ... from north (compass/bearing), increasing clockwise.
+    ! ...      ang = 0°   → wind toward north (u=0, v=spd)
+    ! ...      ang = 90°  → wind toward east  (u=spd, v=0)
+    ! ...      ang = 180° → wind toward south (u=0, v=-spd)
+    ! ...      ang = 270° → wind toward west  (u=-spd, v=0)
+    ! ...
+    real(dp), intent(in)                         :: spd
+    real(dp), intent(in)                         :: ang  ! Compass angle
+    logical, intent(in), optional                :: deg
+    real(dp), intent(out)                        :: u,v
+
+    ! ... Local variables
+    ! ...
+    real(dp) alpha
+
+    alpha = ang
+    if (present(deg)) then
+      if (deg) alpha = alpha * deg2rad
+    endif
+     
+    ! ... Calculate u (E-W) and v (N-S) components
+    ! ...
+    u = spd * sin(alpha)
+    v = spd * cos(alpha)
+
+  end subroutine spdir2uv_r
+  ! ...
+  ! ===================================================================
+  ! ...
+  subroutine spdir2uv_v(spd,ang,deg,u,v)
+    ! ... Calculates (u,v) coordinates from velocity and angles measured
+    ! ... from north (compass/bearing), increasing clockwise.
+    ! ...      ang = 0°   → wind toward north (u=0, v=spd)
+    ! ...      ang = 90°  → wind toward east  (u=spd, v=0)
+    ! ...      ang = 180° → wind toward south (u=0, v=-spd)
+    ! ...      ang = 270° → wind toward west  (u=-spd, v=0)
+    ! ...
+    real(dp), dimension(:), intent(in)           :: spd
+    real(dp), dimension(:), intent(in)           :: ang  ! Compass angle
+    logical, intent(in), optional                :: deg
+    real(dp), dimension(size(spd)), intent(out)  :: u,v
+
+    ! ... Local variables
+    ! ...
+    real(dp), dimension(size(spd))               ::  alpha
+
+    alpha(:) = ang(:)
+    if (present(deg)) then
+      if (deg) alpha(:) = alpha(:) * deg2rad
+    endif
+     
+    ! ... Calculate u (E-W) and v (N-S) components
+    ! ...
+    u(:) = spd(:) * sin(alpha(:))
+    v(:) = spd(:) * cos(alpha(:))
+
+  end subroutine spdir2uv_v
+  ! ...
+  ! ===================================================================
+  ! ...
+  subroutine uv2spdir_r(u,v,spd,ang) 
+    ! ... Computes direction (ang) and speed (spd) from U/V wind components
+    ! ... Geographic convention: 0° = North, angles increase clockwise.
+    ! ...
+    real(dp), intent(in)                         :: u
+    real(dp), intent(in)                         :: v 
+    real(dp), intent(out)                        :: spd
+    real(dp), intent(out)                        :: ang  ! Compass angle
+
+    ! ... Speed: magnitude of the velocity vector
+    ! ...
+    spd = sqrt(u*u + v*v)
+
+    ! ... Compute angle in radians from atan2
+    ! ... atan2(y, x) = atan2(v, u) gives math convention from +x axis (east, CCW)
+    ! ... To get geographic convention (0°=north, clockwise), use:
+    ! ... angle_geo = mod(atan2(u, v) * rad2deg, 360.0)
+    ! ...
+    ang = atan2(u,v) * rad2deg
+    if (ang .lt. 0.0) ang = ang + 360.0
+
+  end subroutine uv2spdir_r
+  ! ...
+  ! ===================================================================
+  ! ...
+  subroutine uv2spdir_v(u,v,spd,ang)
+    ! ... Computes direction (ang) and speed (spd) from U/V wind components
+    ! ... Geographic convention: 0° = North, angles increase clockwise.
+    ! ...
+    real(dp), dimension(:), intent(in)           :: u
+    real(dp), dimension(:), intent(in)           :: v 
+    real(dp), dimension(size(u)), intent(out)    :: spd
+    real(dp), dimension(size(u)), intent(out)    :: ang  ! Compass angle
+
+    ! ... Local variables
+    ! ...
+    integer i
+
+    ! ... Speed: magnitude of the velocity vector
+    ! ...
+    spd(:) = sqrt(u(:)**2 + v(:)**2)
+
+    ! ... Compute angle in radians from atan2
+    ! ... atan2(y, x) = atan2(v, u) gives math convention from +x axis (east, CCW)
+    ! ... To get geographic convention (0°=north, clockwise), use:
+    ! ... angle_geo = mod(atan2(u, v) * rad2deg, 360.0)
+    ! ...
+    do i = 1, size(u)
+       ang(i) = atan2(u(i), v(i)) * rad2deg
+       if (ang(i) < 0.0) ang(i) = ang(i) + 360.0
+    end do
+
+  end subroutine uv2spdir_v
   ! ...
   ! ===================================================================
   ! ...
