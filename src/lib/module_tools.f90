@@ -33,12 +33,13 @@
 ! - ls                                                                     !
 ! - numlines                                                               !
 ! - numwords                                                               !
+! - unique_elements (integer, real(dp) interface)                          !
 ! - unitfree                                                               !
 ! - uppercase                                                              !
 ! - say                                                                    !
 ! - strcat                                                                 !
 ! - token_read                                                             !
-! - vprint
+! - vprint                                                                 !
 ! -------------------------------------------------------------------------!
 
 module module_tools
@@ -48,6 +49,11 @@ use module_constants
 use module_math, only: randname
 
 implicit none
+
+interface unique_elements
+  module procedure unique_elements_i
+  module procedure unique_elements_r
+end interface unique_elements
 
 contains
 ! ...
@@ -776,6 +782,46 @@ contains
      end function H
 
   end subroutine vprint 
+  ! ...
+  ! ===================================================================
+  ! ...
+  function unique_elements_i(arr) result(unique_arr)
+
+    integer, intent(in)                          :: arr(:)
+    integer, allocatable                         :: unique_arr(:)
+
+    ! ... Local variables
+    ! ...
+    logical, dimension(size(arr)) :: mask
+    integer i
+
+    mask(:) = .true.
+    do i = 2, size(arr)
+        mask(i) = .not. any(arr(i) == arr(1:i-1))
+    end do
+
+    unique_arr = pack(arr, mask)
+  end function unique_elements_i
+  ! ...
+  ! ===================================================================
+  ! ...
+  function unique_elements_r(arr) result(unique_arr)
+
+    real(dp), intent(in)                          :: arr(:)
+    real(dp), allocatable                         :: unique_arr(:)
+
+    ! ... Local variables
+    ! ...
+    logical, dimension(size(arr)) :: mask
+    integer i
+
+    mask(:) = .true.
+    do i = 2, size(arr)
+        mask(i) = .not. any(arr(i) == arr(1:i-1))
+    end do
+
+    unique_arr = pack(arr, mask)
+  end function unique_elements_r
   ! ...
   ! ===================================================================
   ! ...
