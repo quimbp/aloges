@@ -80,7 +80,11 @@ contains
         type(type_dict), intent(out) :: DICT
         integer, intent(in), optional :: cap
         integer :: n
-        n = merge(cap, 16, present(cap))
+        if (present(cap)) then
+          n = cap
+        else
+          n = 16
+        endif
         call allocate_storage(DICT, n)
     end subroutine dict_init
 

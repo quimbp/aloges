@@ -21,7 +21,7 @@
 ! If not, see <http://www.gnu.org/licenses/>.                              !
 !                                                                          !
 ! List of routines:                                                        !
-! - cat
+! - cat                                                                    !
 ! - compress                                                               !
 ! - crash                                                                  !
 ! - filename_split                                                         !
@@ -398,7 +398,7 @@ contains
   ! ...
   function ls(dirname) result(list)
 
-    character(len=*), intent(in)              :: dirname
+    character(len=*), intent(in)                           :: dirname
     character(maxlen), dimension(:), allocatable           :: list
 
     integer nl,i,iu
