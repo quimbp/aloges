@@ -21,6 +21,7 @@
 ! If not, see <http://www.gnu.org/licenses/>.                              !
 !                                                                          !
 ! List of routines:                                                        !
+! - cat
 ! - compress                                                               !
 ! - crash                                                                  !
 ! - filename_split                                                         !
@@ -60,6 +61,36 @@ contains
 ! =====================================================================
 ! =====================================================================
 ! ...
+  subroutine cat(filename)
+
+    character(len=*), intent(in)   :: filename
+
+    ! ... Local variables
+    ! ...
+    integer unit, ios
+    character(len=2048) :: line
+
+    ! ... Use a free unit number
+    inquire (iolength=unit) line
+    open(newunit=unit, file=filename, status='old', action='read', iostat=ios)
+
+    if (ios /= 0) then
+        write(*,*) "Error opening file: ", filename
+        return
+    end if
+
+    ! ... Read and print line by line
+    do
+        read(unit,'(A)',iostat=ios) line
+        if (ios /= 0) exit
+        print '(A)', trim(line)
+    end do
+
+    close(unit)
+  end subroutine cat
+  ! ...
+  ! ===================================================================
+  ! ...
   function compress(A) result(t)
   ! ... Removes all double whites and spaces before a comma or dot
 
