@@ -24,6 +24,7 @@
 module aloges
 
 use module_types
+use module_plplot
 use module_constants
 use module_dictionary
 use module_nc

@@ -30,11 +30,12 @@ FCFLAGS = $(FFLAGS) $(DBFLAGS)
 
 LIBDIR = ../../lib/
 INCDIR = ../../include/
-INC = $(CDFINC)
+INC = $(PLPLOT_INC) $(CDFINC)
 
 TARGET = ../../lib/libaloges.a
-OBJ = module_types.o module_constants.o module_dictionary.o         \
-      module_nc.o module_math.o module_tools.o module_time.o        \
+OBJ = module_types.o module_plplot.o module_constants.o             \
+      module_dictionary.o module_nc.o                               \
+      module_math.o module_tools.o module_time.o                    \
       module_grid.o module_lineargs.o  module_help.o                \
       module_trajectories.o module_minpack.o module_matrix.o        \
       module_enkf.o module_sysdyn.o module_interp.o                 \
@@ -48,6 +49,7 @@ all: $(OBJ) $(LIBDIR) $(INCDIR) aloges.mod
 clean:
 	rm -f $(TARGET) *.o *.mod 
 	if test -d $(INCDIR); then rm -f $(INCDIR)module_types.mod; fi
+	if test -d $(INCDIR); then rm -f $(INCDIR)module_plplot.mod; fi
 	if test -d $(INCDIR); then rm -f $(INCDIR)module_constants.mod; fi
 	if test -d $(INCDIR); then rm -f $(INCDIR)module_dictionary.mod; fi
 	if test -d $(INCDIR); then rm -f $(INCDIR)module_math.mod; fi
@@ -73,6 +75,9 @@ $(LIBDIR):
 
 module_types.o: module_types.f90
 	$(FC) -c $(FFLAGS) $(INC) module_types.f90
+
+module_plplot.o: module_types.f90 module_plplot.f90
+	$(FC) -c $(FFLAGS) $(INC) module_plplot.f90
 
 module_constants.o: module_types.o module_constants.f90
 	$(FC) -c $(FFLAGS) $(INC) module_constants.f90

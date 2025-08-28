@@ -35,6 +35,8 @@
 # AR       = Library archive manager 
 # NF90_INC = Path to the  NetCDF Fortran 90 modules
 # NF90_LIB = Path to the  NetCDF Fortran 90 libraries
+# PLPLOT_INC = Path to the PLPLOT Fortran 90 modules
+# PLPLOT_LIB = Path to the PLPLOT Fortran 90 libraries
 # 
 OS = Ubuntu
 FC = gfortran
@@ -60,3 +62,8 @@ endif
 
 CDFINC = -I$(NF90_INC)
 CDFLIB = -L$(NF90_LIB) -lnetcdff
+
+# PLPLOT paths for ubuntu
+#
+PLPLOT_INC = -I/usr/lib/x86_64-linux-gnu/fortran/modules/plplot/
+PLPLOT_LIB = -lplplotfortran
