@@ -19,11 +19,19 @@
 ! You should have received a copy of the GNU Lesser General                !
 ! Public License along with this program.                                  !
 ! If not, see <http://www.gnu.org/licenses/>.                              !
+!                                                                          !
+! To correctly compile this module, the user needs to have installed       !
+! the PLPLOT library. In ubuntu, this can be done by executing the command !
+! > install sudo apt update                                                !
+! > sudo apt install plplot-doc plplot-dev                                 !
+!                                                                          !
+! Functions defined here:                                                  !
 ! - PLT%init                                                               !
 ! - PLT%xlim                                                               !
 ! - PLT%ylim                                                               !
 ! - PLT%labels                                                             !
 ! - PLT%plot                                                               !
+! - PLT%show                                                               !
 ! -------------------------------------------------------------------------!
 
 module module_plplot
@@ -72,6 +80,10 @@ contains
   ! ===================================================================
   ! ...
   subroutine plplot_init(PLT,device,filename,background,foreground)
+  ! ... Subroutine to initialize the PLPLOT graphical routines.
+  ! ... Initialization requires setting the device. Optionally, we can
+  ! ... specify output plot filename, and the background and foreground
+  ! ... colors.
 
     class(type_plplot), intent(inout)              :: PLT
     character(len=*), intent(in), optional         :: device
@@ -185,6 +197,7 @@ contains
   ! ===================================================================
   ! ...
   subroutine plplot_labels(PLT,xlabel,ylabel,title,color,fontsize)
+  ! ... Subroutine to 
 
     class(type_plplot), intent(inout)              :: PLT
     character(len=*), intent(in), optional         :: xlabel
@@ -213,8 +226,7 @@ contains
 
     ! ... Local variables
     ! ...
-    integer i, RGB(3)
-    real(dp) xmin,xmax,ymin,ymax
+    integer i
     real(dp) x(size(y))
 
     do i=1,size(y)
@@ -222,48 +234,6 @@ contains
     enddo
 
     call plot_xy(PLT,x,y,color,linewidth)
-
-!    if (.not.PLT%xlimits_set) then
-!      xmin = minval(x)
-!      xmax = maxval(x)
-!    else
-!      xmin = PLT%xmin
-!      xmax = PLT%xmax
-!    endif
-!
-!    if (.not.PLT%ylimits_set) then
-!      ymin = minval(y)
-!      ymax = maxval(y)
-!    else
-!      ymin = PLT%ymin
-!      ymax = PLT%ymax
-!    endif
-!
-!    ! ... Plot limits
-!    call plenv(xmin,xmax,ymin,ymax,0,0)
-!
-!    ! ... Labels (black)
-!    call plcol0(1)
-!    call pllab( trim(PLT%xlabel), trim(PLT%ylabel), trim(PLT%title) )
-!
-!    if (present(color)) then
-!      RGB = color2rgb(color)
-!      call plscol0(10, RGB(1), RGB(2), RGB(3))  ! Background
-!      call plcol0(10)
-!    else
-!      PLT%color_index = PLT%color_index + 1
-!      if (PLT%color_index.GT.10) PLT%color_index = 1
-!      call plcol0(PLT%color_index)
-!    endif
-!
-!    ! ... Line width
-!    if (present(linewidth)) then
-!      call plwidth(linewidth)
-!    else
-!      call plwidth(PLT%linewidth)
-!    endif
-!    
-!    call plline(x,y)
 
   end subroutine plot_y
   ! ...

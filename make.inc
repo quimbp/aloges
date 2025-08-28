@@ -64,6 +64,11 @@ CDFINC = -I$(NF90_INC)
 CDFLIB = -L$(NF90_LIB) -lnetcdff
 
 # PLPLOT paths for ubuntu
-#
+# To graphic module module_plplot requires the PLPLOT package
+# In ubuntu systems:
+# sudo apt install plplot-doc plplot-dev 
+# To avoid compiling this module, let it empty
+#MODULE_PLPLOT = 
+MODULE_PLPLOT = module_plplot.o
 PLPLOT_INC = -I/usr/lib/x86_64-linux-gnu/fortran/modules/plplot/
 PLPLOT_LIB = -lplplotfortran

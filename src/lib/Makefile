@@ -33,7 +33,20 @@ INCDIR = ../../include/
 INC = $(PLPLOT_INC) $(CDFINC)
 
 TARGET = ../../lib/libaloges.a
-OBJ = module_types.o module_plplot.o module_constants.o             \
+
+$(info $(MODULE_PLPLOT))
+
+ifneq ($(strip (MODULE_PLPLOT)),)
+  $(info "Compiling with PLPLOT utilities")
+  PLSRC = module_plplot.f90
+  PLOBJ = module_plplot.o
+else
+  $(info "Compiling without PLPLOT utilities")
+  PLSRC = module_plplot_empty.f90
+  PLOBJ = module_plplot_empty.o
+endif
+
+OBJ = module_types.o $(PLOBJ) module_constants.o                    \
       module_dictionary.o module_nc.o                               \
       module_math.o module_tools.o module_time.o                    \
       module_grid.o module_lineargs.o  module_help.o                \
@@ -78,6 +91,9 @@ module_types.o: module_types.f90
 
 module_plplot.o: module_types.f90 module_plplot.f90
 	$(FC) -c $(FFLAGS) $(INC) module_plplot.f90
+
+module_plplot_empty.o: module_plplot_empty.f90
+	$(FC) -c $(FFLAGS) $(INC) module_plplot_empty.f90
 
 module_constants.o: module_types.o module_constants.f90
 	$(FC) -c $(FFLAGS) $(INC) module_constants.f90
