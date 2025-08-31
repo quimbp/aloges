@@ -90,6 +90,8 @@ type type_dataset
   integer                                            :: nvars
   integer                                            :: natts
   integer                                            :: unlimid
+  character(len=maxlen), dimension(:), allocatable   :: dimlist
+  character(len=maxlen), dimension(:), allocatable   :: varlist
   type(type_nc_dimension), dimension(:), allocatable :: dimension
   type(type_nc_variable), dimension(:), allocatable  :: variable
   type(type_nc_attribute), dimension(:), allocatable :: attribute
@@ -130,14 +132,13 @@ contains
     endif
 
     err = NF90_INQUIRE(fid,ndims,nvars,natts,unlimid)
+    call nc_error(err,'In NC_OPEN: unable to open file')
     SD%ndims   = ndims
     SD%nvars   = nvars
     SD%natts   = natts
     SD%unlimid = unlimid
-    if (err.ne.NF90_NOERR) then
-      SD%err = err
-      return
-    endif
+    allocate(SD%dimlist(ndims))
+    allocate(SD%varlist(nvars))
 
     if (natts.gt.0) then
       allocate(SD%attribute(natts))
@@ -152,6 +153,7 @@ contains
         err = NF90_INQUIRE_DIMENSION(fid,i,word,dlen)
         SD%dimension(i)%name = trim(word)
         SD%dimension(i)%len  = dlen
+        SD%dimlist(i) = trim(word)
       enddo
     endif
 
@@ -162,6 +164,7 @@ contains
         SD%variable(i)%name = trim(word)
         SD%variable(i)%type = vtype
         SD%variable(i)%ndims = ndims
+        SD%varlist(i) = trim(word)
         allocate(SD%variable(i)%dimids(ndims))
         allocate(SD%variable(i)%shape(ndims))
         SD%variable(i)%dimids(:) = dimids(1:ndims)
@@ -398,9 +401,6 @@ contains
     if (varid.lt.0) stop 'ERROR nc_variable_read1d: Variable not found'
 
     ndims = SD%variable(varid)%ndims
-    !print*, 'varname = ', trim(varname)
-    !print*, 'varid = ', varid
-    !print*, 'ndims = ', ndims 
     if (ndims.ne.SD%variable(varid)%ndims) stop 'ERROR nc_variable_read1d: incompatible dimensions'
 
     allocate(ppo(ndims))
@@ -423,8 +423,6 @@ contains
       endif
     endif
 
-    !print*, 'ppo = ', ppo
-    !print*, 'ppf = ', ppf
     n = 1
     do i=1,ndims
       if (ppf(i)-ppo(i)+1.gt.n) n = ppf(i)-ppo(i)+1
@@ -831,5 +829,8 @@ contains
     if (varid.lt.0) stop 'ERROR nc_variable_id: Variable not found'
 
   end function nc_variable_id
+  ! ...
+  ! ===================================================================
+  ! ...
 
 end module module_nc
