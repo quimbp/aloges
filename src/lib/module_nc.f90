@@ -65,7 +65,7 @@ type type_nc_attribute
   logical, dimension(:), allocatable                 :: lval
   integer, dimension(:), allocatable                 :: ival
   real(dp), dimension(:), allocatable                :: dval
-  character(len=maxlen)                              :: sval
+  character(len=:), allocatable                      :: sval
 end type type_nc_attribute
 
 type type_nc_variable
@@ -111,7 +111,7 @@ contains
   subroutine nc_open(SD,filename) 
 
     class(type_dataset), intent(inout)               :: SD
-    character(len=maxlen), intent(in)                :: filename
+    character(len=*), intent(in)                :: filename
 
     ! ... Local variables
     ! ...
@@ -288,8 +288,8 @@ contains
 
     ! ... Local variables
     integer i,atype,alen,err,iword
-    character(len=maxlen) word,word1
-    character(len=:), allocatable           :: word2
+    character(len=maxlen) word
+    character(len=:), allocatable           :: word1
 
     err = NF90_INQ_ATTNAME(fid,varid,attid,word)
     err = NF90_INQUIRE_ATTRIBUTE(fid,varid,word,atype,alen)
@@ -303,6 +303,8 @@ contains
       stop 'NF90_BYTE !'
     endif
     if (atype.EQ.NF90_CHAR) then
+      allocate(character(len=alen) :: word1)
+      allocate(character(len=alen) :: ATT%sval)
       err = NF90_GET_ATT(fid,varid,word,word1)
       ATT%sval = trim(word1)
     endif
@@ -316,12 +318,10 @@ contains
     endif
     if (atype.EQ.NF90_STRING) then
       ! AAAA
-      print*, fid, varid, word, atype
+      allocate(character(len=alen) :: word1)
+      allocate(character(len=alen) :: ATT%sval)
       err = NF90_GET_ATT(fid,varid,word,word1)
-      print*, 'err = ', err
-      print*, err, NF90_STRERROR(err), word2
-      !ATT%sval = word2(:)
-      print*, 'NF90_STRING: ', trim(ATT%sval)
+      ATT%sval = trim(word1)
     endif
 
   end function nc_read_attribute
