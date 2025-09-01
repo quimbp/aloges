@@ -32,6 +32,10 @@
 ! - PLT%labels                                                             !
 ! - PLT%plot                                                               !
 ! - PLT%show                                                               !
+! - AX%new                                                                 !
+! - AX%xlim                                                                !
+! - AX%ylim                                                                !
+! - AX%labels                                                              !
 ! -------------------------------------------------------------------------!
 
 module module_plplot
@@ -43,19 +47,41 @@ implicit none
 private
 public type_plplot
 
-type type_plplot
-  logical                                  :: init_done = .False.
+type type_plaxis
+  logical                                  :: new_axis = .True.
+  logical                                  :: env_done = .False.
   logical                                  :: xlimits_set = .False.
   logical                                  :: ylimits_set = .False.
-  integer                                  :: color_index = 0
-  real(dp)                                 :: linewidth = 1.0D0
-  real(dp)                                 :: fontsize = 1.0D0
+  logical                                  :: show_grid = .False.
+  logical                                  :: axes_equal = .False.
+  logical                                  :: xlog = .False.
+  logical                                  :: ylog = .False.
   real(dp)                                 :: xmin,xmax,ymin,ymax
-  character(len=20)                        :: device
+  real(dp)                                 :: fontsize = 1.0D0
   character(len=50)                        :: xlabel = ''
   character(len=50)                        :: ylabel = ''
   character(len=50)                        :: title = ''
-  character(len=50)                        :: fontcolor = 'black'
+  character(len=50)                        :: fontcolor  = 'black'
+  character(len=50)                        :: foreground = 'black'
+  contains
+    procedure                   :: new           => plaxis_new
+    procedure                   :: ylim          => plaxis_ylim
+    procedure                   :: xlim          => plaxis_xlim
+    procedure                   :: labels        => plaxis_labels
+end type type_plaxis
+
+
+type type_plplot
+  type(type_plaxis)                        :: ax
+  logical                                  :: multiplot = .False.
+  logical                                  :: init_done = .False.
+  logical                                  :: env_done = .False.
+  integer                                  :: color_index = 0
+  integer                                  :: nrows = 1
+  integer                                  :: ncols = 1
+  real(dp)                                 :: linewidth = 1.0D0
+  character(len=20)                        :: device
+  character(len=80)                        :: version
   character(len=maxlen)                    :: output_filename
   contains
     procedure                   :: init          => plplot_init
@@ -79,7 +105,8 @@ contains
   ! ===================================================================
   ! ===================================================================
   ! ...
-  subroutine plplot_init(PLT,device,filename,background,foreground)
+  subroutine plplot_init(PLT,device,filename,background,foreground, &
+                         multiplot)
   ! ... Subroutine to initialize the PLPLOT graphical routines.
   ! ... Initialization requires setting the device. Optionally, we can
   ! ... specify output plot filename, and the background and foreground
@@ -90,11 +117,18 @@ contains
     character(len=*), intent(in), optional         :: filename
     character(len=*), intent(in), optional         :: background
     character(len=*), intent(in), optional         :: foreground
+    integer, dimension(2), intent(in), optional    :: multiplot
 
     ! ... Local variables
     ! ...
     integer RGB(3)
 
+    ! ... Retrieve the PLPLOT version:
+    ! ...
+    call plgver(PLT%version)
+
+    ! ... Check if version has been specified by the user
+    ! ...
     if (present(device)) then
       PLT%device = trim(device)
     else
@@ -128,10 +162,58 @@ contains
       call plscol0(1,   0,   0,   0)        ! Foreground: black, axis, text
     endif
 
-    call plinit()
+    if (present(multiplot)) then
+      PLT%multiplot = .True.
+      PLT%nrows = multiplot(1)
+      PLT%ncols = multiplot(2)
+      call plstar(PLT%ncols,PLT%nrows)
+    else
+      PLT%multiplot = .False.
+      call plinit()
+    endif
+
     PLT%init_done = .True.
+    PLT%env_done  = .False.
 
   end subroutine plplot_init
+  ! ...
+  ! ===================================================================
+  ! ...
+  subroutine plaxis_new(AX,color,grid,xlog,ylog,xlim,ylim)
+
+    class(type_plaxis), intent(inout)            :: AX
+    character(len=*), intent(in), optional       :: color
+    logical, intent(in), optional                :: grid
+    logical, intent(in), optional                :: xlog
+    logical, intent(in), optional                :: ylog
+    real(dp), dimension(2), intent(in), optional :: xlim
+    real(dp), dimension(2), intent(in), optional :: ylim
+    
+    ! ... Default colors:
+    ! ...
+    AX%fontcolor  = 'black'
+    AX%foreground = 'black'
+
+    if (present(grid))  AX%show_grid  = grid
+    if (present(xlog))  AX%xlog       = xlog
+    if (present(ylog))  AX%ylog       = ylog
+    if (present(ylog))  AX%ylog       = ylog
+    if (present(color)) AX%foreground = trim(color)
+    if (present(xlim)) then
+      AX%xmin = xlim(1)
+      AX%xmax = xlim(2)
+      AX%xlimits_set = .True.
+    endif
+    if (present(ylim)) then
+      AX%ymin = ylim(1)
+      AX%ymax = ylim(2)
+      AX%ylimits_set = .True.
+    endif
+    
+    AX%new_axis = .True.
+    AX%env_done = .False.
+ 
+  end subroutine plaxis_new
   ! ...
   ! ===================================================================
   ! ...
@@ -175,9 +257,9 @@ contains
     class(type_plplot), intent(inout)              :: PLT
     real(dp), intent(in)                           :: xmin,xmax
 
-    PLT%xmin = xmin
-    PLT%xmax = xmax
-    PLT%xlimits_set = .True.
+    PLT%ax%xmin = xmin
+    PLT%ax%xmax = xmax
+    PLT%ax%xlimits_set = .True.
 
   end subroutine plplot_xlim
   ! ...
@@ -188,16 +270,41 @@ contains
     class(type_plplot), intent(inout)              :: PLT
     real(dp), intent(in)                           :: ymin,ymax
 
-    PLT%ymin = ymin
-    PLT%ymax = ymax
-    PLT%ylimits_set = .True.
+    PLT%ax%ymin = ymin
+    PLT%ax%ymax = ymax
+    PLT%ax%ylimits_set = .True.
 
   end subroutine plplot_ylim
   ! ...
   ! ===================================================================
   ! ...
+  subroutine plaxis_xlim(AX,xmin,xmax)
+
+    class(type_plaxis), intent(inout)              :: AX
+    real(dp), intent(in)                           :: xmin,xmax
+
+    AX%xmin = xmin
+    AX%xmax = xmax
+    AX%xlimits_set = .True.
+
+  end subroutine plaxis_xlim
+  ! ...
+  ! ===================================================================
+  ! ...
+  subroutine plaxis_ylim(AX,ymin,ymax)
+
+    class(type_plaxis), intent(inout)              :: AX
+    real(dp), intent(in)                           :: ymin,ymax
+
+    AX%ymin = ymin
+    AX%ymax = ymax
+    AX%ylimits_set = .True.
+
+  end subroutine plaxis_ylim
+  ! ...
+  ! ===================================================================
+  ! ...
   subroutine plplot_labels(PLT,xlabel,ylabel,title,color,fontsize)
-  ! ... Subroutine to 
 
     class(type_plplot), intent(inout)              :: PLT
     character(len=*), intent(in), optional         :: xlabel
@@ -206,13 +313,32 @@ contains
     character(len=*), intent(in), optional         :: color
     real(dp), intent(in), optional                 :: fontsize
 
-    if (present(xlabel)) PLT%xlabel = trim(xlabel)
-    if (present(ylabel)) PLT%ylabel = trim(ylabel)
-    if (present(title))  PLT%title  = trim(title)
-    if (present(color)) PLT%fontcolor  = trim(color)
-    if (present(fontsize)) PLT%fontsize  = fontsize
+    if (present(xlabel))   PLT%ax%xlabel = trim(xlabel)
+    if (present(ylabel))   PLT%ax%ylabel = trim(ylabel)
+    if (present(title))    PLT%ax%title  = trim(title)
+    if (present(color))    PLT%ax%fontcolor  = trim(color)
+    if (present(fontsize)) PLT%ax%fontsize  = fontsize
 
   end subroutine plplot_labels
+  ! ...
+  ! ===================================================================
+  ! ...
+  subroutine plaxis_labels(AX,xlabel,ylabel,title,color,fontsize)
+
+    class(type_plaxis), intent(inout)              :: AX
+    character(len=*), intent(in), optional         :: xlabel
+    character(len=*), intent(in), optional         :: ylabel
+    character(len=*), intent(in), optional         :: title
+    character(len=*), intent(in), optional         :: color
+    real(dp), intent(in), optional                 :: fontsize
+
+    if (present(xlabel))   AX%xlabel = trim(xlabel)
+    if (present(ylabel))   AX%ylabel = trim(ylabel)
+    if (present(title))    AX%title  = trim(title)
+    if (present(color))    AX%fontcolor  = trim(color)
+    if (present(fontsize)) AX%fontsize  = fontsize
+
+  end subroutine plaxis_labels
   ! ...
   ! ===================================================================
   ! ...
@@ -239,7 +365,7 @@ contains
   ! ...
   ! ===================================================================
   ! ...
-  subroutine plot_xy(PLT, x, y, color, linewidth)
+  subroutine plot_xy(PLT,x,y,color,linewidth)
   ! Case 2: X(:), Y(:)
 
     class(type_plplot), intent(inout)         :: PLT
@@ -250,35 +376,59 @@ contains
 
     ! ... Local variables
     ! ...
-    integer RGB(3)
+    logical new_environment
+    integer ibox,RGB(3)
     real(dp) xmin,xmax,ymin,ymax
 
-    print*, 'Hello'
-    if (.not.PLT%xlimits_set) then
-      xmin = minval(x)
-      xmax = maxval(x)
-    else
-      xmin = PLT%xmin
-      xmax = PLT%xmax
-    endif
+    new_environment = .False.
 
-    if (.not.PLT%ylimits_set) then
-      ymin = minval(y)
-      ymax = maxval(y)
-    else
-      ymin = PLT%ymin
-      ymax = PLT%ymax
-    endif
+    ! ... Check if the plot has been initialized
+    ! ...
+    if (.not.PLT%init_done) call PLT%init()
 
-    ! ... Plot limits
-    call plenv(xmin,xmax,ymin,ymax,0,0)
+    if (PLT%ax%new_axis.and..not.PLT%ax%env_done) then
+      new_environment = .True.
+      PLT%ax%env_done = .True.
+      PLT%ax%new_axis = .False.
+    endif
+  
+    if (new_environment) then
+      if (.not.PLT%ax%xlimits_set) then
+        xmin = minval(x)
+        xmax = maxval(x)
+      else
+        xmin = PLT%ax%xmin
+        xmax = PLT%ax%xmax
+      endif
+
+      if (.not.PLT%ax%ylimits_set) then
+        ymin = minval(y)
+        ymax = maxval(y)
+      else
+        ymin = PLT%ax%ymin
+        ymax = PLT%ax%ymax
+      endif
+
+      ! ... Grid
+      ! ...
+      ibox = 10*merge(1,0,PLT%ax%xlog) + 20*merge(1,0,PLT%ax%ylog) + 2*merge(1,0,PLT%ax%show_grid)
+
+      ! ... Set the new environment
+      ! ... The color from the axis foreground
+      ! ...
+      RGB = color2rgb(PLT%ax%foreground)
+      call plscol0(10, RGB(1), RGB(2), RGB(3))  ! Background
+      call plcol0(10)
+      call plenv(xmin,xmax,ymin,ymax,0,ibox)
+    endif
 
     ! ... Labels (black)
-    RGB = color2rgb(PLT%fontcolor)
+    ! ...
+    RGB = color2rgb(PLT%ax%fontcolor)
     call plscol0(10, RGB(1), RGB(2), RGB(3))  ! Background
     call plcol0(10)
-    call plschr(0.0D0,PLT%fontsize) 
-    call pllab( trim(PLT%xlabel), trim(PLT%ylabel), trim(PLT%title) )
+    call plschr(0.0D0,PLT%ax%fontsize) 
+    call pllab( trim(PLT%ax%xlabel), trim(PLT%ax%ylabel), trim(PLT%ax%title) )
 
     if (present(color)) then
       RGB = color2rgb(color)
