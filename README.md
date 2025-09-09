@@ -1,4 +1,4 @@
-# aloges model and library
+# Aloges model and library
 Aloges Lagrangian Model
 
 ## Introduction
@@ -18,8 +18,6 @@ The aloges library has been compiled and tested with the gfortran compiler. In U
 The library includes plotting utilities built upon the PLPLOT library (https://plplot.sourceforge.net/) bindings for the Fortran language.
 Before compiling the code, if these utilities are wanted, the user must install the fortran library:
 
-> sudo apt-get install libplplotfortran0
->
 > sudo apt-get install libplplot-dev
 >
 > sudo apt-get install plplot-driver-cairo plplot-driver-qt plplot-driver-wxwidgets plplot-driver-xwin plplot-tcl
