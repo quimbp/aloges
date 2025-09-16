@@ -1,0 +1,227 @@
+\documentclass[12pt,a4paper]{report}
+
+% ------------------------------------------------------------
+% Packages
+% ------------------------------------------------------------
+\usepackage[utf8]{inputenc}      % Encoding
+\usepackage[T1]{fontenc}         % Font encoding
+\usepackage{lmodern}             % Latin Modern font
+\usepackage{geometry}            % Page margins
+\geometry{margin=1in}
+\usepackage{setspace}            % Line spacing
+\usepackage{graphicx}            % Figures
+\usepackage{caption}             % Better captions
+\usepackage{subcaption}          % Subfigures
+\usepackage{amsmath, amssymb}    % Math
+\usepackage{hyperref}            % Clickable refs
+\usepackage{listings}            % Code listings
+\usepackage{xcolor}              % Colors
+\usepackage{fancyhdr}            % Headers and footers
+\usepackage{biblatex}            % Bibliography
+\addbibresource{references.bib}  % Bib file
+
+% ------------------------------------------------------------
+% Fortran style
+% ------------------------------------------------------------
+\lstdefinelanguage{Fortran90}%
+  {morekeywords={module, use, implicit, none, integer, parameter, real, end},%
+   sensitive=true,%
+   morecomment=[l]!%
+  }
+
+\lstset{%
+  language=Fortran90,
+  basicstyle=\ttfamily\small,
+  keywordstyle=\color{blue}\bfseries,
+  commentstyle=\color{gray}\itshape,
+  numbers=none,
+  showstringspaces=false,
+  frame=single,
+  rulecolor=\color{black!30}
+}
+
+% ------------------------------------------------------------
+% Header & Footer
+% ------------------------------------------------------------
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{Technical Report Title}
+\fancyhead[R]{\leftmark}
+\fancyfoot[C]{\thepage}
+
+% ------------------------------------------------------------
+% Title Page
+% ------------------------------------------------------------
+\title{
+    \vspace{2in}
+    \Huge \textbf{The Aloges Project} \\
+    \vspace{0.5in}
+    \Large 1. Library contents\\
+    \vspace{1in}
+    \textbf{Joaquim Ballabrera} \\
+    Department of Ocean Physics and Technology / ICM - CSIC \\
+    \vfill
+    %\includegraphics[width=0.3\textwidth]{logo.png} \\
+    \vfill
+    \today
+}
+\author{}
+\date{}
+
+% ------------------------------------------------------------
+% Document
+% ------------------------------------------------------------
+\begin{document}
+
+\maketitle
+\pagenumbering{roman}
+\tableofcontents
+\listoffigures
+\listoftables
+
+\newpage
+\pagenumbering{arabic}
+
+% ------------------------------------------------------------
+% Sections
+% ------------------------------------------------------------
+\chapter{Introduction}
+Provide background, motivation, and scope of the report.
+
+\chapter{Literature Review}
+Summarize existing work related to your report.
+
+\chapter{Modules}
+Describe methods, models, algorithms, or experiments used.
+
+\section{Module module\_types}
+
+\paragraph{} 
+The \texttt{module\_types} module defines a small set of standard Fortran 
+numerical type parameters and constants to ensure consistency across the Aloges utilities. To improve protability, it imports kind definitions from the intrinsic \texttt{iso\_fortran\_env} module and assigns 
+them to more convenient aliases: \texttt{i4} for 32-bit integers, \texttt{sp} for 
+single-precision real numbers, and \texttt{dp} for double-precision real numbers. 
+In addition, it provides the parameter \texttt{maxlen}, which specifies a maximum 
+character string length. All the modules descrived here use this module to
+facilitate portability, readability and the uniform use of data precision throughout the whole library.
+
+\paragraph{}
+To include this module, the library modules invoke this module with the statement
+\begin{lstlisting}
+use module_types
+\end{lstlisting}
+\noindent at the beginning of the code. Then, to define a double-precision, real variable in a portable, architecture-independent manner, the user can simply use:
+
+\begin{lstlisting}
+real(dp) a        ! Double precision variable.
+\end{lstlisting}
+
+\section{Module module\_constants}
+
+\paragraph{} 
+The \texttt{module\_constants} module provides a comprehensive set of constants and utility values commonly used in geophysical and mathematical computations. 
+It includes logical constants, mathematical constants (integers, fractions, $\pi$, $e$, conversions between degrees and radians), complex numbers, as well as representations for NaN and Infinity. 
+This organization ensures portability, readability, and consistency across numerical code, especially when working with double-precision and single-precision real numbers in Fortran. 
+The module also contains a structured type \texttt{type\_constants} that encapsulates physical and geophysical constants such as standard gravity, Earth properties, solar irradiance, and universal physical constants.
+
+\paragraph{} 
+To aid clarity and usability, the constants are categorized into logical, mathematical, and physical/geophysical constants. 
+Mathematical constants are defined as \texttt{parameter} values, ensuring they are compile-time constants, whereas NaN and Infinity values are initialized at runtime using dedicated subroutines (\texttt{set\_nan}, \texttt{set\_inf}). 
+Physical constants are stored within the \texttt{type\_constants} derived type, which is instantiated as \texttt{constants} for immediate use. 
+This module allows for convenient reference to fundamental values and simplifies calculations in scientific simulations.
+
+% ------------------------------------------------------------
+% Table: Mathematical constants
+% ------------------------------------------------------------
+\begin{table}[h!]
+\centering
+\caption{Mathematical constants defined in \texttt{module\_constants}}
+\begin{tabular}{llc}
+\hline
+\textbf{Name} & \textbf{Value} & \textbf{Description} \\
+\hline
+\texttt{pi}      & 3.141592653589793$_{dp}$ & $\pi$ \\
+\texttt{two\_pi} & 2$\pi$ & Two times $\pi$ \\
+\texttt{half\_pi}& 0.5$\pi$ & Half of $\pi$ \\
+\texttt{inv\_pi} & $1/\pi$ & Reciprocal of $\pi$ \\
+\texttt{euler}& 2.718281828459045$_{dp}$ & Base of natural logarithm \\
+\texttt{deg2rad} & $\pi/180$ & Degrees to radians conversion \\
+\texttt{rad2deg} & $180/\pi$ & Radians to degrees conversion \\
+\texttt{half}    & 0.5 & Fraction one-half \\
+\texttt{quarter} & 0.25 & Fraction one-quarter \\
+\texttt{minus}   & -1.0 & Negative one \\
+\texttt{zero}    & 0.0 & Zero \\
+\texttt{one}     & 1.0 & One \\
+\texttt{two}     & 2.0 & Two \\
+\hline
+\end{tabular}
+\end{table}
+
+% ------------------------------------------------------------
+% Table: Physical constants
+% ------------------------------------------------------------
+\begin{table}[h!]
+\centering
+\caption{Physical and geophysical constants defined in \texttt{type\_constants}}
+\begin{tabular}{llc}
+\hline
+\textbf{Name} & \textbf{Value} & \textbf{Description} \\
+\hline
+\texttt{Earth\_Gravity}     & 9.80665$_{dp}$ & Standard gravity [m/s$^2$] \\
+\texttt{Earth\_Omega}       & 7.2921159$\times10^{-5}$$_{dp}$ & Earth's angular velocity [rad/s] \\
+\texttt{Earth\_Radius}      & 6.371315$\times10^6$$_{dp}$ & Mean Earth radius [m] \\
+\texttt{Earth\_Mass}         & 5.9722$\times10^{24}$$_{dp}$ & Earth mass [kg] \\
+\texttt{Earth\_Declination} & 23.446$_{dp}$ & Orbital declination [deg] \\
+\texttt{Solar\_Constant}    & 1365.2$_{dp}$ & Solar irradiance at 1 AU [W/m$^2$] \\
+\texttt{G}                   & 6.67430$\times10^{-11}$$_{dp}$ & Gravitational constant [m$^3$/kg/s$^2$] \\
+\texttt{sigma\_SB}           & 5.670374419$\times10^{-8}$$_{dp}$ & Stefan-Boltzmann constant [W/m$^2$/K$^4$] \\
+\texttt{k\_B}                & 1.380649$\times10^{-23}$$_{dp}$ & Boltzmann constant [J/K] \\
+\texttt{R\_gas}              & 8.314462618$_{dp}$ & Universal gas constant [J/mol/K] \\
+\texttt{Avogadro\_Number}                & 6.02214076$\times10^{23}$$_{dp}$ & Avogadro number [1/mol] \\
+\hline
+\end{tabular}
+\end{table}
+
+% ------------------------------------------------------------
+% Example usage
+% ------------------------------------------------------------
+\paragraph{Example usage: Mathematical constants}
+\begin{verbatim}
+  ! Compute circumference of a circle
+  use module_constants
+  real(dp) :: radius, circumference
+  radius = 6371.0_dp
+  circumference = two_pi * radius
+\end{verbatim}
+
+\paragraph{Example usage: Physical constants}
+\begin{verbatim}
+  ! Compute gravitational force between Earth and a satellite
+  use module_constants
+  real(dp) :: F, m_sat, r
+  m_sat = 1000.0_dp
+  r = constants%Earth_Radius + 400000.0_dp  ! 400 km altitude
+  F = constants%G * constants%Earth_Mass * m_sat / r**2
+\end{verbatim}
+
+
+\chapter{Results and Discussion}
+Present results, use figures and tables, and discuss their meaning.
+
+\chapter{Conclusion and Future Work}
+Summarize contributions, limitations, and possible future directions.
+
+% ------------------------------------------------------------
+% Appendix (optional)
+% ------------------------------------------------------------
+\appendix
+\chapter{Additional Data}
+Put supplementary material here.
+
+% ------------------------------------------------------------
+% References
+% ------------------------------------------------------------
+\printbibliography
+
+\end{document}
+
