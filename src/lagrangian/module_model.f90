@@ -28,6 +28,7 @@ use module_constants
 use module_nc
 use module_math
 use module_time
+use module_solar
 use module_grid
 
 use module_alm
