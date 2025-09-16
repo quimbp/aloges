@@ -118,8 +118,8 @@ contains
     ! ... Local variables
     ! ...
     integer err,fid,ndims,nvars,natts,unlimid
-    integer i,j,dlen,alen,vtype,atype,dimids(100)
-    character(len=maxlen) word,word2,attname
+    integer i,j,dlen,vtype,dimids(100)
+    character(len=maxlen) word,attname
 
 
     err = NF90_OPEN(filename,0,fid)
@@ -203,7 +203,7 @@ contains
     ! ... Local variables
     ! ...
     integer i,j
-    character(len=maxlen) word,dname
+    character(len=maxlen) word
 
     ! ... Remove the extension and print basename
     ! ...
@@ -290,7 +290,7 @@ contains
     type(type_nc_attribute)                  :: ATT
 
     ! ... Local variables
-    integer i,atype,alen,err,iword
+    integer atype,alen,err
     character(len=maxlen) word
     character(len=:), allocatable           :: word1
 
@@ -580,7 +580,7 @@ contains
     ! ... Local variables:
     ! ...
     logical copy
-    integer err,vtype,ndim,j,att_type,att_len,ndis
+    integer err,vtype,ndim,j,att_type,att_len
     character(len=120) name,att_name
     integer, dimension(100)  :: dimids
     character(len=maxlen) ldis
@@ -767,7 +767,7 @@ contains
 
     ! ... Local variables
     ! ...
-    integer err,ndims,nvars,ngatts,unlimid
+    integer err
     integer vtype,vndims,dimids(10),vnatts,idi
     character(len=40) vname
 
@@ -792,7 +792,7 @@ contains
 
     ! ... Local variables
     ! ...
-    integer err,ndims,nvars,ngatts,unlimid
+    integer err
     integer vtype,vndims,dimids(10),vnatts
     character(len=40) vname
 

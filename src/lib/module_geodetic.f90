@@ -472,4 +472,37 @@ contains
   ! ...
   ! ===================================================================
   ! ...
+  subroutine dms2dec(gg,mm,ss,deg) 
+    ! ... Converts degrees, minutes and seconds (integers) to decimal degrees (double precission).
+
+    integer, intent(in)                            :: gg,mm,ss
+    real(dp), intent(out)                          :: deg
+
+    deg = abs(gg) + (mm + ss/60.0D0)/60.0D0
+    if (gg.lt.0.0D0) deg = -deg
+   
+  end subroutine dms2dec 
+  ! ...
+  ! =====================================================================
+  ! ...
+  subroutine dec2dms(deg,gg,mm,ss) 
+    ! ... Converts decimal degrees (double precission) to degrees, minutes and seconds (integers)
+
+    real(dp), intent(in)                           :: deg
+    integer, intent(out)                           :: gg,mm,ss
+
+    real(dp) sec
+    integer res
+
+    sec = anint(abs(deg) * 3600.0D0)
+    ss  = mod(nint(sec),60)
+    res = nint((sec - ss) / 60.0D0) 
+    mm  = mod(res,60)
+    gg  = (res - mm)/60
+    if (deg.lt.0) gg = -gg
+    
+  end subroutine dec2dms 
+  ! ...
+  ! =====================================================================
+  ! ...
 end module module_geodetic

@@ -145,10 +145,10 @@ contains
   ! ...
   subroutine crash(message)
 
-    character(len=*)                               :: message
+    character(len=*), intent(in)                   :: message
 
     write(0,*) '> ERROR: ', trim(message)
-    stop 1
+    error stop 'aloges crash'
 
   end subroutine crash
   ! ...
@@ -850,9 +850,52 @@ contains
     do i = 2, size(arr)
         mask(i) = .not. any(arr(i) == arr(1:i-1))
     end do
-
     unique_arr = pack(arr, mask)
   end function unique_elements_r
+  ! ...
+  ! ===================================================================
+  ! ...
+  function int2str(i, width) result(str)
+    integer, intent(in) :: i
+    integer, intent(in), optional :: width
+    character(len=:), allocatable :: str
+
+    ! ... Local variables
+    ! ...
+    character(len=20) :: temp 
+  
+    if (present(width)) then
+      write(temp, '(I0)') i
+      str = repeat('0', max(0, width - len_trim(temp))) // trim(temp)
+    else
+      write(temp, '(I0)') i
+      str = trim(temp)
+    endif
+  end function int2str 
+  ! ...
+  ! ===================================================================
+  ! ...
+  function join(strings, delimiter) result(joined)
+    character(len=*), dimension(:), intent(in) :: strings 
+    character(len=*), intent(in) :: delimiter
+    character(len=:), allocatable :: joined
+    integer :: i, total_len
+  
+    total_len = 0
+    do i = 1, size(strings)
+      total_len = total_len + len_trim(strings(i))
+    end do  
+    total_len = total_len + (size(strings) - 1) * len(delimiter)
+  
+    allocate(character(len=total_len) :: joined) 
+    joined = ''
+  
+    do i = 1, size(strings)
+      if (i > 1) joined = joined // delimiter
+      joined = joined // trim(strings(i))
+    end do  
+
+  end function join
   ! ...
   ! ===================================================================
   ! ...

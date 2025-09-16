@@ -34,6 +34,7 @@ use module_nc
 use module_interp
 use module_tools
 use module_time
+use module_solar
 use module_grid
 use module_lineargs
 use module_help
