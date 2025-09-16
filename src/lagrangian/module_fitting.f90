@@ -743,8 +743,8 @@ contains
         nv = nv + 1
         if (Spherical) then
           ym =  0.5D0*(T%y(pp,ll+1)+T%y(pp,ll))
-          dx = REarth*dx*cos(ym)
-          dy = REarth*dy
+          dx = constants%Earth_Radius*dx*cos(ym)
+          dy = constants%Earth_Radius*dy
         endif
         u = dx/dt
         v = dy/dt

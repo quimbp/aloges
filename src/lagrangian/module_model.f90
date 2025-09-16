@@ -276,8 +276,8 @@ contains
     if (noise_model_1) then
       ! ... Horizontal noise
       veps = randn()
-      vx = noise_V1*veps*sin(dpi*veps)
-      vy = noise_V1*veps*cos(dpi*veps)
+      vx = noise_V1*veps*sin(two_pi*veps)
+      vy = noise_V1*veps*cos(two_pi*veps)
       veps = randn()
       vz = noise_W1*veps
     else
@@ -540,7 +540,7 @@ contains
     if (GOU%Cartesian) then
       dx = (GOU%xmax-GOU%xmin)/(GOU%nx-1)          ! meters
     else
-      dx = Rearth*(GOU%xmax-GOU%xmin)/(GOU%nx-1)   ! meters
+      dx = constants%Earth_Radius*(GOU%xmax-GOU%xmin)/(GOU%nx-1)   ! meters
     endif
     if (model_fixed_ou) then
       vmax = model_value_ou
@@ -552,7 +552,7 @@ contains
     if (GOV%Cartesian) then
       dx = (GOV%xmax-GOV%xmin)/(GOV%nx-1)          ! meters
     else
-      dx = Rearth*(GOV%xmax-GOV%xmin)/(GOV%nx-1)   ! meters
+      dx = constants%Earth_Radius*(GOV%xmax-GOV%xmin)/(GOV%nx-1)   ! meters
     endif
     if (model_fixed_ov) then
       vmax = model_value_ov
@@ -688,7 +688,7 @@ contains
           ! ... step calculations. US Coast Guard Report CG-D-28-82
           ! ... US Department of Transportation, Washington DC.
           ! ...
-          critical_size = 9.52D0*(water_visc/gravity)**(2.D0/3.D0)/(1.0D0-Release_rho/model_value_rho)**(1.0D0/3.0D0)
+          critical_size = 9.52D0*(water_visc/constants%Earth_Gravity)**(2.D0/3.D0)/(1.0D0-Release_rho/model_value_rho)**(1.0D0/3.0D0)
           write(*,*) 'Maximum Particle diameter : ', critical_size
           !if (Release_size.gt.critical_size) call crash('Particle size > Minumum allowed size')
         endif
@@ -941,8 +941,8 @@ contains
               FLT(ifloat)%v = un(2)
               FLT(ifloat)%w = un(3)
               if (Spherical) then
-                dx = 0.001D0*Rearth*cos(xo(2))*(xn(1)-xo(1))
-                dy = 0.001D0*Rearth*(xn(2)-xo(2))
+                dx = 0.001D0*constants%Earth_Radius*cos(xo(2))*(xn(1)-xo(1))
+                dy = 0.001D0*constants%Earth_Radius*(xn(2)-xo(2))
               else
                 dx = xn(1)-xo(1)
                 dy = xn(2)-xo(2)
@@ -1857,8 +1857,8 @@ contains
         ! ... The velocity fluctuations can be calculated based on a random
         ! ... walk technique 
         veps = randn()
-        vx = noise_V0*veps*sin(dpi*veps)
-        vy = noise_V0*veps*cos(dpi*veps)
+        vx = noise_V0*veps*sin(two_pi*veps)
+        vy = noise_V0*veps*cos(two_pi*veps)
         ! ... Vertical noise
         veps = randn()
         vz = noise_W0*veps
@@ -1876,14 +1876,14 @@ contains
   ! ...
   function displacement(xo,u,dt) result (xn)
 
-    real(dp), parameter                          :: Iearth = 1.0D0/Rearth
-
     real(dp), dimension(ndims), intent(in)       :: xo                 ! Input in radians
     real(dp), dimension(ndims), intent(in)       :: u
     real(dp), intent(in)                         :: dt
     real(dp), dimension(ndims)                   :: xn                 ! Output in radians
 
     real(dp) udt,vdt,wdt,yo,yn,cosyo,dx
+    real(dp) IREarth
+
 
     udt  = dt*u(1)     !   [seconds] x [meters/seconds]
     vdt  = dt*u(2)     !   [seconds] x [meters/seconds]
@@ -1892,8 +1892,9 @@ contains
     if (Spherical) then
       ! ... Spherical metrics
       ! ...
-      udt = udt*IEarth    ! u*dt / REarth
-      vdt = vdt*IEarth    ! v*dt / REarth
+      IREarth = 1.0D0/constants%Earth_Radius
+      udt = udt * IREarth    ! u*dt / REarth
+      vdt = vdt * IREarth    ! v*dt / REarth
       yo  = xo(2)
       cosyo = cos(yo)
       yn = asin(sin(yo+vdt)*cos(udt))
@@ -1970,7 +1971,7 @@ contains
     ! ... Diameter_s = Sphere diameter (size)
     ! ... mu_m/rho_m = Kinematic viscosity      ! m2 s-1
     ! ...
-    wo = gravity*F%Psize*F%Psize*(1.0D0-F%Pdens/rw)/18.0D0/water_visc
+    wo = constants%Earth_Gravity*F%Psize*F%Psize*(1.0D0-F%Pdens/rw)/18.0D0/water_visc
 
   end function emergence_model
   ! ...
@@ -1994,8 +1995,8 @@ contains
     t = (date%hour*3600 + date%minute*60 + date%second)/86400.0D0
     Ha    = lat + pi*(t+t-1.0D0)
     dss   = date%yearday + 11       ! Days since winter solstice
-    delta = -deg2rad*DEarth*cos(dpi*dss/365.25D0)
-    Qswh  = max(0.0D0,Solar0*(sin(lat)*sin(delta)+cos(lat)*cos(delta)*cos(Ha)))
+    delta = -deg2rad*constants%Earth_Radius*cos(two_pi*dss/365.25D0)
+    Qswh  = max(0.0D0,constants%Solar_Constant*(sin(lat)*sin(delta)+cos(lat)*cos(delta)*cos(Ha)))
 
   end function Qswh
   ! ...

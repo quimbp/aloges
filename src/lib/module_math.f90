@@ -20,7 +20,7 @@
 ! Public License along with this program.                                  !
 ! If not, see <http://www.gnu.org/licenses/>.                              !
 ! - randn                                                                  !
-! - randname                                                               !
+! - randstr                                                                !
 ! - randseries                                                             !
 ! -------------------------------------------------------------------------!
 
@@ -32,6 +32,12 @@ use module_constants
 
 implicit none
 
+private
+public :: randn, randstr, randseries, arange, mean, variance, &
+          indexx, swap, imaxloc, median, corrcoef, erf, gamma, &
+          brent, golden, spline, quicksort, linspace, meshgrid, &
+          diff, gradient, cumsum, cumprod, percentile, interp1
+
 interface randn
   module procedure randn_r,randn_v,randn_a
 end interface randn
@@ -40,6 +46,15 @@ interface arange
   module procedure arange_i
   module procedure arange_dp
 end interface arange
+
+interface swap
+  module procedure swap_r
+  module procedure swap_v
+end interface swap
+
+interface interp1
+  module procedure interp1_r, interp1_v
+end interface interp1
 
 contains
 ! ...
@@ -124,7 +139,7 @@ contains
 
     integer, intent(in)                          :: m
     integer, intent(in)                          :: n
-    real(dp), dimension(:,:), pointer            :: ff
+    real(dp), dimension(:,:), allocatable        :: ff
 
     ! ... Local variables
     ! ...
@@ -137,8 +152,9 @@ contains
     real(dp), parameter                          :: r2 =  0.27846D0
     real(dp) u,v,x,y,q
 
-    if (.not.associated(ff)) allocate(ff(m,n))
+    if (.not.allocated(ff)) allocate(ff(m,n))
 
+    !$omp parallel do default(shared) private(i,j,u,v,x,y,q) collapse(2)
     do j=1,n
     do i=1,m
       do
@@ -164,7 +180,7 @@ contains
   ! ...
   ! ===================================================================
   ! ...
-  function randname(len,iseed) result(name)
+  function randstr(len,iseed) result(name)
 
   integer, intent(in)                            :: len
   integer, optional                              :: iseed
@@ -193,7 +209,7 @@ contains
   enddo
 
   return
-  end function randname
+  end function randstr
   ! ...
   ! ===================================================================
   ! ...
@@ -224,7 +240,6 @@ contains
       g = randn(n)
       g(n) = g(1)
 
-      print*, dlag, g(n), g(1)
       do iter=1,6*abs(dlag)
         do i=1,n
           im = i - 1
@@ -289,7 +304,7 @@ contains
   ! ...
   pure function arange_i(amin, amax, adelta) result(arange)
     ! ...
-    ! ... Returns a double precision vector from amin to amax with 
+    ! ... Returns an integer-valued vector from amin to amax with 
     ! ... an optional step of adelta.
     ! ...
 
@@ -384,7 +399,7 @@ contains
   ! ...
   ! ===================================================================
   ! ...
-  real(dp) function variance (A,W)
+  real(dp) function variance (A,W,biased)
 
     ! ... Calculates the variance = FACTOR * Sum (A(i)-mean(A))**2
     ! ... The value of FACTOR depends of W. By default, W=0, FACTOR = 1/(N-1)
@@ -397,9 +412,10 @@ contains
 
     real(dp), dimension(:), intent(in)     :: A
     real(dp), dimension(:), optional       :: W
+    logical, intent(in), optional          :: biased
 
     logicaL                                    :: weight = .false.
-    logical                                    :: biased = .false.
+    logical                                    :: isbiased = .false.
     integer N,i
     real(dp) xsum1,xsum2,ai,wi,Sw
     real(dp) nan
@@ -413,21 +429,34 @@ contains
     N = SIZE(A)
     if (N.EQ.0) return
 
-    if (PRESENT(W)) then
-      if (SIZE(W).EQ.1) then
-        if (W(1).EQ.0) then
-          biased = .false.
-        else if (W(1).EQ.1) then
-          biased = .true.
-        else
-          STOP 'ERROR in variance: Invalid normalization. Use 0 (unbiased) or 1 (biased)'
-        endif
-      else if (SIZE(W).EQ.N) then
-        weight = .true.
-      else
-        STOP 'ERROR in variance: Size W must be 1 or N'
-      endif
+    if (present(W)) then
+      if (size(W).ne.N) stop 'ERROR in variance: Incompatible weight size'
+      weight = .true.
+    else
+      weight = .false.
     endif
+
+    if (present(biased)) then
+      isbiased = biased
+    else
+      isbiased = .false.
+    endif
+ 
+    !if (PRESENT(W)) then
+    !  if (SIZE(W).EQ.1) then
+    !    if (W(1).EQ.0) then
+    !      isbiased = .false.
+    !    else if (W(1).EQ.1) then
+    !      isbiased = .true.
+    !    else
+    !      STOP 'ERROR in variance: Invalid normalization. Use 0 (unbiased) or 1 (biased)'
+    !    endif
+    !  else if (SIZE(W).EQ.N) then
+    !    weight = .true.
+    !  else
+    !    STOP 'ERROR in variance: Size W must be 1 or N'
+    !  endif
+    !endif
 
     if (weight) then
       Sw    = 0D0
@@ -442,7 +471,7 @@ contains
       enddo
       xsum1 = xsum1 / Sw
       xsum2 = xsum2/Sw-xsum1*xsum1
-      variance = Sw * xsum2 /(Sw - 1D0)
+      variance = Sw * xsum2 /(Sw - 1.0_dp)
     else
       xsum1 = 0D0
       xsum2 = 0D0
@@ -453,659 +482,15 @@ contains
       enddo
       xsum1 = xsum1 / N
       xsum2 = xsum2 / N - xsum1*xsum1
-      IF (biased) then
+      IF (isbiased) then
         variance = xsum2
       else
-        variance = N*xsum2/(N-1D0)
+        variance = N*xsum2/(N-1.0_dp)
       endif
     endif
-    IF (variance.LT.0) variance = 0D0
+    IF (variance.LT.0) variance = 0.0_dp
 
   end function variance
-  ! ...
-  ! ===================================================================
-  ! ...
-  pure function pythag(a,b) result(c)
-
-    real(dp), intent(in)                   :: a
-    real(dp), intent(in)                   :: b
-    real(dp)                               :: c
-
-    ! ... Local variables
-    ! ...
-    real(dp) aa,ab
-
-    aa = abs(a)
-    ab = abs(b)
-
-    if (ab.eq.0) then
-      c = 0.0D0
-    else if (aa.gt.ab) then
-      c = aa*dsqrt(1.0D0 + (ab/aa)**2)
-    else
-      c = ab*dsqrt(1.0D0 + (aa/ab)**2)
-    endif
-
-  end function pythag
-  ! ...
-  ! ===================================================================
-  ! ...
-  pure function out_product(A,B) result(C)
-
-    real(dp), dimension(:), intent(in)     :: A
-    real(dp), dimension(:), intent(in)     :: B
-    real(dp), dimension(size(A),size(B))   :: C
-    
-    ! ... Local variables
-    ! ...
-    integer n,m
-    n = size(A)
-    m = size(B)
-    C = spread(A,dim=2,ncopies=m) * spread(B,dim=1,ncopies=n)
- 
-  end function out_product 
-  ! ...
-  ! ===================================================================
-  ! ...
-  subroutine svdcmp(A,U,W,V)
-
-    real(dp), dimension(:,:), intent(in)                  :: A
-    real(dp), dimension(size(A,1),size(A,2)), intent(out) :: U
-    real(dp), dimension(size(A,2),size(A,2)), intent(out) :: V
-    real(dp), dimension(size(A,2)), intent(out)           :: W
-
-    ! ... local variables
-    ! ...
-    integer m,n,i,j,k,l,its,nm
-    real(dp) anorm,c,f,g,h,s,scale,x,y,z
-    real(dp), dimension(size(A,1))              :: tempm
-    real(dp), dimension(size(A,2))              :: rv1,tempn
-
-    m = size(A,1)
-    n = size(A,2)
-
-    U = A
-
-    g     = 0.0d0
-    scale = 0.0d0
-
-    do i=1,n                         ! ... Loop over columns U(:,i)
-      l = i + 1
-      rv1(i) = scale*g
-      g      = 0.0d0
-      scale  = 0.0d0
-
-      if (i.le.m) then
-        scale = sum(ABS(U(i:m,i)))
-        if (scale.ne.0.0d0) then
-          U(i:m,i) = U(i:m,i)/scale
-          s =  DOT_PRODUCT(U(i:m,i),U(i:m,i))
-          f =  U(i,i)
-          g = -sign(dsqrt(s),f)
-          h = f*g - s
-          U(i,i) = f - g
-          tempn(l:n) = MATMUL(U(i:m,i),U(i:m,l:n))/h
-          U(i:m,l:n) = U(i:m,l:n) + OUT_PRODUCT(U(i:m,i),tempn(l:n))
-          U(i:m,i)   = scale*U(i:m,i)
-        endif
-      endif
-
-      W(i)  = scale*g
-      g     = 0.0d0
-      scale = 0.0d0
-
-      if ((i.le.m).and.(i.ne.n)) then
-        scale = SUM(ABS(U(i,l:n)))
-        if (scale.ne.0.0d0) then
-          U(i,l:n) = U(i,l:n)/scale
-          s = DOT_PRODUCT(U(i,l:n),U(i,l:n))
-          f = U(i,l)
-          g = -sign(dsqrt(s),f)
-          h = f*g - s
-          U(i,l) = f - g
-          rv1(l:n) = U(i,l:n)/h
-          tempm(l:m) = MATMUL(U(l:m,l:n),U(i,l:n))
-          U(l:m,l:n) = U(l:m,l:n) + OUT_PRODUCT(tempm(l:m),rv1(l:n))
-          U(i,l:n) = scale*U(i,l:n)
-        endif
-      endif
-    enddo
-
-    anorm = maxval(ABS(w)+ABS(rv1))
-
-    do i=n,1,-1
-      if (i.lt.n) then
-        if (g.ne.0.0d0) then
-          V(l:n,i) = (U(i,l:n)/U(i,l))/g
-          tempn(l:n) = MATMUL(U(i,l:n),V(l:n,l:n))
-          V(l:n,l:n) = V(l:n,l:n) + OUT_PRODUCT(V(l:n,i),tempn(l:n))
-        endif
-        V(i,l:n) = 0.0D0
-        V(l:n,i) = 0.0D0
-      endif
-      V(i,i) = 1.0d0
-      g = rv1(i)
-      l = i
-    enddo
-
-    do i=min(m,n),1,-1
-      l = i + 1
-      g = W(i)
-      U(i,l:n) = 0.0D0
-      if (g.ne.0.0d0) then
-        g = 1.0D0 / g
-        tempn(l:n) = g*MATMUL(U(l:m,i),U(l:m,l:n))/U(i,i)
-        U(i:m,l:n) = U(i:m,l:n) + OUT_PRODUCT(U(i:m,i),tempn(l:n))
-        U(i:m,i) = g*U(i:m,i)
-      else
-        U(i:m,i) = 0.0D0
-      endif
-      U(i,i) = U(i,i) + 1.0d0
-    enddo
-
-    do k=n,1,-1
-      do its=1,30
-
-        do l=k,1,-1
-          nm = l - 1
-          if ((ABS(rv1(l))+anorm).eq.anorm) exit
-          if ((ABS(W(nm))+anorm).eq.anorm)  then
-            c = 0.0d0
-            s = 1.0d0
-            do i=l,k
-              f = s*rv1(i)
-              rv1(i) = c*rv1(i)
-              if ((ABS(f)+anorm).eq.anorm) exit
-              g    =  W(i)
-              h    =  pythag(f,g)
-              W(i) =  h
-              h    =  1.0D0/h
-              c    =  g*h
-              s    = -f*h
-              tempm(1:m) = U(1:m,nm)
-              U(1:m,nm) =  c*U(1:m,nm)  + s*U(1:m,i)
-              U(1:m,i)  = -s*tempm(1:m) + c*U(1:m,i)
-            enddo
-            exit
-          endif
-        enddo
-        z=W(k)
-
-        if (l.eq.k) then
-          if (z.lt.0.0d0) then
-            W(k) = -z
-            V(1:n,k) = -V(1:n,k)
-          endif
-          exit
-        endif
-          
-        if (its.eq.30) stop  'no convergence in svdcmp'
-        x = W(l)
-        nm = k - 1
-        y = W(nm)
-        g = rv1(nm)
-        h = rv1(k)
-        f = ((y-z)*(y+z)+(g-h)*(g+h))/(2.0d0*h*y)
-        g = pythag(f,1.0d0)
-        f = ((x-z)*(x+z)+h*((y/(f+sign(g,f)))-h))/x
-        c = 1.0d0
-        s = 1.0d0
-        do j=l,nm
-          i = j + 1
-          g = rv1(i)
-          y = W(i)
-          h = s*g
-          g = c*g
-          z = pythag(f,h)
-          rv1(j) = z
-          c = f/z
-          s = h/z
-          f =  (x*c)+(g*s)
-          g = -(x*s)+(g*c)
-          h = y*s
-          y = y*c
-          tempn(1:n) = V(1:n,j)
-          V(1:n,j) = c*V(1:n,j)  + s*V(1:n,i)
-          V(1:n,i) =-s*tempn(1:n) + c*V(1:n,i)
-          z = pythag(f,h)
-          W(j) = z
-          if (z.ne.0.0d0) then
-            z = 1.0d0/z
-            c = f*z
-            s = h*z
-          endif
-          f = (c*g)+(s*y)
-          x =-(s*g)+(c*y)
-          tempm(1:m) = U(1:m,j)
-          U(1:m,j) = c*U(1:m,j)  + s*U(1:m,i)
-          U(1:m,i) =-s*tempm(1:m) + c*U(1:m,i)
-        enddo
-        rv1(l)=0.0d0
-        rv1(k)=f
-        W(k)=x
-      enddo
-    enddo
-
-  end subroutine svdcmp
-  ! ...
-  ! ===================================================================
-  ! ...
-  pure function svbksb(U,W,V,b) result(x)
-
-    ! ... Solves A x = b, wjere A = V W VT as returned by svdcmp.
-    ! ... On input, U(m,n), V(n,n), W(n) and b(m)
-    ! ... On output, x(m)
-    
-    real(dp), dimension(:,:), intent(in)                :: U,V
-    real(dp), dimension(:), intent(in)                  :: W,b
-    real(dp), dimension(size(U,1))                      :: x
-
-    ! ... Local variables
-    ! ...
-    integer m,n,i,j,jj
-    real(dp), dimension(size(U,1))                      :: tmp
-
-    m = size(U,1)
-    n = size(U,2)
- 
-    where (W.ne.0.0D0)
-      tmp = matmul(b,U)/W
-    elsewhere
-      tmp = 0.0D0
-    end where
-
-    x = MATMUL(V,tmp)
-
-  end function svbksb
-  ! ...
-  ! ===================================================================
-  ! ...
-  function fitting1d (order,x,y,c,trnd) result(err)
-
-    integer, intent(in)                           :: order
-    real(dp), dimension(:), intent(in)            :: x,y
-    real(dp), dimension(:), intent(out)           :: trnd
-    real(dp), dimension(order+1), intent(out)     :: c
-    integer                                       :: err
-
-    ! ... Local variables
-    ! ...
-    integer                                       :: n,i,k,rank,M
-    real(dp)                                      :: ym
-    real(dp)                                      :: xn
-    real(dp)                                      :: ax,bx,ay,by
-    real(dp)                                      :: cond,xi,ypol
-    real(dp), dimension(size(x))                  :: xx,yy
-    real(dp), dimension(:), allocatable           :: RHS,D
-    real(dp), dimension(:,:), allocatable         :: A,U,V,S,ST
-
-    err = 0
-    n   = size(x)
-    M   = order + 1
-
-    ym = mean(y)
-    xn = maxval(abs(x))               ! Largets value of x
-
-    if (order.eq.0) then
-      trnd(:) = ym
-      return
-    endif
-
-    ! ... Normalize the data:
-    ! ...
-    xx = x / xn                       ! Largest value is 1.
-    yy = y - ym
-
-    allocate (S(n,M))
-    S(:,1) = 1D0
-    do k=1,order
-    do i=1,n
-      S(i,1+k) = xx(i)**k
-    enddo
-    enddo
-
-    allocate (A(M,M))
-    allocate (U(M,M))
-    allocate (V(M,M))
-    allocate (RHS(M))
-    allocate (D(M))
-    allocate (ST(M,n))
-
-    ST  = transpose(S)
-    A   = matmul(ST,S)
-    RHS = matmul(ST,yy)
-
-    ! ... Solve the system
-    ! ...
-    CALL svdcmp (A,U,D,V)
-    WHERE(D.LE.0D0) D = 0D0
-
-    if (count(D.EQ.0).gt.0) then
-      write(*,*) 'Singular matrix'
-      err = 1
-      trnd = ym
-      deallocate (A,U,V,RHS,D,S,ST)
-      return
-    endif
-
-    cond = maxval(D) / minval(D)
-
-    IF (cond.GT.10000) THEN
-      write(*,*) 'Condition number > 10000'
-      err = 1
-      trnd = ym
-      deallocate (A,U,V,RHS,D,S,ST)
-      return
-    ENDIF
-
-    c = svbksb (U,D,V,RHS)       ! Solve A x = b, A = U D VT
-
-    do i=1,n
-      xi   = xx(i)
-      ypol = c(1)
-      do k=1,order
-        ypol = ypol + c(1+k)*xi**k
-      enddo
-      trnd(i) = ym + ypol
-    enddo
-
-    ! ... Remember M = order + 1
-    ! ... c(1) = c(1) / xn**0 + ym
-    ! ...
-    c(1) = c(1) + ym
-    do k=2,M
-      c(k) = c(k)/xn**(k-1)
-    enddo
-
-    deallocate (A,U,V,RHS,D,S,ST)
-
-    end function fitting1d
-  ! ...
-  ! ===================================================================
-  ! ...
-  subroutine get_eof (A,U,eigval,ev,rank)
-
-    ! ... Subroutine to calculate the EOFs
-    ! ... U, eigval and ev must enter as allocatable !!!!!
-    ! ...
-
-    real(dp), dimension(:,:), intent(in)                  :: A
-    real(dp), dimension(:,:), allocatable, intent(out)    :: U
-    real(dp), dimension(:), allocatable, intent(out)      :: eigval
-    real(dp), dimension(:), allocatable, intent(out)      :: ev
-    integer, intent(out)                                  :: rank
-
-    integer                                     :: nx,nt,i,j
-    real(dp)                                    :: C,aa,xsum,Am
-    real(dp), dimension(:,:), allocatable       :: V
-    real(dp), dimension(:), allocatable         :: D
-
-    nx = size(A,1)
-    nt = size(A,2)
-
-    allocate(eigval(nt))
-    allocate(ev(nt))
-
-    ! ... Variance: 
-    ! ...
-    xsum = 0.0D0
-    do j=1,nt
-    do i=1,nx
-       aa = A(i,j)
-       xsum = xsum + aa*aa
-    enddo
-    enddo
-
-    write(*,*) 'GET_EOF :: Total variance     = ', xsum / DBLE(nt-1)
-
-    call svdcmp (A,U,D,V)
-    eigval(:) = D(:)**2
-    call eigsort(eigval,U)
-
-    rank = nt
-    do i=1,nt
-      if (eigval(i)/eigval(1).lt.1.0D-6) then
-        rank = rank - 1
-        D(i) = 0.0D0
-        eigval(i) = 0.0D0
-      endif
-    enddo
-    write(*,*) 'rank = ', rank
-
-    eigval(:) = eigval(:) / DBLE(nt-1)
-
-    xsum = 0.0D0
-    do i=1,nx
-    do j=1,rank
-      aa = U(i,j)
-      xsum = xsum + eigval(j)*aa*aa
-    enddo
-    enddo
-    write(*,*) 'GET_EOF :: EOF Total variance = ', xsum 
-
-    ! ... Explained variance
-    ! ... 
-    ev(:) = 0.0D0
-
-    xsum = SUM(eigval)
-    ev(1) = eigval(1)
-    DO i=2,rank
-      ev(i) = ev(i-1) + eigval(i)
-    ENDDO
-    ev(:) = 100.0D0*ev(:)/xsum
-
-  end subroutine get_eof 
-  ! ...
-  ! ===================================================================
-  ! ...
-  subroutine eigsort(d,v)
-
-    real(dp), dimension(:), intent(inout)   :: d
-    real(dp), dimension(:,:), intent(inout) :: v
-
-    integer n,r,i,j,k
-    real(dp) p
-
-    n = size(v,1)
-    r = size(v,2)
-
-    do i=1,r-1
-      k=i
-      p=d(i)
-      do j=i+1,r
-        if (d(j).ge.p) then
-          k=j
-          p=d(j)
-        endif
-      ENDDO
-      IF (k.NE.i) THEN
-        d(k)=d(i)
-        d(i)=p
-        DO j=1,n
-          p=v(j,i)
-          v(j,i)=v(j,k)
-          v(j,k)=p
-        enddo
-      endif
-    enddo
-
-  end subroutine eigsort
-  ! ...
-  ! ===================================================================
-  ! ...
-  subroutine rotate_eofs (EOF,ts,irang)
-
-    real(dp), dimension(:,:), intent(inout)   :: EOF
-    real(dp), dimension(:,:), intent(inout)   :: ts
-    integer, dimension(size(EOF,2))           :: irang
-
-    integer N,NEOF,NT,i,j,k,n1,n2,istep,iangle
-    real(dp) vari,xsum1,glovar,varima,xstart,range,oldvar
-    real(dp) angle,xdum,change,TMP
-
-    real(dp), DIMENSION(:),   ALLOCATABLE            :: xvari
-    real(dp), DIMENSION(:,:), ALLOCATABLE            :: PAIR,PPAIR
-    real(dp), DIMENSION(size(ts,2),size(ts,1))       :: PC
-
-    PC = TRANSPOSE(ts)
-
-    N    = size(EOF,1)
-    NEOF = size(EOF,2)
-    NT   = size(PC,2)
-
-    ! ... Calc VARIMAX over all
-    ! ...
-    vari = vari_all (EOF,N,NEOF)
-    WRITE(*,*) 'VARIMAX = ', vari
-
-    ALLOCATE (PAIR(N,2))
-    ALLOCATE (PPAIR(NT,2))
-
-10 CONTINUE
-
-       glovar = vari
-       do n1=1,NEOF-1
-       do n2=n1+1,NEOF
-
-    ! ... Pairwise rotation
-    ! ...
-          varima = 0.0D0
-          xstart = 0.0D0
-          range  = 0.5D0*3.14D0
-          istep  = 90
-
- 100      oldvar = varima
-          do k=1,istep
-            angle = DBLE(k)*range/istep + xstart
-            CALL rotate (n1,n2,EOF,N,NEOF,PAIR,angle)
-            CALL varimax (PAIR,N,xdum)
-            if (xdum.GT.varima) then
-              varima = xdum
-              iangle = k
-            endif
-          enddo
-
-          if (oldvar.GT.0.0) then
-            change = 100.0D0*DABS(oldvar-varima)/oldvar
-          ELSE
-            change = 100.0D0
-          endif
-          if (change.GT.0.1) then
-            xstart = DBLE(iangle)*range/istep + xstart
-            range  = 4.0D0*range/istep
-            xstart = xstart - 0.5D0*range
-            GOTO 100
-          endif
-
-          angle = DBLE(iangle)*range/istep + xstart
-          xstart = 360.0D0/6.28D0*angle
-          CALL rotate (n1,n2,EOF,N,NEOF,PAIR,angle)
-          EOF(:,n1) = PAIR(:,1)
-          EOF(:,n2) = PAIR(:,2)
-          CALL rotate (n1,n2,PC,NT,NEOF,PPAIR,angle)
-          PC(:,n1) = PPAIR(:,1)
-          PC(:,n2) = PPAIR(:,2)
-
-       enddo
-       enddo
-
-       vari = vari_all (EOF,N,NEOF)
-       change = 100.0D0*DABS(glovar-vari)/glovar
-       WRITE(*,*) 'VARIMAX = ', vari, '  change = ', change
-       if (change.GT.0.1) GOTO 10
-
-
-    ! ... Sort EOFs by explained variance
-    ! ...
-    DEALLOCATE (PAIR)
-    DEALLOCATE (PPAIR)
-
-    ALLOCATE (xvari(NEOF))
-
-    do k=1,NEOF
-      xvari(k) = DOT_PRODUCT (EOF(:,k),EOF(:,k))
-    enddo
-
-    ts = TRANSPOSE(PC)
-    CALL indexx (xvari,irang)
-
-  end subroutine rotate_eofs
-  ! ...
-  ! ===================================================================
-  ! ...
-  subroutine ROTATE (N1,N2,EOF,N,NEOF,PAIR,angle)
-
-    integer N1,N2,N,NEOF
-    real(dp) EOF(N,NEOF)
-    real(dp) angle
-    real(dp) PAIR(N,2)
-
-    integer i
-
-    ! ... ROTATE
-
-    do i=1,N
-      PAIR(i,1)=  DCOS(angle)*EOF(i,N1) + DSIN(angle)*EOF(i,N2)
-      PAIR(i,2)= -DSIN(angle)*EOF(i,N1) + DCOS(angle)*EOF(i,N2)
-    enddo
-
-  end subroutine ROTATE
-  ! ...
-  ! ===================================================================
-  ! ...
-  subroutine VARIMAX (PAIR,N,VARIM)
-
-    integer N
-    real(dp) varim
-    real(dp) PAIR(N,2)
-
-    integer i
-    real(dp) sum11,sum12,sum21,sum22
-
-    ! ... VARIMAX
-
-    sum11 = 0.0D0
-    sum12 = 0.0D0
-    sum21 = 0.0D0
-    sum22 = 0.0D0
-    do i=1,N
-      sum11 = sum11 + PAIR(i,1)**4
-      sum12 = sum12 + PAIR(i,2)**4
-      sum21 = sum21 + PAIR(i,1)**2
-      sum22 = sum22 + PAIR(i,2)**2
-    enddo
-    VARIM = N*sum11 - sum21*sum21 + N*sum12 - sum22*sum22
-    VARIM = VARIM/(N*N)
-
-  end subroutine VARIMAX
-  ! ...
-  ! ===================================================================
-  ! ...
-  function vari_all (EOF,N,NEOF)
-
-    real(dp) vari_all
-
-    integer N,NEOF
-    real(dp) EOF(N,NEOF)
-
-    integer i,k
-    real(dp) vari,xsum1,xsum2,tmp
-
-    vari = 0.0D0
-    do k=1,NEOF
-      xsum1 = 0.0D0
-      xsum2 = 0.0D0
-      do i=1,N
-        tmp = EOF(i,k)
-        xsum1 = xsum1 + tmp**4
-        xsum2 = xsum2 + tmp**2
-      enddo
-      vari = vari + N*xsum1 - xsum2*xsum2
-    enddo
-
-    vari_all = vari/(N*N)
-
-  end function vari_all
   ! ...
   ! ===================================================================
   ! ...
@@ -1207,81 +592,23 @@ contains
   ! ...
   ! ===================================================================
   ! ...
-  subroutine ludcmp(a,indx,d)
-
-    real(dp), dimension(:,:), intent(inout)     :: a
-    integer, dimension(:), intent(out)          :: indx
-    real(dp), intent(out)                       :: d
-
-    ! ... Local variables
-    ! ...
-    real(dp), parameter                         :: TINY=1.0D-20
-    integer n,i,imax,j,k
-    real(dp) vv(size(a,1))
-
-    n = size(a,1)
-    d = 1.d0
-    vv = maxval(abs(a),dim=2)
-    if (any(vv.EQ.0.0)) stop  'singular matrix in ludcmp'
-    vv(:) = 1.d0/vv(:)
-
-    do j=1,n
-      imax = (j-1)+imaxloc(vv(j:n)*abs(a(j:n,j)))
-      if (j /= imax) then
-        call swap(a(imax,:),a(j,:))
-        d = -d
-        vv(imax) = vv(j)
-      endif
-      indx(j) = imax
-      if (a(j,j).EQ.0.0) a(j,j) = TINY
-      a(j+1:n,j) = a(j+1:n,j)/a(j,j)
-      a(j+1:n,j+1:n) = a(j+1:n,j+1:n) - out_product(a(j+1:n,j),a(j,j+1:n))
-    enddo
-
-  end subroutine ludcmp
+  subroutine swap_r(a,b)
+    real(dp), intent(inout)  :: a,b
+    real(dp)                 :: c
+    c = a
+    a = b
+    b = c
+  end subroutine swap_r
   ! ...
   ! ===================================================================
   ! ...
-  subroutine swap(a,b)
+  subroutine swap_v(a,b)
     real(dp), dimension(:), intent(inout)  :: a,b
     real(dp), dimension(size(a)) :: c
     c(:) = a(:)
     a(:) = b(:)
     b(:) = c(:)
-  end subroutine swap
-  ! ...
-  ! ===================================================================
-  ! ...
-  subroutine lubksb(a,indx,b)
-
-    real(8), dimension(:,:), intent(in)    :: a
-    integer, dimension(:), intent(in)      :: indx
-    real(8), dimension(:), intent(inout)   :: b
-
-    ! ... Local variables
-    ! ...
-    integer n,i,ii,ll
-    real(8) summ
-
-    n = size(a,1)
-
-    ii = 0
-    do i=1,n
-      ll    = indx(i)
-      summ  = b(ll)
-      b(ll) = b(i)
-      if (ii.ne.0) then
-        summ = summ - dot_product(a(i,ii:i-1),b(ii:i-1))
-      else if (summ.ne.0.0) then
-        ii = i
-      endif
-      b(i) = summ
-    enddo
-    do i=n,1,-1
-      b(i) = (b(i)-dot_product(a(i,i+1:n),b(i+1:n))) / a(i,i)
-    enddo
-
-  end subroutine lubksb
+  end subroutine swap_v
   ! ...
   ! ===================================================================
   ! ...
@@ -1297,35 +624,550 @@ contains
   ! ...
   ! ===================================================================
   ! ...
-  function matrinv (A) result(B)
+  function median(x) result(med)
 
-  real(dp), dimension(:,:), intent(in)       :: A
-  real(dp), dimension(size(A,1),size(A,2))   :: B
+    real(dp), dimension(:), intent(in) :: x
+    real(dp) :: med
 
-  integer n,i,j,err
-  integer indx(size(A,1))
-  real(dp) d
-  real(dp), dimension(size(A,1),size(A,2))   :: C
+    ! ... Local variables
+    ! ...
+    real(dp), dimension(size(x)) :: x_sorted
+    integer :: n
 
-  n = size(A,1)
-  if (size(A,2).ne.n) stop 'ERROR in matrinv: Input array not square'
+    n = size(x)
+    x_sorted = x
+    call quicksort(x_sorted)
 
-  ! ... Saving matrix
+    if (mod(n,2) == 0) then
+      med = (x_sorted(n/2) + x_sorted(n/2+1)) / 2.0_dp
+    else
+      med = x_sorted((n+1)/2)
+    endif
+  end function median
   ! ...
-  C(:,:) = A(:,:)
+  ! ===================================================================
+  ! ...
+! Replace the quicksort subroutine in module_math.f90 with this version
+  subroutine quicksort(arr)
 
-  B(:,:) = 0.0D0
-  do i=1,n
-    B(i,i) = 1.0D0
-  ENDDO
+    real(dp), dimension(:), intent(inout) :: arr
+  
+    call quicksort_helper(arr, 1, size(arr))
+  
+    contains
 
-  CALL ludcmp (C,indx,d)
-  DO j=1,N
-    CALL lubksb (C,indx,B(:,j))
-  ENDDO
+    recursive subroutine quicksort_helper(arr, low, high)
+      real(dp), dimension(:), intent(inout) :: arr
+      integer, intent(in) :: low, high
+    
+      integer :: i, j
+      real(dp) :: pivot, temp
+    
+      if (low < high) then
+        ! Choose the rightmost element as pivot
+        pivot = arr(high)
+        i = low - 1
+      
+        do j = low, high - 1
+          if (arr(j) <= pivot) then
+            i = i + 1
+            ! Swap arr(i) and arr(j)
+            temp = arr(i)
+            arr(i) = arr(j)
+            arr(j) = temp
+          end if
+        end do
+      
+        ! Swap arr(i+1) and arr(high) (pivot)
+        temp = arr(i+1)
+        arr(i+1) = arr(high)
+        arr(high) = temp
+      
+        ! Recursively sort elements before and after partition
+        call quicksort_helper(arr, low, i)
+        call quicksort_helper(arr, i+2, high)
+    end if
+  end subroutine quicksort_helper
 
-  RETURN
-  END function matrinv
+end subroutine quicksort
+  ! ...
+  ! ===================================================================
+  ! ...
+  function corrcoef(x, y) result(r)
+    real(dp), dimension(:), intent(in) :: x, y
+    real(dp)                           :: r
+
+    ! ... Local variables
+    ! ...
+    real(dp) :: mx, my, sx, sy, sxy
+    integer :: n
+
+    n = size(x)
+    if (size(y) /= n) then
+      r = ieee_value(1.0_dp, ieee_quiet_nan)
+      return
+    endif
+
+    mx = sum(x)/n
+    my = sum(y)/n
+    sx = sqrt(sum((x - mx)**2)/(n - 1))
+    sy = sqrt(sum((y - my)**2)/(n - 1))
+    sxy = sum((x - mx)*(y - my))/(n - 1)
+
+    if (sx > 0.0_dp .and. sy > 0.0_dp) then
+      r = sxy/(sx*sy)
+    else
+      r = 0.0_dp
+    endif
+
+  end function corrcoef
+  ! ...
+  ! ===================================================================
+  ! ...
+  pure function erf(x) result(y)
+
+    real(dp), intent(in) :: x
+    real(dp) :: y
+    real(dp) :: t, z
+
+    z = abs(x)
+    t = 1.0_dp/(1.0_dp + 0.5_dp*z)
+    y = t*exp(-z*z - 1.26551223_dp + t*(1.00002368_dp + &
+        t*(0.37409196_dp + t*(0.09678418_dp + t*(-0.18628806_dp + &
+        t*(0.27886807_dp + t*(-1.13520398_dp + t*(1.48851587_dp + &
+        t*(-0.82215223_dp + t*0.17087277_dp)))))))))
+    if (x < 0.0_dp) y = -y
+
+  end function erf
+  ! ...
+  ! ===================================================================
+  ! ...
+  recursive function gamma(x) result(g)
+
+    real(dp), intent(in)           :: x
+    real(dp)                       :: g
+
+    real(dp), parameter :: &
+      p(0:6) = [0.99999999999980993_dp, 676.5203681218851_dp, &
+               -1259.1392167224028_dp, 771.32342877765313_dp, &
+               -176.61502916214059_dp, 12.507343278686905_dp, &
+               -0.13857109526572012_dp]
+    real(dp) :: t, y
+    integer :: i
+
+    if (x < 0.5_dp) then
+      g = pi/(sin(pi*x)*gamma(1.0_dp - x))
+    else
+      y = x - 1.0_dp
+      t = p(0)
+      do i = 1, 6
+        t = t + p(i)/(y + real(i, dp))
+      end do
+      g = sqrt(2.0_dp*pi)*((y + 7.5_dp)**(y + 0.5_dp))*exp(-(y + 7.5_dp))*t
+    end if
+  end function gamma
+  ! ...
+  ! ===================================================================
+  ! ...
+  ! ...
+  ! ===================================================================
+  ! ...
+  function brent(f, aa, bb, tol) result(root)
+    interface
+      function f(x) result(y)
+        use module_types, only: dp
+        real(dp), intent(in) :: x
+        real(dp) :: y
+      end function f
+    end interface
+    real(dp), intent(in) :: aa, bb, tol
+    real(dp) :: root
+    
+    real(dp), parameter :: eps = epsilon(1.0_dp)
+    integer, parameter :: max_iter = 100
+    real(dp) :: a, b, c, d, e, fa, fb, fc, p, q, r, s, tol1, xm
+    integer :: iter
+    
+    a  = aa
+    b  = bb
+
+    fa = f(a)
+    fb = f(b)
+    
+    if (fa*fb > 0.0_dp) then
+      root = ieee_value(1.0_dp, ieee_quiet_nan)
+      return
+    endif
+    
+    c = b
+    fc = fb
+    
+    do iter = 1, max_iter
+      if (fb*fc > 0.0_dp) then
+        c = a
+        fc = fa
+        d = b - a
+        e = d
+      endif
+      
+      if (abs(fc) < abs(fb)) then
+        a = b
+        b = c
+        c = a
+        fa = fb
+        fb = fc
+        fc = fa
+      endif
+      
+      tol1 = 2.0_dp*eps*abs(b) + 0.5_dp*tol
+      xm = 0.5_dp*(c - b)
+      
+      if (abs(xm) <= tol1 .or. fb == 0.0_dp) then
+        root = b
+        return
+      endif
+      
+      if (abs(e) >= tol1 .and. abs(fa) > abs(fb)) then
+        s = fb/fa
+        if (a == c) then
+          p = 2.0_dp*xm*s
+          q = 1.0_dp - s
+        else
+          q = fa/fc
+          r = fb/fc
+          p = s*(2.0_dp*xm*q*(q - r) - (b - a)*(r - 1.0_dp))
+          q = (q - 1.0_dp)*(r - 1.0_dp)*(s - 1.0_dp)
+        endif
+        
+        if (p > 0.0_dp) q = -q
+        p = abs(p)
+        
+        if (2.0_dp*p < min(3.0_dp*xm*q - abs(tol1*q), abs(e*q))) then
+          e = d
+          d = p/q
+        else
+          d = xm
+          e = d
+        endif
+      else
+        d = xm
+        e = d
+      endif
+      
+      a = b
+      fa = fb
+      
+      if (abs(d) > tol1) then
+        b = b + d
+      else
+        b = b + sign(tol1, xm)
+      endif
+      
+      fb = f(b)
+    end do
+    
+    root = b
+  end function brent
+  ! ...
+  ! ===================================================================
+  ! ...
+  function golden(f, aa, bb, tol) result(xmin)
+    interface
+      function f(x) result(y)
+        use module_types, only: dp
+        real(dp), intent(in) :: x
+        real(dp) :: y
+      end function f
+    end interface
+
+    real(dp), intent(in) :: aa, bb, tol
+    real(dp) :: xmin
+    
+    real(dp), parameter :: phi = (1.0_dp + sqrt(5.0_dp))/2.0_dp
+    real(dp) :: a, b, c, d, fc, fd
+    integer :: iter
+    
+    a = aa
+    b = bb
+
+    c = b - (b - a)/phi
+    d = a + (b - a)/phi
+    
+    do while (abs(c - d) > tol)
+      fc = f(c)
+      fd = f(d)
+      
+      if (fc < fd) then
+        b = d
+      else
+        a = c
+      endif
+      
+      c = b - (b - a)/phi
+      d = a + (b - a)/phi
+    end do
+    
+    xmin = (a + b)/2.0_dp
+  end function golden
+  ! ...
+  ! ===================================================================
+  ! ...
+  function interp1_r(x, y, xi) result(yi)
+    real(dp), dimension(:), intent(in) :: x, y
+    real(dp), intent(in) :: xi
+    real(dp) :: yi
+    
+    integer :: i, n
+    real(dp) :: dx
+    
+    n = size(x)
+    if (size(y) /= n) then
+      yi = ieee_value(1.0_dp, ieee_quiet_nan)
+      return
+    endif
+    
+    if (xi <= x(1)) then
+      yi = y(1)
+    else if (xi >= x(n)) then
+      yi = y(n)
+    else
+      do i = 1, n - 1
+        if (xi >= x(i) .and. xi <= x(i + 1)) then
+          dx = x(i + 1) - x(i)
+          if (dx > 0.0_dp) then
+            yi = y(i) + (y(i + 1) - y(i))*(xi - x(i))/dx
+          else
+            yi = (y(i) + y(i + 1))/2.0_dp
+          endif
+          exit
+        endif
+      end do
+    endif
+  end function interp1_r
+  ! ...
+  ! ===================================================================
+  ! ...
+  function interp1_v(x, y, xi) result(yi)
+    real(dp), dimension(:), intent(in) :: x, y
+    real(dp), dimension(:), intent(in) :: xi
+    real(dp), dimension(size(xi)) :: yi
+    
+    integer :: i
+    
+    do i = 1, size(xi)
+      yi(i) = interp1_r(x, y, xi(i))
+    end do
+  end function interp1_v
+  ! ...
+  ! ===================================================================
+  ! ...
+  subroutine spline(x, y, y2)
+    real(dp), dimension(:), intent(in) :: x, y
+    real(dp), dimension(:), intent(out) :: y2
+    
+    integer :: i, n
+    real(dp) :: p, sig
+    real(dp), dimension(:), allocatable :: u
+    
+    n = size(x)
+    if (size(y) /= n .or. size(y2) /= n) then
+      error stop "spline: array size mismatch"
+    endif
+    
+    allocate(u(n))
+    
+    y2(1) = 0.0_dp
+    u(1) = 0.0_dp
+    
+    do i = 2, n - 1
+      sig = (x(i) - x(i - 1))/(x(i + 1) - x(i - 1))
+      p = sig*y2(i - 1) + 2.0_dp
+      y2(i) = (sig - 1.0_dp)/p
+      u(i) = (6.0_dp*((y(i + 1) - y(i))/(x(i + 1) - x(i)) - &
+              (y(i) - y(i - 1))/(x(i) - x(i - 1)))/(x(i + 1) - x(i - 1)) - &
+              sig*u(i - 1))/p
+    end do
+    
+    y2(n) = 0.0_dp
+    
+    do i = n - 1, 1, -1
+      y2(i) = y2(i)*y2(i + 1) + u(i)
+    end do
+    
+    deallocate(u)
+  end subroutine spline
+  ! ...
+  ! ===================================================================
+  ! ...
+  function cross_product(a, b) result(c)
+    real(dp), dimension(3), intent(in) :: a, b
+    real(dp), dimension(3) :: c
+    
+    c(1) = a(2)*b(3) - a(3)*b(2)
+    c(2) = a(3)*b(1) - a(1)*b(3)
+    c(3) = a(1)*b(2) - a(2)*b(1)
+  end function cross_product
+  ! ...
+  ! ===================================================================
+  ! ...
+  function linspace(start, end, n) result(arr)
+    real(dp), intent(in) :: start, end
+    integer, intent(in) :: n
+    real(dp), dimension(n) :: arr
+    
+    integer :: i
+    real(dp) :: step
+    
+    if (n == 1) then
+      arr(1) = start
+    else
+      step = (end - start)/(n - 1)
+      do i = 1, n
+        arr(i) = start + (i - 1)*step
+      end do
+    endif
+  end function linspace
+  ! ...
+  ! ===================================================================
+  ! ...
+  subroutine meshgrid(x, y, X_mat, Y_mat)
+    real(dp), dimension(:), intent(in) :: x, y
+    real(dp), dimension(:,:), intent(out) :: X_mat, Y_mat
+    
+    integer :: i, j, m, n
+    
+    m = size(x)
+    n = size(y)
+    
+    if (size(X_mat,1) /= m .or. size(X_mat,2) /= n .or. &
+        size(Y_mat,1) /= m .or. size(Y_mat,2) /= n) then
+      error stop "meshgrid: output array size mismatch"
+    endif
+    
+    do concurrent (i = 1:m, j = 1:n)
+      X_mat(i,j) = x(i)
+      Y_mat(i,j) = y(j)
+    end do
+  end subroutine meshgrid
+  ! ...
+  ! ===================================================================
+  ! ...
+  function diff(x, n) result(dx)
+    real(dp), dimension(:), intent(in) :: x
+    integer, intent(in), optional :: n
+    real(dp), dimension(:), allocatable :: dx
+    
+    integer :: diff_order, i, m
+    real(dp), dimension(:), allocatable :: temp
+    
+    diff_order = 1
+    if (present(n)) diff_order = n
+    
+    m = size(x)
+    if (diff_order >= m) then
+      allocate(dx(0))
+      return
+    endif
+    
+    allocate(dx(m - diff_order))
+    dx = x
+    
+    do i = 1, diff_order
+      dx = dx(2:) - dx(:size(dx)-1)
+    end do
+  end function diff
+  ! ...
+  ! ===================================================================
+  ! ...
+  function gradient(f, dx) result(df)
+    real(dp), dimension(:), intent(in) :: f
+    real(dp), intent(in), optional :: dx
+    real(dp), dimension(size(f)) :: df
+    
+    integer :: n
+    real(dp) :: h
+    
+    n = size(f)
+    h = 1.0_dp
+    if (present(dx)) h = dx
+    
+    if (n == 1) then
+      df(1) = 0.0_dp
+    else if (n == 2) then
+      df(1) = (f(2) - f(1))/h
+      df(2) = df(1)
+    else
+      df(1) = (f(2) - f(1))/h
+      df(n) = (f(n) - f(n-1))/h
+      df(2:n-1) = (f(3:n) - f(1:n-2))/(2.0_dp*h)
+    endif
+  end function gradient
+  ! ...
+  ! ===================================================================
+  ! ...
+  function cumsum(x) result(cs)
+    real(dp), dimension(:), intent(in) :: x
+    real(dp), dimension(size(x)) :: cs
+    
+    integer :: i, n
+    
+    n = size(x)
+    cs(1) = x(1)
+    do i = 2, n
+      cs(i) = cs(i-1) + x(i)
+    end do
+  end function cumsum
+  ! ...
+  ! ===================================================================
+  ! ...
+  function cumprod(x) result(cp)
+    real(dp), dimension(:), intent(in) :: x
+    real(dp), dimension(size(x)) :: cp
+    
+    integer :: i, n
+    
+    n = size(x)
+    cp(1) = x(1)
+    do i = 2, n
+      cp(i) = cp(i-1) * x(i)
+    end do
+  end function cumprod
+  ! ...
+  ! ===================================================================
+  ! ...
+  function percentile(x, p) result(perc)
+    real(dp), dimension(:), intent(in) :: x
+    real(dp), intent(in) :: p
+    real(dp) :: perc
+    
+    real(dp), dimension(:), allocatable :: x_sorted
+    integer :: n, index
+    real(dp) :: frac
+    
+    if (p < 0.0_dp .or. p > 100.0_dp) then
+      perc = ieee_value(1.0_dp, ieee_quiet_nan)
+      return
+    endif
+    
+    n = size(x)
+    allocate(x_sorted(n))
+    x_sorted = x
+    call quicksort(x_sorted)
+    
+    frac = p/100.0_dp * (n - 1) + 1
+    index = floor(frac)
+    
+    if (index < 1) then
+      perc = x_sorted(1)
+    else if (index >= n) then
+      perc = x_sorted(n)
+    else
+      perc = x_sorted(index) + (frac - index)*(x_sorted(index+1) - x_sorted(index))
+    endif
+    
+    deallocate(x_sorted)
+
+  end function percentile
   ! ...
   ! ===================================================================
   ! ...

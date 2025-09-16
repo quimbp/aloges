@@ -1647,7 +1647,7 @@ end function date2num
 
     ! ... Ho, hour angle at sunrise / sunset
     ! ...
-    if (abs(delta)-hpi+abs(lat).lt.0.0D0) then
+    if (abs(delta)-half_pi+abs(lat).lt.0.0D0) then
       ! ... There is sunset/sunrise
       ! ...
       Ho = acos(-tan(lat)*tan(delta))

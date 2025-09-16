@@ -23,18 +23,21 @@
 
 module module_constants
 
-use, intrinsic :: ieee_arithmetic, only: ieee_value, ieee_quiet_nan, ieee_is_nan, ieee_positive_inf
+use, intrinsic :: ieee_arithmetic, only: ieee_value, ieee_quiet_nan,  &
+                  ieee_is_nan, ieee_positive_inf
 use module_types
 
 implicit none
 
-! ... Logical constants
-! ...
+! ------------------------------------------------------------
+! Logical constants (optional; Fortran already has .True./.False.)
+! ------------------------------------------------------------
 logical, parameter     :: True    = .True.
 logical, parameter     :: False   = .False.
 
-! ... Mathematical constants
-! ...
+! ------------------------------------------------------------
+! Mathematical constants
+! ------------------------------------------------------------
 real(dp), parameter    :: minus   =-1.0_dp
 real(dp), parameter    :: zero    = 0.0_dp
 real(dp), parameter    :: one     = 1.0_dp
@@ -50,17 +53,21 @@ real(dp), parameter    :: ten     = 10.0_dp
 real(dp), parameter    :: half    = 0.5_dp
 real(dp), parameter    :: quarter = 0.25_dp
 real(dp), parameter    :: hundred = 100.0_dp
+
 real(dp), parameter    :: pi      = 3.1415926535897932384626433832795_dp
-real(dp), parameter    :: dpi     = 2.0_dp*pi
-real(dp), parameter    :: hpi     = 0.5_dp*pi
-real(dp), parameter    :: rpi     = 1.0D0/pi
-real(dp), parameter    :: e_      = 2.7182818284590452353602874713527_dp
+real(dp), parameter    :: two_pi  = 2.0_dp*pi
+real(dp), parameter    :: half_pi = 0.5_dp*pi
+real(dp), parameter    :: inv_pi  = 1.0D0/pi
+real(dp), parameter    :: Euler   = 2.7182818284590452353602874713527_dp
+
 real(dp), parameter    :: deg2rad = pi/180.0_dp
 real(dp), parameter    :: rad2deg = 180.0_dp/pi
-COMPLEX(dp), parameter :: zj      = (0.0_dp, 1.0_dp)
 
-! ... Nan and Inf
-! ...
+complex(dp), parameter :: zj      = (0.0_dp, 1.0_dp)
+
+! ------------------------------------------------------------
+! NaN and Infinity (cannot be parameters)
+! ------------------------------------------------------------
 real(sp)               :: nan4    ! = 0.0_sp/0.0_sp
 real(sp)               :: inf4    ! = 1.0_sp/0.0_sp
 real(dp)               :: nan     ! = 0.0_dp/0.0_dp
@@ -68,20 +75,40 @@ real(dp)               :: inf     ! = 1.0_dp/0.0_dp
 
 ! ... Physical constants
 ! ...
-real(dp), parameter    :: gravity = 9.80665_dp     ! m / s^2
-real(dp), parameter    :: Omega   = 7.292D-5       ! Earth 1/s
-real(dp), parameter    :: Rearth  = 6371315.0_dp   ! Earth radius m
-real(dp), parameter    :: Dearth  = 23.446D0       ! Earth orb. decl. deg
-real(dp), parameter    :: Solar0  = 1365.2D0       ! W/m2
-
 type type_constants
   real(dp)             :: Earth_Gravity     = 9.80665_dp     ! Standard gravity [m/s^2]
   real(dp)             :: Earth_Omega       = 7.2921159D-5   ! Earth's angular velocity [rad/s]
   real(dp)             :: Earth_Radius      = 6371315.0_dp   ! Earth radius used in models [m]
-  real(dp)             :: Earth_Declination = 23.446D0       ! Earth orb. decl. deg
+  real(dp)             :: Earth_Mass        = 5.9722D24      ! Earth mass [kg]
+  real(dp)             :: Earth_Declination = 23.446_dp      ! Earth orb. decl. deg
+  real(dp)             :: Solar_Constant    = 1365.2_dp      ! W/m2
+  real(dp)             :: Gravity_constant  = 6.67430e-11_dp ! Universal grav const [m^3/kg/s^2]
+  real(dp)             :: sigma_SB          = 5.670374419D-8 ! Stefan-Boltzmann [W/m^2/K^4]
+  real(dp)             :: k_Boltzmann       = 1.380649D-23   ! Boltzmann constant [J/K]
+  real(dp)             :: R_gas             = 8.314462618_dp ! Universal gas constant [J/mol/K]
+  real(dp)             :: Avogadro_Number   = 6.02214076D23  ! Avogadro number [1/mol]
 end type type_constants
 
 
 type(type_Constants)                          :: constants
+
+contains
+  ! ...
+  ! ===================================================================
+  ! ===================================================================
+  ! ...
+  subroutine set_nan()
+    ! ... Initialize NaN and values
+    nan4 = ieee_value(0.0_sp, ieee_quiet_nan)
+    nan   = ieee_value(0.0_dp, ieee_quiet_nan)
+  end subroutine set_nan
+  ! ...
+  ! ===================================================================
+  ! ...
+  subroutine set_inf()
+    ! ... Initialize Infinity values
+    inf4 = ieee_value(0.0_sp, ieee_positive_inf)
+    inf   = ieee_value(0.0_dp, ieee_positive_inf)
+  end subroutine set_inf
 
 end module module_constants

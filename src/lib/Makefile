@@ -48,7 +48,8 @@ endif
 
 OBJ = module_types.o $(PLOBJ) module_constants.o                    \
       module_dictionary.o module_nc.o                               \
-      module_math.o module_tools.o module_time.o                    \
+      module_math.o module_linalg.o module_eofs.o                   \
+      module_tools.o module_time.o                                  \
       module_grid.o module_lineargs.o  module_help.o                \
       module_trajectories.o module_minpack.o module_matrix.o        \
       module_enkf.o module_sysdyn.o module_interp.o                 \
@@ -66,6 +67,8 @@ clean:
 	if test -d $(INCDIR); then rm -f $(INCDIR)module_constants.mod; fi
 	if test -d $(INCDIR); then rm -f $(INCDIR)module_dictionary.mod; fi
 	if test -d $(INCDIR); then rm -f $(INCDIR)module_math.mod; fi
+	if test -d $(INCDIR); then rm -f $(INCDIR)module_linalg.mod; fi
+	if test -d $(INCDIR); then rm -f $(INCDIR)module_eofs.mod; fi
 	if test -d $(INCDIR); then rm -f $(INCDIR)module_tools.mod; fi
 	if test -d $(INCDIR); then rm -f $(INCDIR)module_time.mod; fi
 	if test -d $(INCDIR); then rm -f $(INCDIR)module_grid.mod; fi
@@ -106,6 +109,12 @@ module_nc.o: module_types.o module_nc.f90
 
 module_math.o: module_types.o module_constants.o module_math.f90
 	$(FC) -c $(FFLAGS) $(INC) module_math.f90
+
+module_linalg.o: module_types.o module_constants.o module_math.o module_linalg.f90
+	$(FC) -c $(FFLAGS) $(INC) module_linalg.f90
+
+module_eofs.o: module_types.o module_constants.o module_math.o module_linalg.o module_eofs.f90
+	$(FC) -c $(FFLAGS) $(INC) module_eofs.f90
 
 module_interp.o: module_types.o module_constants.o module_interp.f90
 	$(FC) -c $(FFLAGS) $(INC) module_interp.f90

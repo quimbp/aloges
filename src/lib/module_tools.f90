@@ -47,7 +47,7 @@ module module_tools
 
 use module_types
 use module_constants
-use module_math, only: randname
+use module_math, only: randstr
 
 implicit none
 
@@ -407,7 +407,7 @@ contains
 
     ! ... Random filename for temporal storage
     ! ... Send the contents of the selected folder to thar filename
-    tmpname = '/tmp/'//randname(8)
+    tmpname = '/tmp/'//randstr(8)
     call system('echo ls '//compress(dirname)//' -1 > '//tmpname)
     call system('ls '//compress(dirname)//' -1 > '//tmpname)
 
