@@ -38,11 +38,13 @@ clean:
 	(rm -f bin/afort)
 
 afort:
-	(cd scripts; sed 's@#ALOGES_ROOT.*@ALOGES_ROOT=${PWD}@' afort.template > afort.tmp1)
-	(cd scripts; sed 's@#FC.*@FC=${FC}@' afort.tmp1 > afort.tmp2)
-	(cd scripts; sed 's@#FFLAGS.*@FFLAGS="'"${FFLAGS}"'"@' afort.tmp2 > afort.tmp3)
-	(cd scripts; sed 's@#CDFINC.*@CDFINC="'"${CDFINC}"'"@' afort.tmp3 > afort.tmp4)
-	(cd scripts; sed 's@#CDFLIB.*@CDFLIB="'"${CDFLIB}"'"@' afort.tmp4 > afort.tmp5)
-	(cd scripts; sed 's@#PLPLOT_INC.*@PLPLOT_INC="'"${PLPLOT_INC}"'"@' afort.tmp5 > afort.tmp6)
-	(cd scripts; sed 's@#PLPLOT_LIB.*@PLPLOT_LIB="'"${PLPLOT_LIB}"'"@' afort.tmp6 > afort.tmp7)
-	(mv scripts/afort.tmp7 bin/afort; chmod +x bin/afort; rm -f scripts/afort.tmp*)
+	(cd scripts; sed \
+		-e 's@#ALOGES_ROOT.*@ALOGES_ROOT=${PWD}@' \
+		-e 's@#FC.*@FC=${FC}@' \
+		-e 's@#FFLAGS.*@FFLAGS="'"${FFLAGS}"'"@' \
+		-e 's@#CDFINC.*@CDFINC="'"${CDFINC}"'"@' \
+		-e 's@#CDFLIB.*@CDFLIB="'"${CDFLIB}"'"@' \
+		-e 's@#PLPLOT_INC.*@PLPLOT_INC="'"${PLPLOT_INC}"'"@' \
+		-e 's@#PLPLOT_LIB.*@PLPLOT_LIB="'"${PLPLOT_LIB}"'"@' \
+		afort.template > ../bin/afort)
+	chmod +x bin/afort
