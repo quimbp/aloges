@@ -138,8 +138,8 @@ contains
     ! ... Local variables:
     ! ...
     logical verb
-    integer i,j,k,info,nsys,nobs,ne,indx(size(E,2))
-    real(dp) xsum,d
+    integer i,j,k,nsys,nobs,ne
+    real(dp) xsum
     real(dp), dimension(size(E,1))                :: xf
     real(dp), dimension(size(yo))                 :: Hxf,innov
     real(dp), dimension(size(E,1),size(E,2))      :: Ea      ! Ensemble anom
@@ -328,8 +328,8 @@ contains
     ! ... Local variables:
     ! ...
     logical verb
-    integer i,j,k,info,nsys,nobs,ne,indx(size(E,2))
-    real(dp) xsum,d
+    integer i,j,k,nsys,nobs,ne
+    real(dp) xsum
     real(dp), dimension(size(E,1))                :: xf
     real(dp), dimension(size(yo))                 :: Hxf,innov
     real(dp), dimension(size(E,1),size(E,2))      :: Ea      ! Ensemble anom

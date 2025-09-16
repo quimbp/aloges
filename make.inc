@@ -40,10 +40,14 @@
 # 
 OS = Ubuntu
 FC = gfortran
-FFLAGS = -O3 
-FFLAGS = -fbounds-check
-FFLAGS = -fbounds-check -ffpe-summary=zero,invalid,overflow,underflow -ffree-line-length-none
-FFLAGS = -ffpe-summary=zero,invalid,overflow,underflow -ffree-line-length-none
+
+# Debug options:
+FFLAGS = -fbounds-check -ffpe-summary=zero,invalid,overflow,underflow -Wall -fcheck=all -ffree-line-length-none
+#
+# Speed and robustness
+#FFLAGS = -O3 -march=native -funroll-loops -fomit-frame-pointer -ffree-line-length-none
+
+#FFLAGS = -ffpe-summary=zero,invalid,overflow,underflow -ffree-line-length-none
 
 INSTALL = install
 AR = ar cq

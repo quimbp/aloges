@@ -379,7 +379,7 @@ subroutine combine_radials_wls(vr, theta, w, u, v, cov_uv, gdop, angle_ref)
   ! ...
   logical polar
   integer  :: n,i
-  real(dp) :: A(2,2), b(2), ai, wi, c, s
+  real(dp) :: A(2,2), b(2), wi, c, s
 
   n = size(vr)
 

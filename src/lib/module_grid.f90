@@ -147,7 +147,7 @@ contains
     ! ... Local variables
     ! ...
     integer err,fid,ndims,nvars,natts,unlimid,iwork
-    integer mydim,myvar,myatt
+    integer mydim,myvar
     integer vtype,vndims,vnatts,dimids(10)
     real(dp) rwork
     character(len=maxlen) word
@@ -873,7 +873,6 @@ contains
     ! ... Local variables
     ! ...
     integer i,j,ia,ib,ja,jb,nx,ny
-    real(dp), dimension(:,:), allocatable        :: tmp2
     real(dp), dimension(:), allocatable          :: tmp1
     type(type_date), dimension(:), allocatable   :: tmpd
 
@@ -1111,7 +1110,7 @@ contains
 
     ! ... Local variables
     ! ...
-    integer ndim,i,j,k
+    integer ndim
 
     ndim = size(xo)
 
@@ -1146,7 +1145,7 @@ contains
     ! ... Local variables:
     ! ...
     logical Good1,Good2,Good3,Good4
-    integer ndim,i1,j1,k1,i2,j2,k2,i3,j3,i4,j4,Ngoods
+    integer i1,j1,k1,i2,j2,k2,i3,j3,i4,j4,Ngoods
     real(dp) x1,y1,x2,y2,t,u,F1,F2
 
     Fo = 0.0D0
@@ -1442,13 +1441,10 @@ contains
 
     ! ... Local variables
     ! ...
-    integer i,j,k,ndims
+    integer ndims
     integer, dimension(3)                        :: IP
     real(dp), dimension(3)                       :: XX
     real(dp) zo
-    real(dp) y1,y2,y3,y4
-    real(dp) d1,d2,d3,d4
-    real(dp) w1,w2,w3,w4
     real(dp) fo
 
     ndims = 0

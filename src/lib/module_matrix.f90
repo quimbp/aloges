@@ -255,7 +255,7 @@ contains
     real(dp), dimension(MAT%m), intent(in), optional  :: X
 
     logical full
-    integer iu,i,j,ios
+    integer i,ios
     
     i = count([present(irec),present(T),present(X)])
     if (i.eq.0) then

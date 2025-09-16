@@ -34,7 +34,7 @@ implicit none
 
 private
 public :: randn, randstr, randseries, arange, mean, variance, &
-          indexx, swap, imaxloc, median, corrcoef, erf, gamma, &
+          indexx, swap, imaxloc, median, corrcoef, &
           brent, golden, spline, quicksort, linspace, meshgrid, &
           diff, gradient, cumsum, cumprod, percentile, interp1
 
@@ -724,54 +724,6 @@ end subroutine quicksort
   ! ...
   ! ===================================================================
   ! ...
-  pure function erf(x) result(y)
-
-    real(dp), intent(in) :: x
-    real(dp) :: y
-    real(dp) :: t, z
-
-    z = abs(x)
-    t = 1.0_dp/(1.0_dp + 0.5_dp*z)
-    y = t*exp(-z*z - 1.26551223_dp + t*(1.00002368_dp + &
-        t*(0.37409196_dp + t*(0.09678418_dp + t*(-0.18628806_dp + &
-        t*(0.27886807_dp + t*(-1.13520398_dp + t*(1.48851587_dp + &
-        t*(-0.82215223_dp + t*0.17087277_dp)))))))))
-    if (x < 0.0_dp) y = -y
-
-  end function erf
-  ! ...
-  ! ===================================================================
-  ! ...
-  recursive function gamma(x) result(g)
-
-    real(dp), intent(in)           :: x
-    real(dp)                       :: g
-
-    real(dp), parameter :: &
-      p(0:6) = [0.99999999999980993_dp, 676.5203681218851_dp, &
-               -1259.1392167224028_dp, 771.32342877765313_dp, &
-               -176.61502916214059_dp, 12.507343278686905_dp, &
-               -0.13857109526572012_dp]
-    real(dp) :: t, y
-    integer :: i
-
-    if (x < 0.5_dp) then
-      g = pi/(sin(pi*x)*gamma(1.0_dp - x))
-    else
-      y = x - 1.0_dp
-      t = p(0)
-      do i = 1, 6
-        t = t + p(i)/(y + real(i, dp))
-      end do
-      g = sqrt(2.0_dp*pi)*((y + 7.5_dp)**(y + 0.5_dp))*exp(-(y + 7.5_dp))*t
-    end if
-  end function gamma
-  ! ...
-  ! ===================================================================
-  ! ...
-  ! ...
-  ! ===================================================================
-  ! ...
   function brent(f, aa, bb, tol) result(root)
     interface
       function f(x) result(y)
@@ -885,7 +837,6 @@ end subroutine quicksort
     
     real(dp), parameter :: phi = (1.0_dp + sqrt(5.0_dp))/2.0_dp
     real(dp) :: a, b, c, d, fc, fd
-    integer :: iter
     
     a = aa
     b = bb
@@ -908,6 +859,7 @@ end subroutine quicksort
     end do
     
     xmin = (a + b)/2.0_dp
+
   end function golden
   ! ...
   ! ===================================================================
@@ -999,17 +951,6 @@ end subroutine quicksort
   ! ...
   ! ===================================================================
   ! ...
-  function cross_product(a, b) result(c)
-    real(dp), dimension(3), intent(in) :: a, b
-    real(dp), dimension(3) :: c
-    
-    c(1) = a(2)*b(3) - a(3)*b(2)
-    c(2) = a(3)*b(1) - a(1)*b(3)
-    c(3) = a(1)*b(2) - a(2)*b(1)
-  end function cross_product
-  ! ...
-  ! ===================================================================
-  ! ...
   function linspace(start, end, n) result(arr)
     real(dp), intent(in) :: start, end
     integer, intent(in) :: n
@@ -1058,7 +999,6 @@ end subroutine quicksort
     real(dp), dimension(:), allocatable :: dx
     
     integer :: diff_order, i, m
-    real(dp), dimension(:), allocatable :: temp
     
     diff_order = 1
     if (present(n)) diff_order = n

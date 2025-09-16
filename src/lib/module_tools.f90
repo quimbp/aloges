@@ -745,7 +745,7 @@ contains
 
     ! ... Local variables:
     ! ...
-    integer N,nlines,line,col,rest,ii,i1,i2,i3,i4,i5,ll
+    integer N,nlines,line,rest,ii,i1,i2,i3,i4,i5,ll
     character(len=maxlen) sll
     character(len=maxlen) lfmt
 

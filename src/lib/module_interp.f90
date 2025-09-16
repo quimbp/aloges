@@ -47,7 +47,7 @@ contains
     ! ... 
     logical found
     integer i, j, nx, ny, ix, iy
-    real(dp) dx, dy, wx, wy, d, wsum, fsum, dist2, dx2
+    real(dp) dx, dy, d, wsum, fsum, dist2, dx2
 
     nx = size(x)
     ny = size(y)

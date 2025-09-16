@@ -795,18 +795,17 @@ real(dp), intent(in)                    :: jd
 ! ...
 integer ijday
 integer(kind=8) isecs           ! Double precision integer
-character(len=20) calendar
 
 ijday = INT(jd)
-isecs = NINT((jd - ijday)*86400_8)
+isecs = NINT((jd - ijday)*86400_dp)
 
 date%calendar = 'gregorian'
 call caldat(ijday,date%year,date%month,date%day)
 
-date%second = mod(isecs,60_8)
-isecs       = (isecs-date%second)/60_8
-date%minute = mod(isecs,60_8)
-date%hour   = (isecs-date%minute)/60_8
+date%second = mod(isecs,60_dp)
+isecs       = (isecs-date%second)/60_dp
+date%minute = mod(isecs,60_dp)
+date%hour   = (isecs-date%minute)/60_dp
 
 end function jd2date
 ! ...
@@ -819,7 +818,7 @@ character(len=*), intent(in)           :: string
 
 ! ... Local variables
 ! ...
-integer i,nw
+integer nw
 character(len=len(string)) att,word
 
 att = uppercase(string)
@@ -876,7 +875,7 @@ integer, intent(in), optional           :: days,hours,minutes,seconds
 
 ! ... Local variables
 ! ...
-integer i,num_days,num_hours,num_minutes,num_seconds,dmax
+integer i,num_days,num_hours,num_minutes,num_seconds
 
 
 num_days = 0
@@ -1056,7 +1055,7 @@ function num2date(time,units,calendar) result(date)
   integer ndays
   integer(kind=8) isecs,remainder
   integer(kind=8) TimeRef,TimeSec
-  integer year,month,day,hour,minute,second
+  integer year,month,day
   real(dp) factor
   character(len=20) lcal,time_units,IsoRef
   type(type_date) DateRef
@@ -1090,10 +1089,10 @@ function num2date(time,units,calendar) result(date)
   ! ...
   TimeSec = TimeRef + time*factor
 
-  isecs = mod(TimeSec,86400_8)
+  isecs = mod(TimeSec,86400_dp)
   remainder = TimeSec - isecs
 
-  ndays = remainder / 86400_8     ! Days
+  ndays = remainder / 86400_dp     ! Days
 
   if (trim(lcal).eq.'gregorian') then
 
@@ -1121,10 +1120,10 @@ function num2date(time,units,calendar) result(date)
   ! ... Process the isecs:
   ! ...
 
-  date%second = mod(isecs,60_8)
-  isecs       = (isecs-date%second)/60_8
-  date%minute = mod(isecs,60_8)
-  date%hour   = (isecs-date%minute)/60_8
+  date%second = mod(isecs,60_dp)
+  isecs       = (isecs-date%second)/60_dp
+  date%minute = mod(isecs,60_dp)
+  date%hour   = (isecs-date%minute)/60_dp
 
   date%calendar = trim(lcal)
   date%yearday = days_before_month(year,month,date%calendar) + day

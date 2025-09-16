@@ -869,7 +869,6 @@ subroutine fdjac2 ( fcn, m, n, x, fvec, fjac, ldfjac, iflag, epsfcn )
   real ( kind = dp ) fjac(ldfjac,n)
   real ( kind = dp ) fvec(m)
   real ( kind = dp ) h
-  integer i
   integer iflag
   integer j
   real ( kind = dp ) temp
@@ -1524,7 +1523,6 @@ subroutine hybrd1 ( fcn, n, x, fvec, tol, info )
 !       solution X is possible.
 !    4, the iteration is not making good progress.
 !
-  integer lwa
   integer n
 
   real ( kind = dp ) diag(n)
@@ -1534,7 +1532,6 @@ subroutine hybrd1 ( fcn, n, x, fvec, tol, info )
   real ( kind = dp ) fjac(n,n)
   real ( kind = dp ) fvec(n)
   integer info
-  integer j
   integer ldfjac
   integer lr
   integer maxfev
@@ -2245,7 +2242,6 @@ subroutine hybrj1 ( fcn, n, x, fvec, fjac, ldfjac, tol, info )
   real ( kind = dp ) fjac(ldfjac,n)
   real ( kind = dp ) fvec(n)
   integer info
-  integer j
   integer lr
   integer maxfev
   integer mode
@@ -2451,7 +2447,6 @@ subroutine lmder ( fcn, m, n, x, fvec, fjac, ldfjac, ftol, xtol, gtol, maxfev, &
   real ( kind = dp ) fvec(m)
   real ( kind = dp ) gnorm
   real ( kind = dp ) gtol
-  integer i
   integer iflag
   integer info
   integer ipvt(n)
@@ -3738,7 +3733,6 @@ subroutine lmpar ( n, r, ldr, ipvt, diag, qtb, delta, par, x, sdiag )
 !  real ( kind = dp ) enorm
   real ( kind = dp ) gnorm
   real ( kind = dp ) fp
-  integer i
   integer ipvt(n)
   integer iter
   integer j
@@ -4833,7 +4827,6 @@ subroutine qrfac ( m, n, a, lda, pivot, ipvt, lipvt, rdiag, acnorm )
   real ( kind = dp ) ajnorm
 !  real ( kind = dp ) enorm
   real ( kind = dp ) epsmch
-  integer i
   integer i4_temp
   integer ipvt(lipvt)
   integer j

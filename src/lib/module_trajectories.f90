@@ -61,8 +61,6 @@ contains
     ! ... Local variables
     ! ...
     character(len=maxlen)                        :: fpath,fbase,ftype
-    integer                                      :: i
-
 
     call filename_split (filename,fpath,fbase,ftype)
     ftype = lowercase(ftype)
@@ -152,7 +150,7 @@ contains
 
     ! ... Local variables
     ! ...
-    integer i,j,n
+    integer j,n
     real(dp), dimension(TR%Nsteps)       :: tmp1
     real(dp), dimension(TR%N,TR%Nsteps)  :: tmp2
 

@@ -485,8 +485,8 @@ contains
     real(dp), dimension(:,:), intent(inout) :: EOF, ts
     integer, dimension(size(EOF,2)) :: irang
 
-    integer :: N,NEOF,NT,i,j,k,n1,n2,istep,iangle
-    real(dp) :: vari,xsum1,glovar,varima,xstart,range,oldvar
+    integer :: N,NEOF,NT,k,n1,n2,istep,iangle
+    real(dp) :: vari,glovar,varima,xstart,range,oldvar
     real(dp) :: angle,xdum,change
     real(dp), dimension(:), allocatable :: xvari
     real(dp), dimension(:,:), allocatable :: PAIR,PPAIR

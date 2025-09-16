@@ -270,7 +270,7 @@ contains
 
     ! ... Local variables
     ! ...
-    integer iu,step,nsteps
+    integer iu,step
 
     iu = unitfree()
     open(iu,file=filename,status='unknown')
@@ -383,7 +383,7 @@ contains
 
     ! ... Local variables
     ! ...
-    integer i,n
+    integer n
 
 
     WRITE(*,'(A)') "==========================================="

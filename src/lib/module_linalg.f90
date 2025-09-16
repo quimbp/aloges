@@ -51,7 +51,7 @@ contains
     real(dp), intent(out) :: d
 
     real(dp), parameter :: TINY=1.0D-20
-    integer :: n,i,imax,j,k
+    integer :: n,imax,j
     real(dp) :: vv(size(a,1))
 
     n = size(a,1)
@@ -301,9 +301,9 @@ contains
     ! Matrix exponential using Pade approximation
     real(dp), dimension(:,:), intent(in) :: A
     real(dp), dimension(size(A,1),size(A,2)) :: B
-    integer :: n, i, j, q 
+    integer :: n, i, q 
     real(dp), dimension(:,:), allocatable :: A2, A4, A6, U, V, N_mat, D_mat
-    real(dp) :: normA, c
+    real(dp) :: normA
     
     n = size(A,1)
     if (size(A,2) /= n) error stop "expm: Input matrix must be square" 
