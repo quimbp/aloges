@@ -205,6 +205,440 @@ This module allows for convenient reference to fundamental values and simplifies
 \end{verbatim}
 
 
+
+\section{Module module\_time}
+
+\paragraph{}
+The \texttt{module\_time} module provides utilities for handling dates, times, calendars, and astronomical calculations. It includes a derived type \texttt{type\_date} and supports various calendars (gregorian, noleap). The module also includes functions for converting between dates and numerical representations, calculating sunrise/sunset, and estimating solar insolation.
+
+\subsection{\texttt{check\_calendar(calendar)}}
+\begin{itemize}
+\item \textbf{Purpose}: Validates and normalizes the calendar string.
+\item \textbf{Arguments}:
+\begin{itemize}
+\item \texttt{calendar} (\texttt{character(len=*)}, \texttt{intent(inout)}): Calendar name to check.
+\end{itemize}
+\item \textbf{Example}:
+\begin{lstlisting}[language=Fortran]
+call check_calendar(cal)  ! Converts 'standard' to 'gregorian'
+\end{lstlisting}
+\end{itemize}
+
+\subsection{\texttt{check\_units(units)}}
+\begin{itemize}
+\item \textbf{Purpose}: Validates and normalizes time units.
+\item \textbf{Arguments}:
+\begin{itemize}
+\item \texttt{units} (\texttt{character(len=*)}, \texttt{intent(inout)}): Time units to check.
+\end{itemize}
+\item \textbf{Example}:
+\begin{lstlisting}[language=Fortran]
+call check_units('sec')  ! Converts to 'seconds'
+\end{lstlisting}
+\end{itemize}
+
+\subsection{\texttt{days\_before\_month(year, month, calendar)}}
+\begin{itemize}
+\item \textbf{Purpose}: Returns the number of days in the year before the start of the given month.
+\item \textbf{Arguments}:
+\begin{itemize}
+\item \texttt{year} (\texttt{integer}, \texttt{intent(in)}): Year.
+\item \texttt{month} (\texttt{integer}, \texttt{intent(in)}): Month.
+\item \texttt{calendar} (\texttt{character(len=*)}, \texttt{intent(in)}, \texttt{optional}): Calendar type.
+\end{itemize}
+\item \textbf{Returns}: \texttt{integer} number of days.
+\item \textbf{Example}:
+\begin{lstlisting}[language=Fortran]
+ndays = days_before_month(2023, 3, 'gregorian')
+\end{lstlisting}
+\end{itemize}
+
+\subsection{\texttt{days\_before\_year(year, calendar)}}
+\begin{itemize}
+\item \textbf{Purpose}: Returns the number of days before January 1st of the given year.
+\item \textbf{Arguments}:
+\begin{itemize}
+\item \texttt{year} (\texttt{integer}, \texttt{intent(in)}): Year.
+\item \texttt{calendar} (\texttt{character(len=*)}, \texttt{intent(in)}, \texttt{optional}): Calendar type.
+\end{itemize}
+\item \textbf{Returns}: \texttt{integer} number of days.
+\item \textbf{Example}:
+\begin{lstlisting}[language=Fortran]
+ndays = days_before_year(2023, 'gregorian')
+\end{lstlisting}
+\end{itemize}
+
+\subsection{\texttt{days\_in\_month(year, month, calendar)}}
+\begin{itemize}
+\item \textbf{Purpose}: Returns the number of days in the given month and year.
+\item \textbf{Arguments}:
+\begin{itemize}
+\item \texttt{year} (\texttt{integer}, \texttt{intent(in)}): Year.
+\item \texttt{month} (\texttt{integer}, \texttt{intent(in)}): Month.
+\item \texttt{calendar} (\texttt{character(len=*)}, \texttt{intent(in)}, \texttt{optional}): Calendar type.
+\end{itemize}
+\item \textbf{Returns}: \texttt{integer} number of days.
+\item \textbf{Example}:
+\begin{lstlisting}[language=Fortran]
+ndays = days_in_month(2023, 2, 'gregorian')  ! Returns 28 or 29
+\end{lstlisting}
+\end{itemize}
+
+\subsection{\texttt{isleap(year, calendar)}}
+\begin{itemize}
+\item \textbf{Purpose}: Checks if the given year is a leap year.
+\item \textbf{Arguments}:
+\begin{itemize}
+\item \texttt{year} (\texttt{integer}, \texttt{intent(in)}): Year.
+\item \texttt{calendar} (\texttt{character(len=*)}, \texttt{intent(in)}, \texttt{optional}): Calendar type.
+\end{itemize}
+\item \textbf{Returns}: \texttt{logical} true if leap year.
+\item \textbf{Example}:
+\begin{lstlisting}[language=Fortran]
+if (isleap(2024)) then
+  ! Do something
+end if
+\end{lstlisting}
+\end{itemize}
+
+\subsection{\texttt{split\_units(units, time\_units, RefDate)}}
+\begin{itemize}
+\item \textbf{Purpose}: Splits a time units string into time units and reference date.
+\item \textbf{Arguments}:
+\begin{itemize}
+\item \texttt{units} (\texttt{character(len=*)}, \texttt{intent(in)}): Input string (e.g., "days since 2000-01-01").
+\item \texttt{time\_units} (\texttt{character(len=20)}, \texttt{intent(out)}): Extracted time units.
+\item \texttt{RefDate} (\texttt{character(len=20)}, \texttt{intent(out)}): Extracted reference date.
+\end{itemize}
+\item \textbf{Example}:
+\begin{lstlisting}[language=Fortran]
+call split_units('days since 2000-01-01', tu, rd)
+\end{lstlisting}
+\end{itemize}
+
+\subsection{\texttt{unit\_conversion\_factor(units)}}
+\begin{itemize}
+\item \textbf{Purpose}: Returns the conversion factor to seconds for the given time units.
+\item \textbf{Arguments}:
+\begin{itemize}
+\item \texttt{units} (\texttt{character(len=*)}, \texttt{intent(in)}): Time units.
+\end{itemize}
+\item \textbf{Returns}: \texttt{real(dp)} conversion factor.
+\item \textbf{Example}:
+\begin{lstlisting}[language=Fortran]
+factor = unit_conversion_factor('days')  ! Returns 86400.0
+\end{lstlisting}
+\end{itemize}
+
+\subsection{\texttt{ymd2ord(year, month, day, calendar)}}
+\begin{itemize}
+\item \textbf{Purpose}: Converts year, month, day to an ordinal day number.
+\item \textbf{Arguments}:
+\begin{itemize}
+\item \texttt{year} (\texttt{integer}, \texttt{intent(in)}): Year.
+\item \texttt{month} (\texttt{integer}, \texttt{intent(in)}): Month.
+\item \texttt{day} (\texttt{integer}, \texttt{intent(in)}): Day.
+\item \texttt{calendar} (\texttt{character(len=*)}, \texttt{intent(in)}, \texttt{optional}): Calendar type.
+\end{itemize}
+\item \textbf{Returns}: \texttt{integer} ordinal day.
+\item \textbf{Example}:
+\begin{lstlisting}[language=Fortran]
+ord = ymd2ord(2023, 1, 1)  ! Returns 1
+\end{lstlisting}
+\end{itemize}
+
+\subsection{\texttt{ord2ymd(nn, year, month, day, calendar)}}
+\begin{itemize}
+\item \textbf{Purpose}: Converts an ordinal day number to year, month, day.
+\item \textbf{Arguments}:
+\begin{itemize}
+\item \texttt{nn} (\texttt{integer}, \texttt{intent(in)}): Ordinal day.
+\item \texttt{year} (\texttt{integer}, \texttt{intent(out)}): Year.
+\item \texttt{month} (\texttt{integer}, \texttt{intent(out)}): Month.
+\item \texttt{day} (\texttt{integer}, \texttt{intent(out)}): Day.
+\item \texttt{calendar} (\texttt{character(len=*)}, \texttt{intent(in)}, \texttt{optional}): Calendar type.
+\end{itemize}
+\item \textbf{Example}:
+\begin{lstlisting}[language=Fortran]
+call ord2ymd(1, y, m, d)  ! y=1, m=1, d=1
+\end{lstlisting}
+\end{itemize}
+
+\subsection{\texttt{date\_is(y, m, d, hh, mm, ss, calendar)}}
+\begin{itemize}
+\item \textbf{Purpose}: Creates a \texttt{type\_date} instance.
+\item \textbf{Arguments}:
+\begin{itemize}
+\item \texttt{y, m, d} (\texttt{integer}, \texttt{intent(in)}): Year, month, day.
+\item \texttt{hh, mm, ss} (\texttt{integer}, \texttt{intent(in)}, \texttt{optional}): Hour, minute, second.
+\item \texttt{calendar} (\texttt{character(len=*)}, \texttt{intent(in)}, \texttt{optional}): Calendar type.
+\end{itemize}
+\item \textbf{Returns}: \texttt{type\_date} instance.
+\item \textbf{Example}:
+\begin{lstlisting}[language=Fortran]
+d = date_is(2023, 1, 1, 12, 0, 0)
+\end{lstlisting}
+\end{itemize}
+
+\subsection{\texttt{date\_set(p, y, m, d, hh, mm, ss, cal)}}
+\begin{itemize}
+\item \textbf{Purpose}: Sets the values of a \texttt{type\_date} instance.
+\item \textbf{Arguments}:
+\begin{itemize}
+\item \texttt{p} (\texttt{type\_date}, \texttt{intent(inout)}): Date instance.
+\item \texttt{y, m, d} (\texttt{integer}, \texttt{intent(in)}): Year, month, day.
+\item \texttt{hh, mm, ss} (\texttt{integer}, \texttt{intent(in)}, \texttt{optional}): Hour, minute, second.
+\item \texttt{cal} (\texttt{character(len=*)}, \texttt{intent(in)}, \texttt{optional}): Calendar type.
+\end{itemize}
+\item \textbf{Example}:
+\begin{lstlisting}[language=Fortran]
+call date_set(d, 2023, 1, 1, 12, 0, 0)
+\end{lstlisting}
+\end{itemize}
+
+\subsection{\texttt{date\_iso(date, Z)}}
+\begin{itemize}
+\item \textbf{Purpose}: Returns an ISO 8601 string representation of the date.
+\item \textbf{Arguments}:
+\begin{itemize}
+\item \texttt{date} (\texttt{type\_date}, \texttt{intent(in)}): Date instance.
+\item \texttt{Z} (\texttt{character(len=*)}, \texttt{intent(in)}, \texttt{optional}): Timezone specifier.
+\end{itemize}
+\item \textbf{Returns}: \texttt{character(len=25)} ISO string.
+\item \textbf{Example}:
+\begin{lstlisting}[language=Fortran]
+str = d%iso('Z')  ! Returns "2023-01-01T12:00:00Z"
+\end{lstlisting}
+\end{itemize}
+
+\subsection{\texttt{julday(year, month, day)}}
+\begin{itemize}
+\item \textbf{Purpose}: Computes the Julian day number.
+\item \textbf{Arguments}:
+\begin{itemize}
+\item \texttt{year, month, day} (\texttt{integer}, \texttt{intent(in)}): Date components.
+\end{itemize}
+\item \textbf{Returns}: \texttt{integer} Julian day.
+\item \textbf{Example}:
+\begin{lstlisting}[language=Fortran]
+jd = julday(2023, 1, 1)
+\end{lstlisting}
+\end{itemize}
+
+\subsection{\texttt{caldat(julian, year, month, day)}}
+\begin{itemize}
+\item \textbf{Purpose}: Converts a Julian day number to calendar date.
+\item \textbf{Arguments}:
+\begin{itemize}
+\item \texttt{julian} (\texttt{integer}, \texttt{intent(in)}): Julian day.
+\item \texttt{year, month, day} (\texttt{integer}, \texttt{intent(out)}): Date components.
+\end{itemize}
+\item \textbf{Example}:
+\begin{lstlisting}[language=Fortran]
+call caldat(2459945, y, m, d)
+\end{lstlisting}
+\end{itemize}
+
+\subsection{\texttt{date\_now(now)}}
+\begin{itemize}
+\item \textbf{Purpose}: Sets the current date and time.
+\item \textbf{Arguments}:
+\begin{itemize}
+\item \texttt{now} (\texttt{type\_date}, \texttt{intent(inout)}): Date instance to set.
+\end{itemize}
+\item \textbf{Example}:
+\begin{lstlisting}[language=Fortran]
+call now%now()
+\end{lstlisting}
+\end{itemize}
+
+\subsection{\texttt{date2jd(date)}}
+\begin{itemize}
+\item \textbf{Purpose}: Converts a \texttt{type\_date} to Julian day (with fractional part).
+\item \textbf{Arguments}:
+\begin{itemize}
+\item \texttt{date} (\texttt{type\_date}, \texttt{intent(in)}): Date instance.
+\end{itemize}
+\item \textbf{Returns}: \texttt{real(dp)} Julian day.
+\item \textbf{Example}:
+\begin{lstlisting}[language=Fortran]
+jd = d%jd()
+\end{lstlisting}
+\end{itemize}
+
+\subsection{\texttt{jd2date(jd)}}
+\begin{itemize}
+\item \textbf{Purpose}: Converts a Julian day to a \texttt{type\_date}.
+\item \textbf{Arguments}:
+\begin{itemize}
+\item \texttt{jd} (\texttt{real(dp)}, \texttt{intent(in)}): Julian day.
+\end{itemize}
+\item \textbf{Returns}: \texttt{type\_date} instance.
+\item \textbf{Example}:
+\begin{lstlisting}[language=Fortran]
+d = jd2date(2459945.5)
+\end{lstlisting}
+\end{itemize}
+
+\subsection{\texttt{date\_increment(date, days, hours, minutes, seconds)}}
+\begin{itemize}
+\item \textbf{Purpose}: Increments (or decrements) a date by the given amounts.
+\item \textbf{Arguments}:
+\begin{itemize}
+\item \texttt{date} (\texttt{type\_date}, \texttt{intent(in)}): Base date.
+\item \texttt{days, hours, minutes, seconds} (\texttt{integer}, \texttt{intent(in)}, \texttt{optional}): Offsets.
+\end{itemize}
+\item \textbf{Returns}: \texttt{type\_date} new date.
+\item \textbf{Example}:
+\begin{lstlisting}[language=Fortran]
+new_d = d%timedelta(days=1, hours=12)
+\end{lstlisting}
+\end{itemize}
+
+\subsection{\texttt{num2date(time, units, calendar)}}
+\begin{itemize}
+\item \textbf{Purpose}: Converts a numerical time to a \texttt{type\_date}.
+\item \textbf{Arguments}:
+\begin{itemize}
+\item \texttt{time} (\texttt{real(dp)}, \texttt{intent(in)}): Numerical time.
+\item \texttt{units} (\texttt{character(len=*)}, \texttt{intent(in)}, \texttt{optional}): Time units.
+\item \texttt{calendar} (\texttt{character(len=*)}, \texttt{intent(in)}, \texttt{optional}): Calendar type.
+\end{itemize}
+\item \textbf{Returns}: \texttt{type\_date} instance.
+\item \textbf{Example}:
+\begin{lstlisting}[language=Fortran]
+d = num2date(86400.0, 'seconds since 2000-01-01')
+\end{lstlisting}
+\end{itemize}
+
+\subsection{\texttt{date2num(date, units)}}
+\begin{itemize}
+\item \textbf{Purpose}: Converts a \texttt{type\_date} to a numerical time.
+\item \textbf{Arguments}:
+\begin{itemize}
+\item \texttt{date} (\texttt{type\_date}, \texttt{intent(in)}): Date instance.
+\item \texttt{units} (\texttt{character(len=*)}, \texttt{intent(in)}, \texttt{optional}): Time units.
+\end{itemize}
+\item \textbf{Returns}: \texttt{real(dp)} numerical time.
+\item \textbf{Example}:
+\begin{lstlisting}[language=Fortran]
+t = date2num(d, 'days since 2000-01-01')
+\end{lstlisting}
+\end{itemize}
+
+\subsection{\texttt{time\_transform(time, units, calendar, units\_new, calendar\_new)}}
+\begin{itemize}
+\item \textbf{Purpose}: Transforms a time array from one units/calendar to another.
+\item \textbf{Arguments}:
+\begin{itemize}
+\item \texttt{time} (\texttt{real(dp)}, \texttt{dimension(:)}, \texttt{intent(in)}): Input time array.
+\item \texttt{units, calendar} (\texttt{character(len=*)}, \texttt{intent(in)}): Original units and calendar.
+\item \texttt{units\_new, calendar\_new} (\texttt{character(len=*)}, \texttt{intent(in)}): Target units and calendar.
+\end{itemize}
+\item \textbf{Returns}: \texttt{real(dp)}, \texttt{dimension(size(time))} transformed time array.
+\item \textbf{Example}:
+\begin{lstlisting}[language=Fortran]
+t_new = time_transform(t_old, 'days', 'gregorian', 'hours', 'noleap')
+\end{lstlisting}
+\end{itemize}
+
+\subsection{\texttt{hour2sec(hh, mm, ss, sec)}}
+\begin{itemize}
+\item \textbf{Purpose}: Converts hours, minutes, seconds to total seconds.
+\item \textbf{Arguments}:
+\begin{itemize}
+\item \texttt{hh, mm, ss} (\texttt{integer}, \texttt{intent(in)}): Time components.
+\item \texttt{sec} (\texttt{integer}, \texttt{intent(out)}): Total seconds.
+\end{itemize}
+\item \textbf{Example}:
+\begin{lstlisting}[language=Fortran]
+call hour2sec(1, 30, 0, sec)  ! sec = 5400
+\end{lstlisting}
+\end{itemize}
+
+\subsection{\texttt{sec2hour(sec, hh, mm, ss)}}
+\begin{itemize}
+\item \textbf{Purpose}: Converts total seconds to hours, minutes, seconds.
+\item \textbf{Arguments}:
+\begin{itemize}
+\item \texttt{sec} (\texttt{integer}, \texttt{intent(in)}): Total seconds.
+\item \texttt{hh, mm, ss} (\texttt{integer}, \texttt{intent(out)}): Time components.
+\end{itemize}
+\item \textbf{Example}:
+\begin{lstlisting}[language=Fortran]
+call sec2hour(5400, hh, mm, ss)  ! hh=1, mm=30, ss=0
+\end{lstlisting}
+\end{itemize}
+
+\subsection{\texttt{dms2dec(gg, mm, ss, deg)}}
+\begin{itemize}
+\item \textbf{Purpose}: Converts degrees, minutes, seconds to decimal degrees.
+\item \textbf{Arguments}:
+\begin{itemize}
+\item \texttt{gg, mm, ss} (\texttt{integer}, \texttt{intent(in)}): DMS components.
+\item \texttt{deg} (\texttt{real(dp)}, \texttt{intent(out)}): Decimal degrees.
+\end{itemize}
+\item \textbf{Example}:
+\begin{lstlisting}[language=Fortran]
+call dms2dec(45, 30, 0, deg)  ! deg = 45.5
+\end{lstlisting}
+\end{itemize}
+
+\subsection{\texttt{dec2dms(deg, gg, mm, ss)}}
+\begin{itemize}
+\item \textbf{Purpose}: Converts decimal degrees to degrees, minutes, seconds.
+\item \textbf{Arguments}:
+\begin{itemize}
+\item \texttt{deg} (\texttt{real(dp)}, \texttt{intent(in)}): Decimal degrees.
+\item \texttt{gg, mm, ss} (\texttt{integer}, \texttt{intent(out)}): DMS components.
+\end{itemize}
+\item \textbf{Example}:
+\begin{lstlisting}[language=Fortran]
+call dec2dms(45.5, gg, mm, ss)  ! gg=45, mm=30, ss=0
+\end{lstlisting}
+\end{itemize}
+
+\subsection{\texttt{SunRise\_and\_SunSet(lon, lat, date, hSunrise, hSunset)}}
+\begin{itemize}
+\item \textbf{Purpose}: Computes sunrise and sunset times for a given location and date.
+\item \textbf{Arguments}:
+\begin{itemize}
+\item \texttt{lon, lat} (\texttt{real(dp)}, \texttt{intent(in)}): Longitude and latitude (degrees).
+\item \texttt{date} (\texttt{type\_date}, \texttt{intent(in)}): Date.
+\item \texttt{hSunrise, hSunset} (\texttt{real(dp)}, \texttt{intent(out)}): Sunrise and sunset times (seconds from midnight).
+\end{itemize}
+\item \textbf{Example}:
+\begin{lstlisting}[language=Fortran]
+call SunRise_and_SunSet(2.0, 41.0, d, sunrise, sunset)
+\end{lstlisting}
+\end{itemize}
+
+\subsection{\texttt{daily\_insolation(lat, day)}}
+\begin{itemize}
+\item \textbf{Purpose}: Estimates daily solar insolation for a given latitude and day of year.
+\item \textbf{Arguments}:
+\begin{itemize}
+\item \texttt{lat} (\texttt{real(dp)}, \texttt{intent(in)}): Latitude (radians).
+\item \texttt{day} (\texttt{real(dp)}, \texttt{intent(in)}): Day of year.
+\end{itemize}
+\item \textbf{Returns}: \texttt{real(dp)} insolation (W/m²).
+\item \textbf{Example}:
+%\begin{lstlisting}[language=Fortran]
+%Qsw = daily_insolation(0.7, 180.0)  ! Latitude ~40°, day 180
+%\end{lstlisting}
+\end{itemize}
+
+\section{Notes}
+\begin{itemize}
+\item The module uses double precision (\texttt{real(dp)}) for numerical calculations.
+\item Calendar support includes 'gregorian' (leap years) and 'noleap' (365-day years).
+\item Time units can be 'seconds', 'minutes', 'hours', or 'days'.
+\item The module includes internal helper functions for astronomical calculations (e.g., \texttt{SunDeclination}, \texttt{EquationOfTime}).
+\end{itemize}
+
+This module is robust and suitable for a wide range of time and date handling tasks in scientific applications.
+
+
 \chapter{Results and Discussion}
 Present results, use figures and tables, and discuss their meaning.
 
