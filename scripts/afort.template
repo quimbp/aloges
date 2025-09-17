@@ -15,7 +15,7 @@ version="2.1"
 #PLPLOT_LIB=
 
 INC="-I${ALOGES_ROOT}/include ${CDFINC} ${PLPLOT_INC}"
-LIB="-L${ALOGES_ROOT}/lib -laloges ${CDFLIB} ${PLPLOT_LIB} -llapack -lblas "
+LIB="-L${ALOGES_ROOT}/lib -laloges ${CDFLIB} ${PLPLOT_LIB}"
 
 Nargs=$#
 
