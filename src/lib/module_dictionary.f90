@@ -302,7 +302,9 @@ contains
         integer :: i, k
         allocate(character(len=0) :: out_keys(0))
         if (DICT%count == 0) return
-        allocate(character(len=1) :: out_keys(DICT%count))  ! temp length; will reset below
+
+        deallocate(out_keys)
+        allocate(character(len=20) :: out_keys(DICT%count))  ! temp length; will reset below
         k = 0
         do i = 1, DICT%capacity
             if (DICT%state(i) == USED .and. allocated(DICT%keys(i)%s)) then
