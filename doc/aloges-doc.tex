@@ -638,6 +638,86 @@ call SunRise_and_SunSet(2.0, 41.0, d, sunrise, sunset)
 
 This module is robust and suitable for a wide range of time and date handling tasks in scientific applications.
 
+\chapter{External-dependent modules}
+
+\section{Module module\_plplot}
+
+\paragraph{} 
+The \texttt{module\_plplot} module provides a comprehensive, object-oriented interface to the PLplot graphics library for creating scientific visualizations in Fortran. It encapsulates plotting functionality through the derived type \texttt{type\_plplot}, which manages plot initialization, axis configuration, and rendering of various plot types including line plots, scatter plots, vector field visualizations (quiver plots), and color maps. The module emphasizes ease of use while maintaining flexibility through customizable options for line styles, colors, markers, and plot aesthetics.
+
+\paragraph{}
+The module supports multiple output devices (interactive windows via \texttt{qtwidget}, as well as file formats such as PNG, PDF, and SVG), automatic axis scaling, logarithmic scales, grid overlays, and multi-panel layouts. It includes a predefined color palette with 16 named colors (white, black, blue, green, red, cyan, magenta, yellow, orange, purple, pink, brown, gray, and light variants) accessible through intuitive string identifiers. The plotting interface follows a familiar workflow: initialize the plot environment, configure axes and labels, add data series with optional styling, and render the final output.
+
+\subsection{Plot Types and Capabilities}
+
+\paragraph{Line and Scatter Plots}
+The module provides versatile line plotting capabilities through the generic \texttt{plot} interface, which accepts data in multiple formats: a single array \texttt{y} (plotted against indices), paired arrays \texttt{(x, y)}, or multiple series \texttt{(x, Y)} where \texttt{Y} is a two-dimensional array. Each plot can be customized using the \texttt{line\_options} type, which controls line width, color, style (solid, dashed, dotted, dash-dot), and legend labels. The module also supports scatter plots through marker symbols including squares, dots, plus signs, asterisks, circles, and crosses.
+
+\paragraph{Vector Field Visualization (Quiver Plots)}
+The \texttt{quiver} interface enables visualization of two-dimensional vector fields, accepting either gridded data \texttt{(x, y, u, v)} where \texttt{u} and \texttt{v} are two-dimensional arrays, or scattered data where all inputs are one-dimensional arrays. Quiver plots support extensive customization through the \texttt{quiver\_options} type, including vector scaling, normalization, arrow head size, color selection, minimum magnitude thresholds for filtering small vectors, and pivot positioning (tail, middle, or tip). This functionality is particularly useful for displaying velocity fields, gradients, or directional data in geophysical and fluid dynamics applications.
+
+\paragraph{Color Maps and Customization}
+The module implements a custom colormap (\texttt{colormap0}) with 16 predefined colors, each accessible by name or index. Colors can be specified using full names (e.g., \texttt{'blue'}), single-character abbreviations (e.g., \texttt{'b'}), or case-insensitive variants. The color system is initialized automatically and can be queried using the \texttt{print\_color\_table} utility. This consistent color interface extends across all plot elements including lines, markers, arrows, axes, labels, and backgrounds.
+
+\subsection{Plot Configuration and Styling}
+
+\paragraph{Axis Management}
+Axis configuration is handled through the \texttt{type\_plaxis} derived type, which maintains state for axis limits, labels, scales, and appearance. Users can set axis limits explicitly using \texttt{xlim} and \texttt{ylim} methods, or allow automatic scaling based on data ranges. The module supports both linear and logarithmic scales for x and y axes independently, and can display coordinate grids. Axis labels, titles, and font properties (size and color) are configurable through the \texttt{labels} method.
+
+\paragraph{Multi-Panel Layouts}
+The module supports multi-panel figure layouts through the \texttt{multiplot} option during initialization, allowing users to specify a grid of subplots (rows and columns). This enables comparative visualizations and complex figure compositions within a single output file or window.
+
+\paragraph{Legend Support}
+Automatic legend generation is supported for line plots when labels are provided through the \texttt{line\_options} type. The legend system tracks plot elements (lines, markers, colors, styles) and can be rendered using the \texttt{legend} method. Legend positioning, styling, and layout are controlled through the internal \texttt{type\_legend} structure.
+
+\subsection{Example Usage}
+
+\paragraph{Basic line plot}
+\begin{lstlisting}[language=Fortran]
+use module_plplot
+type(type_plplot) :: plt
+real(dp) :: x(100), y(100)
+integer :: i
+
+! Generate data
+do i = 1, 100
+  x(i) = real(i, dp) * 0.1_dp
+  y(i) = sin(x(i))
+end do
+
+! Create plot
+call plt%init(device='pngcairo', filename='sine.png')
+call plt%labels(xlabel='x', ylabel='sin(x)', title='Sine Function')
+call plt%plot(x, y, line_opts(width=2.0_dp, color='blue'))
+call plt%show()
+\end{lstlisting}
+
+\paragraph{Quiver plot with custom options}
+\begin{lstlisting}[language=Fortran]
+use module_plplot
+type(type_plplot) :: plt
+real(dp) :: x(10), y(10), u(10,10), v(10,10)
+
+! Generate vector field data (omitted for brevity)
+! ...
+
+! Create quiver plot
+call plt%init()
+call plt%labels(xlabel='x', ylabel='y', title='Vector Field')
+call plt%quiver(x, y, u, v, &
+  quiver_opts(scale=0.5_dp, color=COLOR_RED, normalize=.true.))
+call plt%show()
+\end{lstlisting}
+
+\paragraph{Multiple series with legend}
+\begin{lstlisting}[language=Fortran]
+call plt%init()
+call plt%plot(x, y1, line_opts(color='red', label='Series 1'))
+call plt%plot(x, y2, line_opts(color='blue', style='--', label='Series 2'))
+call plt%ax%legend()
+call plt%show()
+\end{lstlisting}
+
 
 \chapter{Results and Discussion}
 Present results, use figures and tables, and discuss their meaning.
