@@ -55,6 +55,12 @@ integer, public, parameter :: &
     COLOR_LIGHTGREEN = 14, &
     COLOR_LIGHTRED   = 15
 
+character(len=10), dimension(16)  :: &
+   color_names = [ "WHITE     ", "BLACK     ", "BLUE      ", "GREEN     ", &
+                   "RED       ", "CYAN      ", "MAGENTA   ", "YELLOW    ", &
+                   "ORANGE    ", "PURPLE    ", "PINK      ", "BROWN     ", &
+                   "GRAY      ", "LIGHTBLUE ", "LIGHTGREEN", "LIGHTRED  " ]
+    
 ! Pivot options for quiver plots
 integer, parameter :: &
     PIVOT_TAIL = 1, &
@@ -66,19 +72,19 @@ integer, private, parameter :: nmax = 25
 ! Line plot options type
 type line_options
   real(dp)              :: width = 1.0_dp
-  character(len=50)     :: color = 'black'
+  character(len=10)     :: color = 'black'
   character(len=20)     :: label = ''
   character(len=2)      :: style = '-'
 end type line_options
 
 ! Quiver options type
 type quiver_options
-    real(dp) :: scale = 1.0_dp
-    real(dp) :: head_size = 0.02_dp
-    integer  :: color = 2
-    logical  :: normalize = .true.
-    real(dp) :: min_magnitude = 0.001_dp
-    integer  :: pivot = PIVOT_TAIL
+    real(dp)             :: scale = 1.0_dp
+    real(dp)             :: head_size = 0.02_dp
+    character(len=10)    :: color = 'black'
+    logical              :: normalize = .true.
+    real(dp)             :: min_magnitude = 0.001_dp
+    integer              :: pivot = PIVOT_TAIL
 end type quiver_options
 
 type type_legend
@@ -124,7 +130,7 @@ type type_plaxis
   logical                              :: axes_equal = .false.
   logical                              :: xlog = .false.
   logical                              :: ylog = .false.
-  integer                              :: color_index = 0
+  integer                              :: color_index = 3
   real(dp)                             :: xmin, xmax, ymin, ymax
   real(dp)                             :: fontsize = 1.0_dp
   character(len=50)                    :: xlabel = ''
@@ -159,8 +165,9 @@ type type_plplot
     procedure :: legend => plplot_legend
     procedure :: plot_y
     procedure :: plot_xy
+    procedure :: plot_yy
     procedure :: plot_xyy
-    generic, public :: plot => plot_y, plot_xy, plot_xyy
+    generic, public :: plot => plot_y, plot_xy, plot_yy, plot_xyy
     procedure :: quiver_2d
     procedure :: quiver_1d
     generic, public :: quiver => quiver_2d, quiver_1d
@@ -306,18 +313,17 @@ contains
 
   subroutine print_color_table()
     integer :: i
-    character(len=20) :: color_names(0:15)
-    
-    color_names = ["WHITE      ", "BLACK      ", "BLUE       ", "GREEN      ", &
-                   "RED        ", "CYAN       ", "MAGENTA    ", "YELLOW     ", &
-                   "ORANGE     ", "PURPLE     ", "PINK       ", "BROWN      ", &
-                   "GRAY       ", "LIGHTBLUE  ", "LIGHTGREEN ", "LIGHTRED   "]
-    
-    write(*, *) "Custom Color Map:"
+    !character(len=20) :: color_names(0:15)
+    !color_names = ["WHITE      ", "BLACK      ", "BLUE       ", "GREEN      ", &
+    !               "RED        ", "CYAN       ", "MAGENTA    ", "YELLOW     ", &
+    !               "ORANGE     ", "PURPLE     ", "PINK       ", "BROWN      ", &
+    !               "GRAY       ", "LIGHTBLUE  ", "LIGHTGREEN ", "LIGHTRED   "]
+
+    write(*, *) "ALOGES PLPLT Color Map:"
     write(*, *) "Index  Name"
     write(*, *) "-----  ----"
-    do i = 0, 15
-      write(*, '(I5, 4X, A)') i, trim(color_names(i))
+    do i = 1, 16
+      write(*, '(I5, 4X, A)') i-1, trim(color_names(i))
     end do
   end subroutine print_color_table
 
@@ -370,7 +376,7 @@ contains
     endif
 
     PLT%init_done = .true.
-    PLT%ax%color_index = 0
+    PLT%ax%color_index = 3
     PLT%ax%axis_legend%nlegend = 0
     PLT%ax%axis_legend%text_labels(:) = ''
   end subroutine plplot_init
@@ -413,6 +419,12 @@ contains
 
   subroutine plplot_show(PLT)
     class(type_plplot), intent(inout) :: PLT
+
+    if (.not.PLT%init_done) then
+      write(*,*) 'Warning: in plplot_show, plot not initialized'
+      return
+    endif
+
     call plend()
     PLT%init_done = .false.
     PLT%ax%env_done = .false.
@@ -556,6 +568,36 @@ contains
   ! ...
   ! ===================================================================
   ! ...
+  subroutine plot_yy(PLT, y, options)
+
+    class(type_plplot), intent(inout) :: PLT
+    real(dp), dimension(:,:), intent(in) :: y
+    type(line_options), intent(in), optional :: options
+
+    ! ... Local variables
+    ! ...
+    integer :: i
+    real(dp), dimension(size(y,1)) :: x
+    type(line_options) :: opts
+
+    opts = line_options()  ! Default values
+    if (present(options)) opts = options
+
+    forall(i=1:size(y,1)) x(i) = real(i,dp)
+
+    ! Plot each column of y
+    ! cycling color
+    do i = 1, size(y, 2)
+      opts%color = color_names(PLT%ax%color_index)
+      call plot_xy(PLT, x, y(:,i), opts)
+      PLT%ax%color_index = PLT%ax%color_index + 1
+      if (PLT%ax%color_index.eq.17) PLT%ax%color_index = 1
+    end do
+
+  end subroutine plot_yy
+  ! ...
+  ! ===================================================================
+  ! ...
   subroutine plot_xyy(PLT, x, y, options)
 
     class(type_plplot), intent(inout) :: PLT
@@ -566,10 +608,18 @@ contains
     ! ... Local variables
     ! ...
     integer :: i
+    type(line_options) :: opts
+
+    opts = line_options()  ! Default values
+    if (present(options)) opts = options
 
     ! Plot each column of y
+    ! cycling color
     do i = 1, size(y, 2)
-      call plot_xy(PLT, x, y(:,i), options)
+      opts%color = color_names(PLT%ax%color_index)
+      call plot_xy(PLT, x, y(:,i), opts)
+      PLT%ax%color_index = PLT%ax%color_index + 1
+      if (PLT%ax%color_index.eq.17) PLT%ax%color_index = 1
     end do
 
   end subroutine plot_xyy
@@ -630,7 +680,7 @@ contains
     type(quiver_options) :: opts
     real(dp) :: u_norm(size(u,1), size(u,2))
     real(dp) :: v_norm(size(v,1), size(v,2))
-    integer :: nx, ny, i, j
+    integer :: nx, ny, i, j, color_index
     real(dp) :: dx, dy
     
     opts = quiver_options()  ! Default values
@@ -657,7 +707,8 @@ contains
       call normalize_vectors(u_norm, v_norm, opts%min_magnitude)
     end if
     
-    call plcol0(opts%color)
+    color_index = get_color_index(opts%color)
+    call plcol0(color_index)
     
     do i = 1, nx
       do j = 1, ny
@@ -677,7 +728,7 @@ contains
     type(quiver_options), intent(in), optional :: options
     type(quiver_options) :: opts
     real(dp) :: u_norm(size(u)), v_norm(size(v))
-    integer :: n, i
+    integer :: n, i, color_index
     real(dp) :: dx, dy
     
     opts = quiver_options()  ! Default values
@@ -701,7 +752,8 @@ contains
       call normalize_vectors_1d(u_norm, v_norm, opts%min_magnitude)
     end if
     
-    call plcol0(opts%color)
+    color_index = get_color_index(opts%color)
+    call plcol0(color_index)
     
     do i = 1, n
       if (sqrt(u(i)**2 + v(i)**2) > opts%min_magnitude) then
@@ -816,13 +868,14 @@ contains
   function quiver_opts(scale, head_size, color, normalize, min_magnitude, &
                        pivot) result(opts)
     real(dp), optional :: scale, head_size, min_magnitude
-    integer, optional :: color, pivot
+    integer, optional :: pivot
+    character(len=*), optional :: color
     logical, optional :: normalize
     type(quiver_options) :: opts
     
     if (present(scale)) opts%scale = scale
     if (present(head_size)) opts%head_size = head_size
-    if (present(color)) opts%color = color
+    if (present(color)) opts%color = trim(color)
     if (present(normalize)) opts%normalize = normalize
     if (present(min_magnitude)) opts%min_magnitude = min_magnitude
     if (present(pivot)) opts%pivot = pivot
