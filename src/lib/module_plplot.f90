@@ -156,6 +156,7 @@ type type_plplot
     procedure :: ylim   => plplot_ylim
     procedure :: xlim   => plplot_xlim
     procedure :: labels => plplot_labels
+    procedure :: legend => plplot_legend
     procedure :: plot_y
     procedure :: plot_xy
     procedure :: plot_xyy
@@ -829,6 +830,11 @@ contains
 
   ! ==== Legend functions ====
   
+  subroutine plplot_legend(PLT)
+    class(type_plplot), intent(inout) :: PLT
+    call plt_legend_show(PLT%ax%axis_legend)
+  end subroutine plplot_legend
+
   subroutine plaxis_legend(AX)
     class(type_plaxis), intent(inout) :: AX
     call plt_legend_show(AX%axis_legend)
