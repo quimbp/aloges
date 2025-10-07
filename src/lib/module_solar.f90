@@ -27,6 +27,7 @@
 module module_solar
 
   use module_types
+  use module_constants
   use module_tools
   use module_time
 
@@ -472,16 +473,20 @@ end subroutine solar_elevation_azimuth
   ! ...
   ! ===================================================================
   ! ...
-  subroutine solar_theoretical_hourly(lon, lat, date0, nhours, sw_down)
+  subroutine solar_theoretical_hourly(lon, lat, date0, nsamples, sw_down, &
+                                      sw_down_total, tau, altitude_m)
     ! Compute clear-sky theoretical global horizontal irradiance (W/m^2)
-    ! every hour starting at date0 for nhours samples.
+    ! with nsamples uniformly spaced over 24 h. The time step is inferred.
     !
     ! Inputs:
-    !  - lon, lat: degrees (east/north positive)
-    !  - date0   : type_date (UTC)
-    !  - nhours  : number of hours to sample (e.g., 24 for one day)
+    !  - lon, lat   : degrees (east/north positive)
+    !  - date0      : type_date (UTC)
+    !  - nsamples   : number of samples in 24h (must divide 1440), e.g., 24, 48 ...
+    !  - tau        : Optional transmitance
+    !  - altitude_m : Optional station height
     ! Output:
-    !  - sw_down(nhours): GHI at each hour on a horizontal plane (W/m^2)
+    !  - sw_down(nsamples): GHI at each hour on a horizontal plane (W/m^2)
+    !  - sw_down_total    : Integrated daily energy (kWh/m^2)
     !
     ! Model:
     !   GHI = Gsc * E0 * max(0, sin(h)) * Tau^m
@@ -492,30 +497,52 @@ end subroutine solar_elevation_azimuth
     !   Tau^m: simple broadband transmittance; m = relative air mass Kasten & Young (1989).
     ! This gives a practical smooth theoretical curve for comparison.
 
-    real(dp), intent(in)        :: lon, lat
-    type(type_date), intent(in) :: date0
-    integer, intent(in)         :: nhours
-    real(dp), intent(out)       :: sw_down(nhours)
+    real(dp), intent(in)           :: lon, lat
+    type(type_date), intent(in)    :: date0
+    integer, intent(in)            :: nsamples
+    real(dp), intent(out)          :: sw_down(nsamples)
+    real(dp), intent(out)          :: sw_down_total
+    real(dp), intent(in), optional :: tau
+    real(dp), intent(in), optional :: altitude_m
 
-    ! Local
-    integer :: i
+    ! ... Local variables
+    ! ...
+    integer :: i, step_minutes
     type(type_date) :: d
-    real(dp) :: elev, azim, hrad
-    real(dp) :: dayfrac, doy, E0, Gsc, m_air, tau
+    real(dp) :: elev, azim, hrad, p_fac
+    real(dp) :: doy, E0, Gsc, m_air, used_tau, z_m
+    real(dp) :: dt_s, acc_joule_per_m2
 
-    Gsc = 1361.0_dp
+    !Gsc = 1361.0_dp
+    Gsc = constants%Solar_Constant
 
-    do i = 1, nhours
-      if (i == 1) then
-        d = date0
-      else
-        d = d%timedelta(hours=1)
-      end if
+    if (present(tau)) then
+      used_tau = tau
+    else
+      used_tau = 0.75_dp
+    endif
+
+    if (present(altitude_m)) then
+      z_m = altitude_m
+    else
+      z_m = 0.0_dp
+    endif
+    ! Standard atmosphere pressure ratio at altitude (dimensionless)  
+    p_fac = (1.0_dp - 2.25577e-5_dp * z_m)**5.25588_dp  
+    if (p_fac < 0.0_dp) p_fac = 0.0_dp   ! guard for extreme z  
+
+    step_minutes = 1440 / nsamples  ! 1440 minutes per day
+    dt_s = real(step_minutes, dp) * 60.0_dp   ! Time interval in seconds 
+
+    d = date0
+    acc_joule_per_m2 = 0.0_dp
+
+    do i = 1, nsamples
 
       ! day of year for Earth–Sun distance factor
       doy = real(days_before_month(d%year, d%month) + d%day, dp)
 
-      E0 = 1.0_dp + 0.033_dp*cos(2.0_dp*pi*doy/365.0_dp)
+      E0 = 1.0_dp + 0.033_dp*cos(2.0_dp*pi*doy/365.2422_dp)
 
       call solar_elevation_azimuth(lon, lat, d, elev, azim)
 
@@ -525,11 +552,18 @@ end subroutine solar_elevation_azimuth
         hrad = deg2rad*elev
         ! Relative air mass (Kasten-Young 1989); valid for elev > 0
         m_air = 1.0_dp/(sin(hrad) + 0.50572_dp*(elev + 6.07995_dp)**(-1.6364_dp))
+        ! Pressure correction for site altitude  
+        m_air = m_air * p_fac  
         ! Simple atmospheric transmittance; adjustable if you have site info
-        tau = 0.75_dp
-        sw_down(i) = Gsc * E0 * sin(hrad) * tau**m_air
+        sw_down(i) = Gsc * E0 * sin(hrad) * used_tau**m_air
       end if
+
+      acc_joule_per_m2 = acc_joule_per_m2 + sw_down(i) * dt_s
+      d = d%timedelta(minutes=step_minutes) 
+      
     end do
+
+    sw_down_total = acc_joule_per_m2 / 3.6e6_dp   ! Kwh/m2
 
   end subroutine solar_theoretical_hourly
 end module module_solar
