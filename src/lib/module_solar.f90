@@ -419,4 +419,117 @@ module module_solar
   ! ...
   ! =====================================================================
   ! ...
+subroutine solar_elevation_azimuth(lon_east, lat, date, elev_deg, azim_deg)
+  ! Inputs lon_east, lat in degrees (east/north positive), date in UTC
+  real(dp), intent(in)        :: lon_east, lat
+  type(type_date), intent(in) :: date
+  real(dp), intent(out)       :: elev_deg, azim_deg
+
+  integer :: JD0
+  real(dp) :: t, eqTime, declDeg
+  real(dp) :: timeUTC_min, trueSolarTime_min, ha_deg
+  real(dp) :: latRad, haRad, declRad
+  real(dp) :: csz, sza, elevCorr
+  real(dp) :: lonW  ! west-positive longitude
+
+  ! NOAA/USNO algorithms use west-positive longitude
+  lonW = -lon_east
+
+  ! Julian day for the specific moment (UTC fraction included)
+  JD0 = julday(date%year, date%month, date%day)
+  t = TimeJulianCent(dble(JD0) + (date%hour + (date%minute + date%second/60.0_dp)/60.0_dp)/24.0_dp)
+
+  eqTime   = EquationOfTime(t)        ! minutes
+  declDeg  = SunDeclination(t)        ! degrees
+
+  timeUTC_min = 60.0_dp*date%hour + date%minute + date%second/60.0_dp
+
+  ! True Solar Time (minutes). Use west-positive longitude.
+  trueSolarTime_min = timeUTC_min + eqTime + 4.0_dp*lonW
+
+  ! Hour angle (degrees), -180..180 (0 at local solar noon)
+  ha_deg = modulo(trueSolarTime_min/4.0_dp - 180.0_dp, 360.0_dp)
+  if (ha_deg > 180.0_dp) ha_deg = ha_deg - 360.0_dp
+
+  latRad  = deg2rad*lat
+  haRad   = deg2rad*ha_deg
+  declRad = deg2rad*declDeg
+
+  csz = sin(latRad)*sin(declRad) + cos(latRad)*cos(declRad)*cos(haRad)
+  csz = max(-1.0_dp, min(1.0_dp, csz))
+  sza = acos(csz)
+  elev_deg = 90.0_dp - rad2deg*sza
+
+  if (elev_deg > -1.0_dp) then
+    elevCorr = 1.02_dp / tan(deg2rad*(elev_deg + 10.3_dp/(elev_deg + 5.11_dp))) / 60.0_dp
+    elev_deg = elev_deg + elevCorr
+  end if
+
+  ! Azimuth from North clockwise (NOAA convention)
+  azim_deg = rad2deg*atan2( sin(haRad), cos(haRad)*sin(latRad) - tan(declRad)*cos(latRad) )
+  azim_deg = modulo(azim_deg + 180.0_dp, 360.0_dp)
+end subroutine solar_elevation_azimuth
+  ! ...
+  ! ===================================================================
+  ! ...
+  subroutine solar_theoretical_hourly(lon, lat, date0, nhours, sw_down)
+    ! Compute clear-sky theoretical global horizontal irradiance (W/m^2)
+    ! every hour starting at date0 for nhours samples.
+    !
+    ! Inputs:
+    !  - lon, lat: degrees (east/north positive)
+    !  - date0   : type_date (UTC)
+    !  - nhours  : number of hours to sample (e.g., 24 for one day)
+    ! Output:
+    !  - sw_down(nhours): GHI at each hour on a horizontal plane (W/m^2)
+    !
+    ! Model:
+    !   GHI = Gsc * E0 * max(0, sin(h)) * Tau^m
+    ! where:
+    !   Gsc = 1361 W/m^2 (solar constant, modern value)
+    !   E0  = 1 + 0.033*cos(2π * day_of_year / 365)   (Earth–Sun distance factor)
+    !   h   = solar elevation angle
+    !   Tau^m: simple broadband transmittance; m = relative air mass Kasten & Young (1989).
+    ! This gives a practical smooth theoretical curve for comparison.
+
+    real(dp), intent(in)        :: lon, lat
+    type(type_date), intent(in) :: date0
+    integer, intent(in)         :: nhours
+    real(dp), intent(out)       :: sw_down(nhours)
+
+    ! Local
+    integer :: i
+    type(type_date) :: d
+    real(dp) :: elev, azim, hrad
+    real(dp) :: dayfrac, doy, E0, Gsc, m_air, tau
+
+    Gsc = 1361.0_dp
+
+    do i = 1, nhours
+      if (i == 1) then
+        d = date0
+      else
+        d = d%timedelta(hours=1)
+      end if
+
+      ! day of year for Earth–Sun distance factor
+      doy = real(days_before_month(d%year, d%month) + d%day, dp)
+
+      E0 = 1.0_dp + 0.033_dp*cos(2.0_dp*pi*doy/365.0_dp)
+
+      call solar_elevation_azimuth(lon, lat, d, elev, azim)
+
+      if (elev <= 0.0_dp) then
+        sw_down(i) = 0.0_dp
+      else
+        hrad = deg2rad*elev
+        ! Relative air mass (Kasten-Young 1989); valid for elev > 0
+        m_air = 1.0_dp/(sin(hrad) + 0.50572_dp*(elev + 6.07995_dp)**(-1.6364_dp))
+        ! Simple atmospheric transmittance; adjustable if you have site info
+        tau = 0.75_dp
+        sw_down(i) = Gsc * E0 * sin(hrad) * tau**m_air
+      end if
+    end do
+
+  end subroutine solar_theoretical_hourly
 end module module_solar
