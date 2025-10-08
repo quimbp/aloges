@@ -25,9 +25,7 @@
 
 module module_codar
 
-use module_types
 use module_tools
-use module_time
 
 implicit none
 
