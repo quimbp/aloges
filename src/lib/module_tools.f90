@@ -899,4 +899,32 @@ contains
   ! ...
   ! ===================================================================
   ! ...
+  subroutine readxy(filename,x,y)
+
+    character(len=*), intent(in)                      :: filename
+    real(dp), dimension(:), allocatable, intent(out)  :: x, y
+
+    ! ... Local variables
+    ! ...
+    integer iu,i,n
+
+    open(newunit=iu,file=filename,status='old')
+    n = numlines(iu)
+
+    allocate (x(n))
+    allocate (y(n))
+
+    rewind(iu)
+    do i=1,n
+      read(iu,*,err=10) x(i), y(i)
+    enddo
+    close(iu)
+
+    return
+10  stop 'Error in READXY: invalid format'
+
+  end subroutine readxy
+  ! ...
+  ! ===================================================================
+  ! ...
 end module module_tools
