@@ -53,7 +53,7 @@ module module_time
   character(len=3), dimension(12) :: MONTHNAMES_ = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", &
                                                   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
-  character(len=20), dimension(4)           :: calendars_ = ['standard ',  &
+  character(len=9 ), dimension(4)           :: calendars_ = ['standard ',  &
                                                              'gregorian', &
                                                              '365_day  ', &
                                                              'noleap   ']
@@ -127,15 +127,18 @@ module module_time
 
     calendar = lowercase(calendar)
 
-    if (count(calendar.eq.calendars_).eq.0) then
+    if (index(calendar,'365').gt.0) then 
+      calendar = 'noleap'
+    else if (index(calendar,'noleap').gt.0) then
+      calendar = 'noleap'
+    else if (index(calendar,'standard').gt.0) then
+      calendar = 'gregorian'
+    else if (index(calendar,'gregorian').gt.0) then
+      calendar = 'gregorian'
+    else
       print*, 'calendar is : ', calendar
       print*, 'calendars_ is : ', calendars_
       stop 'Unsupported calendar'
-    else
-      if (index(calendar,'365').gt.0) calendar = 'noleap'
-      if (index(calendar,'noleap').gt.0) calendar = 'noleap'
-      if (index(calendar,'standard').gt.0) calendar = 'gregorian'
-      if (index(calendar,'gregorian').gt.0) calendar = 'gregorian'
     endif
 
   end subroutine check_calendar

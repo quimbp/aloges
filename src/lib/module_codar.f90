@@ -46,6 +46,7 @@ type type_codar_table
   real(sp), dimension(:,:), allocatable                  :: Value
   contains
       procedure :: id  => codar_table_typeid
+      procedure :: get => codar_table_get
 end type type_codar_table
 
 ! ... Codar RUV structure Table 1 (Spec LLUVSpec 1.51):
@@ -500,6 +501,27 @@ function codar_table_typeid(TABLE,name) result(id)
   stop 'ERROR in CODAR_TABLE_TYPEID: Column name not found'
  
   end function codar_table_typeid 
+! ...
+! ==========================================================================
+! ...
+function codar_table_get(TABLE,name) result(A)
+
+  class(type_codar_table), intent(in)          :: TABLE
+  character(len=4), intent(in)                 :: name
+  real(dp), dimension(:), allocatable          :: A
+
+  ! ... Local variables
+  ! ...
+  integer id
+
+  if (TABLE%Rows.le.0) return
+  if (allocated(A)) deallocate(A)
+
+  allocate(A(TABLE%Rows))
+  id = TABLE%id(name)
+  A(:) = TABLE%Value(:,id)
+
+end function codar_table_get
 ! ...
 ! ==========================================================================
 ! ...

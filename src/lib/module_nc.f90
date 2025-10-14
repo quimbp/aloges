@@ -44,6 +44,7 @@
 ! - nc_copyatts                                                            !
 ! - nc_error                                                               !
 ! - nc_axis_id                                                             !
+! - nc_var_exists                                                          !
 ! -------------------------------------------------------------------------!
 
 module module_nc
@@ -829,6 +830,23 @@ contains
     if (varid.lt.0) stop 'ERROR nc_variable_id: Variable not found'
 
   end function nc_variable_id
+  ! ...
+  ! ===================================================================
+  ! ...
+  logical function nc_var_exists(ncid, varname)  
+  ! Check if a variable exists
+
+    integer, intent(in) :: ncid  
+    character(len=*), intent(in) :: varname  
+
+    ! ... Local variable
+    ! ...
+    integer :: varid, stat  
+    
+    stat = nf90_inq_varid(ncid, trim(varname), varid)  
+    nc_var_exists = (stat == nf90_noerr)  
+
+  end function nc_var_exists
   ! ...
   ! ===================================================================
   ! ...

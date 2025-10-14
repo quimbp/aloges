@@ -73,6 +73,51 @@ real(sp)               :: inf4    ! = 1.0_sp/0.0_sp
 real(dp)               :: nan     ! = 0.0_dp/0.0_dp
 real(dp)               :: inf     ! = 1.0_dp/0.0_dp
 
+! -------------------------------------------------------------------
+! All control characters in the ASCII table (see www.asciitable.com).
+! -------------------------------------------------------------------
+character(len=1), public, parameter :: ASCII_NUL = achar(int(z'00')) !! Null
+character(len=1), public, parameter :: ASCII_SOH = achar(int(z'01')) !! Start of heading
+character(len=1), public, parameter :: ASCII_STX = achar(int(z'02')) !! Start of text
+character(len=1), public, parameter :: ASCII_ETX = achar(int(z'03')) !! End of text
+character(len=1), public, parameter :: ASCII_EOT = achar(int(z'04')) !! End of transmission
+character(len=1), public, parameter :: ASCII_ENQ = achar(int(z'05')) !! Enquiry
+character(len=1), public, parameter :: ASCII_ACK = achar(int(z'06')) !! Acknowledge
+character(len=1), public, parameter :: ASCII_BEL = achar(int(z'07')) !! Bell
+character(len=1), public, parameter :: ASCII_BS  = achar(int(z'08')) !! Backspace
+character(len=1), public, parameter :: ASCII_TAB = achar(int(z'09')) !! Horizontal tab
+character(len=1), public, parameter :: ASCII_LF  = achar(int(z'0A')) !! NL line feed, new line
+character(len=1), public, parameter :: ASCII_VT  = achar(int(z'0B')) !! Vertical tab
+character(len=1), public, parameter :: ASCII_FF  = achar(int(z'0C')) !! NP form feed, new page
+character(len=1), public, parameter :: ASCII_CR  = achar(int(z'0D')) !! Carriage return
+character(len=1), public, parameter :: ASCII_SO  = achar(int(z'0E')) !! Shift out
+character(len=1), public, parameter :: ASCII_SI  = achar(int(z'0F')) !! Shift in
+character(len=1), public, parameter :: ASCII_DLE = achar(int(z'10')) !! Data link escape
+character(len=1), public, parameter :: ASCII_DC1 = achar(int(z'11')) !! Device control 1
+character(len=1), public, parameter :: ASCII_DC2 = achar(int(z'12')) !! Device control 2
+character(len=1), public, parameter :: ASCII_DC3 = achar(int(z'13')) !! Device control 3
+character(len=1), public, parameter :: ASCII_DC4 = achar(int(z'14')) !! Device control 4
+character(len=1), public, parameter :: ASCII_NAK = achar(int(z'15')) !! Negative acknowledge
+character(len=1), public, parameter :: ASCII_SYN = achar(int(z'16')) !! Synchronous idle
+character(len=1), public, parameter :: ASCII_ETB = achar(int(z'17')) !! End of transmission block
+character(len=1), public, parameter :: ASCII_CAN = achar(int(z'18')) !! Cancel
+character(len=1), public, parameter :: ASCII_EM  = achar(int(z'19')) !! End of medium
+character(len=1), public, parameter :: ASCII_SUB = achar(int(z'1A')) !! Substitute
+character(len=1), public, parameter :: ASCII_ESC = achar(int(z'1B')) !! Escape
+character(len=1), public, parameter :: ASCII_FS  = achar(int(z'1C')) !! File separator
+character(len=1), public, parameter :: ASCII_GS  = achar(int(z'1D')) !! Group separator
+character(len=1), public, parameter :: ASCII_RS  = achar(int(z'1E')) !! Record separator
+character(len=1), public, parameter :: ASCII_US  = achar(int(z'1F')) !! Unit separator
+character(len=1), public, parameter :: ASCII_DEL = achar(int(z'7F')) !! Delete
+
+! -------------------------------------------------------------------
+! Constant character sequences
+! -------------------------------------------------------------------
+character(len=*), public, parameter :: digits = '0123456789'
+character(len=*), public, parameter :: letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz" 
+character(len=*), public, parameter :: uppercase_letters = letters(1:26) !! A .. Z
+character(len=*), public, parameter :: lowercase_letters = letters(27:) !! a .. z
+
 ! ... Physical constants
 ! ...
 type type_constants

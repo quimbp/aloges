@@ -927,4 +927,53 @@ contains
   ! ...
   ! ===================================================================
   ! ...
+  function str2list(line) result(A)
+
+    ! ... function str2list
+    ! ... Arguments: line   character(len=*) 
+    ! ... Result: character array
+    ! ... On output A(i) = line(word=i)
+    ! ... Example: A = str2list("white, black, rose")
+    ! ... results A(1) = "white"
+    ! ...         A(2) = "black"
+    ! ...         A(3) = "rose"
+    ! ... 
+    character(len=*), intent(in)     :: line
+    character(len=:), allocatable    :: A(:)
+
+    ! ... local variables
+    ! ...
+    integer nw,i,lmax,wlen
+    character(len=maxlen), allocatable :: words(:)
+
+    if (allocated(A)) deallocate(A)
+
+    nw = numwords(line)
+
+    ! ... Hande empty input
+    if (nw.le.0) then
+      allocate(character(len=1) :: A(0)) ! zero-size arry, len=1
+      return
+    endif
+
+    allocate(words(nw)) ! temporary storage
+    lmax = 1
+    do i=1,nw
+      call line_word(line,i,words(i))
+      wlen = len_trim(words(i))
+      if (wlen.gt.lmax) lmax = wlen
+    enddo
+
+    allocate(character(len=lmax) :: A(nw))
+    do i=1,nw
+      A(i) = trim(words(i))   ! Copy trimmed words
+    enddo
+  
+    deallocate(words)
+
+  end function str2list
+
+  ! ...
+  ! ===================================================================
+  ! ...
 end module module_tools

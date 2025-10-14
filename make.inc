@@ -42,10 +42,10 @@ OS = Ubuntu
 FC = gfortran
 
 # Debug options:
-FFLAGS = -fbounds-check -ffpe-summary=zero,invalid,overflow,underflow -Wall -fcheck=all -ffree-line-length-none
+#FFLAGS = -fbounds-check -ffpe-summary=zero,invalid,overflow,underflow -Wall -Wno-maybe-uninitialized -fcheck=all -ffree-line-length-none
 #
 # Speed and robustness
-#FFLAGS = -O3 -march=native -funroll-loops -fomit-frame-pointer -ffree-line-length-none
+FFLAGS = -O3 -march=native -funroll-loops -fomit-frame-pointer -ffree-line-length-none
 
 #FFLAGS = -ffpe-summary=zero,invalid,overflow,underflow -ffree-line-length-none
 
