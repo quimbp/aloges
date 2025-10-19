@@ -51,6 +51,7 @@ module module_nc
 
 use netcdf
 use module_types
+use module_tools, only: crash
 
 implicit none
 
@@ -718,11 +719,9 @@ contains
 
     if (err.eq.0) return 
 
-    ! ... If here, it has been an error
+    ! ... If here, it has been an error:
     ! ...
-    write(0,*) '> ERROR: ', trim(message)
-    write(0,*) '> ',trim(NF90_STRERROR(err))
-    stop 1
+    call crash(trim(message)//' - '//trim(NF90_STRERROR(err)))
 
   end subroutine nc_error
   ! ...
