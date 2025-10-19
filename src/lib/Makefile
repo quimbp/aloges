@@ -47,7 +47,7 @@ else
 endif
 
 OBJ = module_types.o $(PLOBJ) module_constants.o module_color.o     \
-      module_dictionary.o module_nc.o                               \
+      module_timer.o module_dictionary.o module_nc.o                \
       module_math.o module_linalg.o module_eofs.o                   \
       module_tools.o module_time.o module_solar.o                   \
       module_grid.o module_lineargs.o  module_help.o                \
@@ -66,6 +66,7 @@ clean:
 	if test -d $(INCDIR); then rm -f $(INCDIR)module_plplot.mod; fi
 	if test -d $(INCDIR); then rm -f $(INCDIR)module_constants.mod; fi
 	if test -d $(INCDIR); then rm -f $(INCDIR)module_color.mod; fi
+	if test -d $(INCDIR); then rm -f $(INCDIR)module_timer.mod; fi
 	if test -d $(INCDIR); then rm -f $(INCDIR)module_dictionary.mod; fi
 	if test -d $(INCDIR); then rm -f $(INCDIR)module_math.mod; fi
 	if test -d $(INCDIR); then rm -f $(INCDIR)module_linalg.mod; fi
@@ -109,6 +110,9 @@ module_constants.o: module_types.o module_constants.f90
 
 module_color.o: module_color.f90
 	$(FC) -c $(FFLAGS) $(INC) module_color.f90
+
+module_timer.o: module_types.o module_timer.f90
+	$(FC) -c $(FFLAGS) $(INC) module_timer.f90
 
 module_dictionary.o: module_types.o module_dictionary.f90
 	$(FC) -c $(FFLAGS) $(INC) module_dictionary.f90
