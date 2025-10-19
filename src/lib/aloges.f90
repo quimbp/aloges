@@ -47,6 +47,7 @@ use module_enkf
 use module_sysdyn
 use module_geodetic
 use module_codar
+use module_roms
 
 implicit none
 

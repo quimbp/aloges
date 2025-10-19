@@ -53,7 +53,7 @@ OBJ = module_types.o $(PLOBJ) module_constants.o module_color.o     \
       module_grid.o module_lineargs.o  module_help.o                \
       module_trajectories.o module_minpack.o module_matrix.o        \
       module_enkf.o module_sysdyn.o module_interp.o                 \
-      module_geodetic.o module_codar.o
+      module_geodetic.o module_codar.o module_roms.o
 
 all: $(OBJ) $(LIBDIR) $(INCDIR) aloges.mod
 	rm -f $(TARGET)
@@ -86,6 +86,7 @@ clean:
 	if test -d $(INCDIR); then rm -f $(INCDIR)module_geodetic.mod; fi
 	if test -d $(INCDIR); then rm -f $(INCDIR)module_matrix.mod; fi
 	if test -d $(INCDIR); then rm -f $(INCDIR)module_nc.mod; fi
+	if test -d $(INCDIR); then rm -f $(INCDIR)module_rooms.mod; fi
 	if test -d $(INCDIR); then rm -f $(INCDIR)aloges.mod; fi
 
 $(INCDIR):
@@ -117,7 +118,7 @@ module_timer.o: module_types.o module_timer.f90
 module_dictionary.o: module_types.o module_dictionary.f90
 	$(FC) -c $(FFLAGS) $(INC) module_dictionary.f90
 
-module_nc.o: module_types.o module_nc.f90
+module_nc.o: module_types.o module_tools.o module_nc.f90
 	$(FC) -c $(FFLAGS) $(INC) module_nc.f90
 
 module_math.o: module_types.o module_constants.o module_math.f90
@@ -170,6 +171,9 @@ module_geodetic.o: module_types.o module_tools.o module_math.o module_geodetic.f
 
 module_codar.o: module_types.o module_dictionary.o module_tools.o module_codar.f90
 	$(FC) -c $(FFLAGS) $(INC) module_codar.f90
+
+module_roms.o: module_types.o module_time.o module_tools.o module_nc.o module_roms.f90
+	$(FC) -c $(FFLAGS) $(INC) module_roms.f90
 
 aloges.mod: $(OBJ)
 	$(FC) -c $(FFLAGS) $(INC) aloges.f90
