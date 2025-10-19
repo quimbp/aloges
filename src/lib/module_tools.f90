@@ -44,9 +44,10 @@
 ! -------------------------------------------------------------------------!
 
 module module_tools
-
+use iso_fortran_env, only: error_unit, output_unit
 use module_types
 use module_constants
+use module_color
 use module_math, only: randstr
 
 implicit none
@@ -147,10 +148,31 @@ contains
 
     character(len=*), intent(in)                   :: message
 
-    write(0,*) '> ERROR: ', trim(message)
-    error stop 'aloges crash'
+    write(error_unit,'(A)') bold//red//error_x_symbol//' ERROR: '//reset // red//trim(message)//reset
+    stop 1
 
   end subroutine crash
+  ! ...
+  ! ===================================================================
+  ! ...
+  subroutine success(message)  
+
+    character(len=*), intent(in), optional :: message  
+  
+    if (present(message)) then
+      ! ... Print a success message to standard output (unit 6 or output_unit)  
+      write(output_unit,'(A)') bold//green//ok_check_symbol//reset // green//' SUCCESS: '//trim(message)//reset  
+    else
+      write(output_unit,'(A)') bold//green//ok_check_symbol//reset // green//' SUCCESS: Normal termination'//reset
+    endif
+  
+    ! ... Flush output to ensure it's displayed before exiting  
+    flush(output_unit)  
+  
+    ! ... Terminate the program normally with an exit code of 0 (success)  
+    stop 0   
+  
+  end subroutine success  
   ! ...
   ! ===================================================================
   ! ...

@@ -111,6 +111,12 @@ character(len=1), public, parameter :: ASCII_US  = achar(int(z'1F')) !! Unit sep
 character(len=1), public, parameter :: ASCII_DEL = achar(int(z'7F')) !! Delete
 
 ! -------------------------------------------------------------------
+! Constant end-status symbols
+! -------------------------------------------------------------------
+character(len=*), parameter :: ok_check_symbol = '✔'  
+character(len=*), parameter :: error_x_symbol  = '❌' 
+
+! -------------------------------------------------------------------
 ! Constant character sequences
 ! -------------------------------------------------------------------
 character(len=*), public, parameter :: digits = '0123456789'

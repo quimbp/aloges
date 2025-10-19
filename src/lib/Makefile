@@ -46,7 +46,7 @@ else
   PLOBJ = module_plplot_empty.o
 endif
 
-OBJ = module_types.o $(PLOBJ) module_constants.o                    \
+OBJ = module_types.o $(PLOBJ) module_constants.o module_color.o     \
       module_dictionary.o module_nc.o                               \
       module_math.o module_linalg.o module_eofs.o                   \
       module_tools.o module_time.o module_solar.o                   \
@@ -65,6 +65,7 @@ clean:
 	if test -d $(INCDIR); then rm -f $(INCDIR)module_types.mod; fi
 	if test -d $(INCDIR); then rm -f $(INCDIR)module_plplot.mod; fi
 	if test -d $(INCDIR); then rm -f $(INCDIR)module_constants.mod; fi
+	if test -d $(INCDIR); then rm -f $(INCDIR)module_color.mod; fi
 	if test -d $(INCDIR); then rm -f $(INCDIR)module_dictionary.mod; fi
 	if test -d $(INCDIR); then rm -f $(INCDIR)module_math.mod; fi
 	if test -d $(INCDIR); then rm -f $(INCDIR)module_linalg.mod; fi
@@ -80,6 +81,10 @@ clean:
 	if test -d $(INCDIR); then rm -f $(INCDIR)module_enkf.mod; fi
 	if test -d $(INCDIR); then rm -f $(INCDIR)module_sysdyn.mod; fi
 	if test -d $(INCDIR); then rm -f $(INCDIR)module_interp.mod; fi
+	if test -d $(INCDIR); then rm -f $(INCDIR)module_codar.mod; fi
+	if test -d $(INCDIR); then rm -f $(INCDIR)module_geodetic.mod; fi
+	if test -d $(INCDIR); then rm -f $(INCDIR)module_matrix.mod; fi
+	if test -d $(INCDIR); then rm -f $(INCDIR)module_nc.mod; fi
 	if test -d $(INCDIR); then rm -f $(INCDIR)aloges.mod; fi
 
 $(INCDIR):
@@ -101,6 +106,9 @@ module_plplot_empty.o: module_plplot_empty.f90
 
 module_constants.o: module_types.o module_constants.f90
 	$(FC) -c $(FFLAGS) $(INC) module_constants.f90
+
+module_color.o: module_color.f90
+	$(FC) -c $(FFLAGS) $(INC) module_color.f90
 
 module_dictionary.o: module_types.o module_dictionary.f90
 	$(FC) -c $(FFLAGS) $(INC) module_dictionary.f90
