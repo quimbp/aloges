@@ -63,10 +63,13 @@ type type_nc_attribute
   character(len=maxlen)                              :: name
   integer                                            :: type
   integer                                            :: len
-  logical, dimension(:), allocatable                 :: lval
-  integer, dimension(:), allocatable                 :: ival
-  real(dp), dimension(:), allocatable                :: dval
-  character(len=:), allocatable                      :: sval
+  class(*), allocatable                              :: value(:)
+!  logical, dimension(:), allocatable                 :: lval
+!  integer, dimension(:), allocatable                 :: ival
+!  real(dp), dimension(:), allocatable                :: dval
+!  character(len=:), allocatable                      :: sval
+  contains
+    procedure                                        :: get => nc_attribute_get_dp
 end type type_nc_attribute
 
 type type_nc_variable
@@ -181,11 +184,14 @@ contains
         ! ...
         do j=1,natts
           attname = trim(SD%variable(i)%attribute(j)%name)
-          if (attname.eq.'add_offset') SD%variable(i)%add_offset = SD%variable(i)%attribute(j)%dval(1)
-          if (attname.eq.'scale_factor') SD%variable(i)%scale_factor = SD%variable(i)%attribute(j)%dval(1)
+          if (attname.eq.'add_offset') SD%variable(i)%add_offset = SD%variable(i)%attribute(j)%get()
+          if (attname.eq.'scale_factor') SD%variable(i)%scale_factor = SD%variable(i)%attribute(j)%get()
+          !if (attname.eq.'add_offset') SD%variable(i)%add_offset = SD%variable(i)%attribute(j)%dval(1)
+          !if (attname.eq.'scale_factor') SD%variable(i)%scale_factor = SD%variable(i)%attribute(j)%dval(1)
           if (attname.eq.'_FillValue'.or.attname.eq.'missing_value') then
             SD%variable(i)%with_missing  = .True.
-            SD%variable(i)%missing_value = SD%variable(i)%attribute(j)%dval(1)
+            SD%variable(i)%missing_value = SD%variable(i)%attribute(j)%get()
+            !SD%variable(i)%missing_value = SD%variable(i)%attribute(j)%dval(1)
           endif
         enddo
       enddo
@@ -235,6 +241,8 @@ contains
     write(6,'(T1,A)') 'variables:'
     do i=1,SD%nvars
       select case (SD%variable(i)%TYPE)
+      case (NF90_CHAR)
+        word = 'char'
       case (NF90_SHORT)
         word = 'short'
       case (NF90_INT)
@@ -291,41 +299,48 @@ contains
     type(type_nc_attribute)                  :: ATT
 
     ! ... Local variables
-    integer atype,alen,err
+    ! ...
+    integer err,atype,alen
+    integer(kind=1), allocatable         :: lval(:)
+    integer, allocatable                 :: ival(:)
+    real(dp), allocatable                :: dval(:)
+    character(len=:), allocatable        :: sval
     character(len=maxlen) word
-    character(len=:), allocatable           :: word1
 
     err = NF90_INQ_ATTNAME(fid,varid,attid,word)
+    call nc_error(err,'Attribute not found')
+
     err = NF90_INQUIRE_ATTRIBUTE(fid,varid,word,atype,alen)
     ATT%name = trim(word)
     ATT%type = atype
     ATT%len  = alen
+    if (allocated(ATT%value)) deallocate(ATT%value)
 
     if (atype.EQ.NF90_BYTE) then
-      allocate(ATT%lval(alen))
-      !err = NF90_GET_ATT(fid,varid,word,SD%attribute(i)%lval)
+      allocate(lval(alen))
+      err = NF90_GET_ATT(fid,varid,word,lval)
+      allocate(ATT%value,source=lval)
       stop 'NF90_BYTE !'
     endif
     if (atype.EQ.NF90_CHAR) then
-      allocate(character(len=alen) :: word1)
-      allocate(character(len=alen) :: ATT%sval)
-      err = NF90_GET_ATT(fid,varid,word,word1)
-      ATT%sval = trim(word1)
+      allocate(character(len=alen) :: sval)
+      err = NF90_GET_ATT(fid,varid,word,sval)
+      allocate(ATT%value(1),source=sval)
     endif
     if ((atype.EQ.NF90_SHORT).or.(atype.EQ.NF90_INT)) then
-      allocate(ATT%ival(alen))
-      err = NF90_GET_ATT(fid,varid,word,ATT%ival)
+      allocate(ival(alen))
+      err = NF90_GET_ATT(fid,varid,word,ival)
+      allocate(ATT%value(alen),source=ival)
     endif
     if ((atype.EQ.NF90_FLOAT).or.(atype.EQ.NF90_DOUBLE)) then
-      allocate(ATT%dval(alen))
-      err = NF90_GET_ATT(fid,varid,word,ATT%dval)
+      allocate(dval(alen))
+      err = NF90_GET_ATT(fid,varid,word,dval)
+      allocate(ATT%value(alen),source=dval)
     endif
     if (atype.EQ.NF90_STRING) then
-      ! AAAA
-      allocate(character(len=alen) :: word1)
-      allocate(character(len=alen) :: ATT%sval)
-      err = NF90_GET_ATT(fid,varid,word,word1)
-      ATT%sval = trim(word1)
+      allocate(character(len=alen) :: sval)
+      err = NF90_GET_ATT(fid,varid,word,sval)
+      allocate(ATT%value(alen),source=sval)
     endif
 
   end function nc_read_attribute
@@ -343,37 +358,68 @@ contains
 
     word = trim(Varname)//':'//trim(ATT%name)// " ="
 
-    select case (ATT%type)
-    
-    case (NF90_CHAR)
-      word = trim(word) // ' "' // trim(adjustl(ATT%sval)) // '"'
-
-    case (NF90_FLOAT)
-      if (ATT%len.eq.1) then
-        write(s,*) ATT%dval(1)
+    select type (v => ATT%value)
+      type is (character(*))
+        word = trim(word) // ' "' // trim(adjustl(v(1))) // '"'
+      type is (integer)
+        write(s,*) v
+        word = trim(word) // ' ' // trim(adjustl(s)) 
+      type is (real)
+        write(s,*) v
         word = trim(word) // ' ' // trim(adjustl(s)) // 'f'
-      else
-        print*, 'FLOAT more than one dimension'
-        stop 
-      endif
-
-    case (NF90_STRING)
-      word = trim(word) // ' "' // trim(adjustl(ATT%sval)) // '"'
-
-
-    
-    case default
-      print*, 'NF90_CHAR : ', NF90_CHAR
-      print*, 'NF90_SHORT : ', NF90_SHORT
-      print*, 'NF90_FLOAT : ', NF90_FLOAT
-      print*, 'NF90_DOUBLE : ', NF90_DOUBLE
-      print*, ATT%type, NF90_FLOAT
-      stop 'uncoded type'
+      type is (double precision)
+        write(s,*) v
+        word = trim(word) // ' ' // trim(adjustl(s)) // 'd'
+      class default
+        print*, ATT%name
+        print*, ATT%type
+        stop 'uncoded type'
     end select
+
+!    select case (ATT%type)
+!    case (NF90_CHAR)
+!      word = trim(word) // ' "' // trim(adjustl(ATT%sval)) // '"'
+!    case (NF90_FLOAT)
+!      if (ATT%len.eq.1) then
+!        write(s,*) ATT%dval(1)
+!        word = trim(word) // ' ' // trim(adjustl(s)) // 'f'
+!      else
+!        print*, 'FLOAT more than one dimension'
+!        stop 
+!      endif
+!    case (NF90_STRING)
+!      word = trim(word) // ' "' // trim(adjustl(ATT%sval)) // '"'
+!    case default
+!      print*, 'NF90_CHAR : ', NF90_CHAR
+!      print*, 'NF90_SHORT : ', NF90_SHORT
+!      print*, 'NF90_FLOAT : ', NF90_FLOAT
+!      print*, 'NF90_DOUBLE : ', NF90_DOUBLE
+!      print*, ATT%type, NF90_FLOAT
+!      stop 'uncoded type'
+!    end select
 
     write(6,'(T17,A," ;")') trim(word)
 
   end subroutine nc_print_attribute
+  ! ...
+  ! ==================================================================
+  ! ...
+  function nc_attribute_get_dp(ATT) result(val)
+
+    class(type_nc_attribute), intent(in)     :: ATT
+    real(dp)                                 :: val
+
+    val = 0.0_dp
+    select type (v => ATT%value(1))
+      type is (integer)
+        val = real(v,dp)
+      type is (real)
+        val = real(v,dp)
+      type is (double precision)
+        val = v
+    end select
+      
+  end function nc_attribute_get_dp
   ! ...
   ! ==================================================================
   ! ...
@@ -573,10 +619,10 @@ contains
   ! ... Copies the attributes from variable v1 in file id1 to the
   ! ... variable v2 in file id2.
 
-    logical, intent(in)                                       :: ver
-    integer, intent(in)                                       :: id1,v1,id2,v2
-    integer, intent(out)                                      :: natts
-    character(len=maxlen), intent(in), optional               :: disregard
+    logical, intent(in)                                  :: ver
+    integer, intent(in)                                  :: id1,v1,id2,v2
+    integer, intent(out)                                 :: natts
+    character(len=*), intent(in), optional               :: disregard
 
     ! ... Local variables:
     ! ...
