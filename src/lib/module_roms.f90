@@ -70,6 +70,7 @@ type type_roms_grid
   real(dp), allocatable             :: Zo_r(:,:,:)
   real(dp), allocatable             :: Zo_w(:,:,:)
   real(dp), allocatable             :: lon_r(:,:), lat_r(:,:)  ! lon/lat values (rho-locations)
+  real(dp), allocatable             :: x_a(:,:), y_a(:,:), lon_a(:,:), lat_a(:,:)  ! ( A-grid locations)
   contains
     procedure                       :: show => roms_grid_show
 end type type_roms_grid
@@ -197,6 +198,8 @@ contains
   enddo
   ROMS%time%dimid = unlimid
   ROMS%time%n     = ROMS%ntimes
+  if (allocated(ROMS%time%time)) deallocate(ROMS%time%time)
+  if (allocated(ROMS%time%date)) deallocate(ROMS%time%date)
   allocate(ROMS%time%time(ROMS%time%n))
   allocate(ROMS%time%date(ROMS%time%n))
 
@@ -396,6 +399,20 @@ contains
       ROMS%state%idv = myvar
     endif
   enddo
+
+  !-----------------------------------------------------------------------
+  ! A - grid X, Y, LON and LAT arrays
+  !-----------------------------------------------------------------------
+  allocate (ROMS%grid%x_a(1:ROMS%grid%L-1,1:ROMS%grid%M-1))
+  allocate (ROMS%grid%y_a(1:ROMS%grid%L-1,1:ROMS%grid%M-1))
+  allocate (ROMS%grid%lon_a(1:ROMS%grid%L-1,1:ROMS%grid%M-1))
+  allocate (ROMS%grid%lat_a(1:ROMS%grid%L-1,1:ROMS%grid%M-1))
+
+  ROMS%grid%x_a(:,:)   = ROMS%grid%x_r(1:ROMS%grid%L-1,1:ROMS%grid%M-1)
+  ROMS%grid%y_a(:,:)   = ROMS%grid%y_r(1:ROMS%grid%L-1,1:ROMS%grid%M-1)
+  ROMS%grid%lon_a(:,:) = ROMS%grid%lon_r(1:ROMS%grid%L-1,1:ROMS%grid%M-1)
+  ROMS%grid%lat_a(:,:) = ROMS%grid%lat_r(1:ROMS%grid%L-1,1:ROMS%grid%M-1)
+
 
   !-----------------------------------------------------------------------
   !  Original formulation: Compute vertical depths (meters, negative) at
@@ -948,7 +965,6 @@ contains
     integer :: var_lon, var_lat, var_depth, var_time
     integer :: var_temp, var_salt, var_u, var_v
     integer :: nxa, nya, nzout
-    real(dp), allocatable :: lon_a(:,:), lat_a(:,:)
     logical :: file_exists
 
     ! ... Check if zfields are allocated
@@ -961,13 +977,6 @@ contains
     nxa = size(ROMS%zfields%temp, 1)
     nya = size(ROMS%zfields%temp, 2)
     nzout = size(ROMS%zfields%depths)
-
-    ! ... Extract A-grid lon/lat (interior points from rho grid)
-    ! ...
-    allocate(lon_a(nxa, nya))
-    allocate(lat_a(nxa, nya))
-    lon_a(:,:) = ROMS%grid%lon_r(1:nxa,1:nya)
-    lat_a(:,:) = ROMS%grid%lat_r(1:nxa,1:nya)
 
     ! ... Check if file exists
     ! ...
@@ -1064,10 +1073,10 @@ contains
 
       ! ... Write coordinate variables (only once)
       ! ...
-      err = NF90_PUT_VAR(ncid_out, var_lon, lon_a)
+      err = NF90_PUT_VAR(ncid_out, var_lon, ROMS%grid%lon_a)
       call nc_error(err, 'Unable to write longitude')
 
-      err = NF90_PUT_VAR(ncid_out, var_lat, lat_a)
+      err = NF90_PUT_VAR(ncid_out, var_lat, ROMS%grid%lat_a)
       call nc_error(err, 'Unable to write latitude')
 
       err = NF90_PUT_VAR(ncid_out, var_depth, ROMS%zfields%depths)
@@ -1105,8 +1114,6 @@ contains
     call nc_error(err, 'Unable to close output file')
 
     write(*,*) 'Written record ', record_idx, ' to ', trim(output_file)
-
-    deallocate(lon_a, lat_a)
 
   end subroutine roms_zfields_save
   ! ...
