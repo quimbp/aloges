@@ -36,7 +36,8 @@ private
 public :: randn, randstr, randseries, arange, mean, variance, &
           indexx, swap, imaxloc, median, corrcoef, &
           brent, golden, spline, quicksort, linspace, meshgrid, &
-          diff, gradient, cumsum, cumprod, percentile, interp1
+          diff, gradient, cumsum, cumprod, percentile, interp1, &
+          next_power_of_2
 
 interface randn
   module procedure randn_r,randn_v,randn_a
@@ -1102,4 +1103,20 @@ end subroutine quicksort
   ! ...
   ! ===================================================================
   ! ...
+  function next_power_of_2(n) result(n_pow2)
+    ! ... Returns integer i value | 2**i-1 < n < 2**i
+
+    integer, intent(in) :: n
+    integer             :: n_pow2
+
+    n_pow2 = 2
+    do while (n_pow2 < n)
+      n_pow2 = n_pow2 * 2
+    end do  
+
+  end function next_power_of_2
+  ! ...
+  ! ===================================================================
+  ! ...
+
 end module module_math
