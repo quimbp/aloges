@@ -53,9 +53,9 @@ OBJ = module_types.o $(PLOBJ) module_constants.o module_color.o     \
       module_grid.o module_lineargs.o  module_help.o                \
       module_trajectories.o module_minpack.o module_matrix.o        \
       module_enkf.o module_sysdyn.o module_interp.o                 \
-      module_geodetic.o module_codar.o module_roms.o
+      module_geodetic.o module_codar.o module_roms.o aloges.o
 
-all: $(OBJ) $(LIBDIR) $(INCDIR) aloges.mod
+all: $(OBJ) $(LIBDIR) $(INCDIR) aloges.o
 	rm -f $(TARGET)
 	$(INSTALL) *.mod $(INCDIR)
 	$(AR) $(TARGET) $(OBJ)
@@ -175,6 +175,6 @@ module_codar.o: module_types.o module_dictionary.o module_tools.o module_codar.f
 module_roms.o: module_types.o module_time.o module_tools.o module_nc.o module_roms.f90
 	$(FC) -c $(FFLAGS) $(INC) module_roms.f90
 
-aloges.mod: $(OBJ)
+aloges.o: $(OBJ) aloges.f90
 	$(FC) -c $(FFLAGS) $(INC) aloges.f90
 

@@ -55,5 +55,24 @@ character(len=4)  :: ALOGES_VERSION = "1.0"
 character(len=20) :: ALOGES_AUTHOR  = "Joaquim Ballabrera"
 character(len=20) :: ALOGES_DATE    = "April, 2022"
 
+contains
+
+subroutine head_aloges()
+
+  character(len=maxlen) progname
+  call getarg(0,progname)
+
+  write(*,*) 
+  write(*,*) '======================================================================='
+  write(*,*) 'Program: ' // trim(progname)
+  write(*,*) 'Aloges version: ' // ALOGES_VERSION
+  write(*,*) 'Aloges version date: ' // ALOGES_DATE
+  write(*,*) 'Compiler version: ', compiler_version()
+  write(*,*) 'Compiler options: ', compiler_options()
+  write(*,*) '======================================================================='
+  write(*,*) 
+
+end subroutine head_aloges
+
 end module aloges
 
