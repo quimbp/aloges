@@ -48,6 +48,7 @@ use module_sysdyn
 use module_geodetic
 use module_codar
 use module_roms
+use module_spectra
 
 implicit none
 
