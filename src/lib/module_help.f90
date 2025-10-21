@@ -32,7 +32,7 @@ module module_help
 use module_tools
 use iso_fortran_env
 
-implicit none
+implicit none (type, external)
 integer, parameter                                 :: MAXOPTIONS = 50
 
 type type_help

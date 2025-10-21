@@ -25,9 +25,9 @@ module module_constants
 
 use, intrinsic :: ieee_arithmetic, only: ieee_value, ieee_quiet_nan,  &
                   ieee_is_nan, ieee_positive_inf
-use module_types
+use module_types, only : dp
 
-implicit none
+implicit none (type, external)
 
 ! ------------------------------------------------------------
 ! Logical constants (optional; Fortran already has .True./.False.)
@@ -64,14 +64,6 @@ real(dp), parameter    :: deg2rad = pi/180.0_dp
 real(dp), parameter    :: rad2deg = 180.0_dp/pi
 
 complex(dp), parameter :: zj      = (0.0_dp, 1.0_dp)
-
-! ------------------------------------------------------------
-! NaN and Infinity (cannot be parameters)
-! ------------------------------------------------------------
-real(sp)               :: nan4    ! = 0.0_sp/0.0_sp
-real(sp)               :: inf4    ! = 1.0_sp/0.0_sp
-real(dp)               :: nan     ! = 0.0_dp/0.0_dp
-real(dp)               :: inf     ! = 1.0_dp/0.0_dp
 
 ! -------------------------------------------------------------------
 ! All control characters in the ASCII table (see www.asciitable.com).
@@ -148,18 +140,16 @@ contains
   ! ===================================================================
   ! ===================================================================
   ! ...
-  subroutine set_nan()
-    ! ... Initialize NaN and values
-    nan4 = ieee_value(0.0_sp, ieee_quiet_nan)
-    nan   = ieee_value(0.0_dp, ieee_quiet_nan)
-  end subroutine set_nan
+  pure function nan() result(v)  
+    real(dp) :: v  
+    v = ieee_value(0.0_dp, ieee_quiet_nan)  
+  end function nan
   ! ...
   ! ===================================================================
   ! ...
-  subroutine set_inf()
-    ! ... Initialize Infinity values
-    inf4 = ieee_value(0.0_sp, ieee_positive_inf)
-    inf   = ieee_value(0.0_dp, ieee_positive_inf)
-  end subroutine set_inf
+  pure function inf() result(v)  
+    real(dp) :: v  
+    v = ieee_value(0.0_dp, ieee_positive_inf)  
+  end function inf
 
 end module module_constants

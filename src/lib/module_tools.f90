@@ -50,7 +50,7 @@ use module_constants
 use module_color
 use module_math, only: randstr
 
-implicit none
+implicit none (type, external)
 
 interface unique_elements
   module procedure unique_elements_i

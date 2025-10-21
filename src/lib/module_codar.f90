@@ -27,7 +27,7 @@ module module_codar
 
 use module_tools
 
-implicit none
+implicit none (type, external)
 
 type type_codar_att
   character(len=maxlen)                   :: key = ""

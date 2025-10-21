@@ -53,7 +53,7 @@ use netcdf
 use module_types
 use module_tools, only: crash
 
-implicit none
+implicit none (type, external)
 
 type type_nc_dimension
   character(len=maxlen)                              :: name

@@ -35,7 +35,7 @@ use module_types
 use module_constants
 use module_tools
 
-implicit none
+implicit none (type, external)
 
 type type_matrix
   character(len=maxlen)                 :: filename = ''

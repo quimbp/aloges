@@ -24,11 +24,11 @@
 
 module module_interp
 
-use, intrinsic :: IEEE_ARITHMETIC, ONLY : IEEE_VALUE, IEEE_QUIET_NAN
-use module_types
+use, intrinsic :: ieee_arithmetic, only : ieee_value, ieee_quiet_nan
+use module_types, only : dp
 use module_constants
 
-implicit none
+implicit none (type, external)
 
 contains
 ! ...

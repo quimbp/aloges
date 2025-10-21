@@ -30,7 +30,7 @@ use module_nc
 use module_tools
 use module_time
 
-implicit none
+implicit none (type, external)
 
 character(len=*), parameter         :: standard_time_units = 'seconds since 2000-01-01 00:00:00'
 character(len=*), parameter         :: standard_calendar   = 'gregorian'

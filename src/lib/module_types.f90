@@ -25,7 +25,7 @@ module module_types
 
 use iso_fortran_env, only: int32,  real32, real64
 
-implicit none
+implicit none (type, external)
 
 integer, parameter                               :: i4 = int32        ! integer
 integer, parameter                               :: sp = real32       ! Single precision

@@ -54,7 +54,7 @@ module module_minpack
 
 use module_types
 
-implicit none
+implicit none (type, external)
 
 contains
 

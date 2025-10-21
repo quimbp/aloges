@@ -29,7 +29,7 @@ module module_plplot
 use module_types
 use plplot
 
-implicit none
+implicit none (type, external)
 private
 public type_plplot
 public init_custom_colormap0

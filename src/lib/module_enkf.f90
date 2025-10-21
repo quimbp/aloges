@@ -33,7 +33,7 @@ use module_math
 use module_linalg
 use module_eofs
 
-implicit none
+implicit none (type, external)
 
 contains
 ! ...

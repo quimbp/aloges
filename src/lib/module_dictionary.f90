@@ -41,7 +41,7 @@ module module_dictionary
 
 use module_types
 
-implicit none
+implicit none (type, external)
 private
 public :: type_dict
 public :: dict_init, dict_set, dict_get, dict_has_key

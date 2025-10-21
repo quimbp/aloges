@@ -18,7 +18,7 @@ use module_constants
 use module_math, only : indexx
 use module_linalg
 
-implicit none
+implicit none (type, external)
 
 private
 public :: svdcmp, pythag, svbksb, get_eof, eigsort, rotate_eofs, &

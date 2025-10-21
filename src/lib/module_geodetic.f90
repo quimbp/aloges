@@ -31,7 +31,7 @@ use, intrinsic :: IEEE_ARITHMETIC, ONLY : IEEE_VALUE, IEEE_QUIET_NAN
 use module_types
 use module_constants
 
-implicit none
+implicit none (type, external)
 
 type type_WGS84_constants
   !real(dp)             :: Earth_Radius     = 6371000.0_dp                 ! Mean Earth radius (spherical equivalent) [m]

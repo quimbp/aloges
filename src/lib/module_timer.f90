@@ -40,7 +40,7 @@
 module module_timer
 
 use module_types
-implicit none
+implicit none (type, external)
 
 private
 public :: timer_type, timer_start, timer_stop, timer_report, timer_reset, timer_cleanup

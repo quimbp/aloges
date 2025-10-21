@@ -36,7 +36,7 @@ use module_types
 use module_constants
 use module_tools, only: unitfree
 
-implicit none
+implicit none (type, external)
 
 type model_lorenz63
   ! Lorenz 1963 model

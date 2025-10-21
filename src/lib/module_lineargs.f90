@@ -25,10 +25,10 @@ module module_lineargs
 
 use, intrinsic :: ieee_arithmetic, only: ieee_value, ieee_quiet_nan, ieee_is_nan, ieee_positive_inf
 use module_types, only: sp,dp,maxlen
-use module_constants, only: nan,nan4
+use module_constants
 use module_tools
 
-implicit none
+implicit none (type, external)
 
 integer                                          :: lineargs_nargs = 0
 integer, dimension(:), allocatable               :: lineargs_used
@@ -143,8 +143,6 @@ character lett
 
 if (flag) return
 
-!nan4 = ieee_value(1.0_sp,ieee_quiet_nan)
-
 n = len_trim(label)
 DO k=1,lineargs_nargs
  if (lineargs_used(k).EQ.0) then
@@ -156,11 +154,7 @@ DO k=1,lineargs_nargs
   endif
   flag      = .True.
   lett      = lineargs_val(k+1)(1:1)
-!  if (lett.EQ.'N'.OR.lett.EQ.'n') then
-!  val     = nan4
-!  else 
-    read(lineargs_val(k+1),*) val
-!  endif
+  read(lineargs_val(k+1),*) val
   lineargs_used(k)   = 1
   lineargs_used(k+1) = 1
   return

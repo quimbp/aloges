@@ -17,7 +17,7 @@ use module_types
 use module_constants
 use module_math
 
-implicit none
+implicit none (type, external)
 
 private
 public :: matrinv, ludcmp, lubksb, det, trace, &

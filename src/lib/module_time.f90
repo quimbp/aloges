@@ -43,7 +43,7 @@ module module_time
   use module_types
   use module_tools
 
-  implicit none
+  implicit none (type, external)
 
   private cmp_
 

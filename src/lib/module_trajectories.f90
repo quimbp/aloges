@@ -29,8 +29,9 @@ use module_types
 use module_constants
 use module_tools
 use module_time
+use module_nc
 
-implicit none
+implicit none (type, external)
 
 type type_trajectory
   integer                                        :: N         ! Number of trajectories

@@ -31,7 +31,7 @@ module module_solar
   use module_tools
   use module_time
 
-  implicit none
+  implicit none (type, external)
 
   contains
   ! ...

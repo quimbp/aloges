@@ -30,7 +30,7 @@ use, intrinsic :: IEEE_ARITHMETIC, ONLY : IEEE_VALUE, IEEE_QUIET_NAN
 use module_types
 use module_constants
 
-implicit none
+implicit none (type, external)
 
 private
 public :: randn, randstr, randseries, arange, mean, variance, &
@@ -378,13 +378,9 @@ contains
     real(dp), dimension(:), optional       :: W
 
     integer n
-    real(dp) nan,Sw
+    real(dp) Sw
 
-    ! ... nan:
-    ! ...
-    nan = ieee_value(1.0_dp,ieee_quiet_nan)
-
-    mean = nan
+    mean = nan()          ! Defined in module_constants.f90 
     n = size(A)
     if (n.eq.0) return
 
@@ -418,14 +414,9 @@ contains
     logical                                    :: isbiased = .false.
     integer N,i
     real(dp) xsum1,xsum2,ai,wi,Sw
-    real(dp) nan
 
 
-    ! ... nan:
-    ! ...
-    nan = ieee_value(1.0_dp,ieee_quiet_nan)
-
-    variance = nan
+    variance = nan()          ! Defined in module_constants.f90
     N = SIZE(A)
     if (N.EQ.0) return
 

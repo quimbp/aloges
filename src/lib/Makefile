@@ -154,7 +154,7 @@ module_lineargs.o: module_types.o module_constants.o module_tools.o module_linea
 module_help.o: module_types.o module_constants.o module_tools.o module_help.f90
 	$(FC) -c $(FFLAGS) $(INC) module_help.f90
 
-module_trajectories.o: module_types.o module_constants.o module_tools.o module_trajectories.f90
+module_trajectories.o: module_types.o module_constants.o module_tools.o module_nc.o module_trajectories.f90
 	$(FC) -c $(FFLAGS) $(INC) module_trajectories.f90
 
 module_minpack.o: module_types.o module_minpack.f90

@@ -24,7 +24,7 @@
 
 module module_color
 
-implicit none
+implicit none (type, external)
 character(len=*), parameter :: esc = char(27)
 
 ! ... Reset and text attributes

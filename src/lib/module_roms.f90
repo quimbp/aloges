@@ -33,7 +33,7 @@ use module_time
 use module_nc
 use module_tools
 
-implicit none
+implicit none (type, external)
 
 private
 public type_roms
