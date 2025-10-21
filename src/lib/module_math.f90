@@ -26,9 +26,12 @@
 
 module module_math
 
-use, intrinsic :: IEEE_ARITHMETIC, ONLY : IEEE_VALUE, IEEE_QUIET_NAN
+use, intrinsic :: ieee_arithmetic, only : ieee_value, ieee_quiet_nan
+use iso_fortran_env, only: error_unit, output_unit
 use module_types
 use module_constants
+use module_color
+
 
 implicit none (type, external)
 
@@ -37,7 +40,7 @@ public :: randn, randstr, randseries, arange, mean, variance, &
           indexx, swap, imaxloc, median, corrcoef, &
           brent, golden, spline, quicksort, linspace, meshgrid, &
           diff, gradient, cumsum, cumprod, percentile, interp1, &
-          next_power_of_2
+          next_power_of_2, flip, ascending, descending
 
 interface randn
   module procedure randn_r,randn_v,randn_a
@@ -52,6 +55,13 @@ interface swap
   module procedure swap_r
   module procedure swap_v
 end interface swap
+
+interface flip
+  module procedure flip1d_i
+  module procedure flip1d_dp
+  module procedure flip2d_dp
+  module procedure flip3d_dp
+end interface flip
 
 interface interp1
   module procedure interp1_r, interp1_v
@@ -1115,6 +1125,188 @@ end subroutine quicksort
     end do  
 
   end function next_power_of_2
+  ! ...
+  ! ===================================================================
+  ! ...                            FLIP BLOCK
+
+  ! ========================================
+  ! 3D array flipping
+  ! ========================================
+  subroutine flip1d_i(x)  
+    ! Integer array flip
+    integer, intent(inout) :: x(:)  
+
+    integer :: n, i, temp  
+    
+    n = size(x)  
+    do i = 1, n/2  
+      temp = x(i)  
+      x(i) = x(n-i+1)  
+      x(n-i+1) = temp  
+    end do  
+
+  end subroutine flip1d_i
+  ! ...
+  ! ===================================================================
+  subroutine flip1d_dp(x)  
+    ! Double precission array flip
+    real(dp), intent(inout) :: x(:)  
+
+    integer :: n, i  
+    real(dp) :: temp  
+    
+    n = size(x)  
+    do i = 1, n/2  
+      temp = x(i)  
+      x(i) = x(n-i+1)  
+      x(n-i+1) = temp  
+    end do  
+
+  end subroutine flip1d_dp
+  ! ...
+  ! ========================================
+  ! 2D array flipping
+  ! ========================================
+  
+  subroutine flip2d_dp(x, dim)
+    implicit none
+    real(dp), intent(inout) :: x(:,:)
+    integer, intent(in) :: dim  ! 1 = flip rows, 2 = flip columns
+    integer :: n, i, j
+    real(dp) :: temp
+    
+    select case(dim)
+    case(1)
+      ! Flip along dimension 1 (rows)
+      n = size(x, 1)
+      do j = 1, size(x, 2)
+        do i = 1, n/2
+          temp = x(i, j)
+          x(i, j) = x(n-i+1, j)
+          x(n-i+1, j) = temp
+        end do
+      end do
+      
+    case(2)
+      ! Flip along dimension 2 (columns)
+      n = size(x, 2)
+      do i = 1, size(x, 1)
+        do j = 1, n/2
+          temp = x(i, j)
+          x(i, j) = x(i, n-j+1)
+          x(i, n-j+1) = temp
+        end do
+      end do
+      
+    case default
+      call crash('FLIP2D_DP - dim must be 1, 2, or 3')
+
+    end select
+  end subroutine flip2d_dp
+  
+  ! ========================================
+  ! 3D array flipping
+  ! ========================================
+  
+  subroutine flip3d_dp(x, dim)
+    implicit none
+    real(dp), intent(inout) :: x(:,:,:)
+    integer, intent(in) :: dim  ! 1, 2, or 3
+    integer :: n, i, j, k
+    real(dp) :: temp
+    
+    select case(dim)
+    case(1)
+      ! Flip along dimension 1
+      n = size(x, 1)
+      do k = 1, size(x, 3)
+        do j = 1, size(x, 2)
+          do i = 1, n/2
+            temp = x(i, j, k)
+            x(i, j, k) = x(n-i+1, j, k)
+            x(n-i+1, j, k) = temp
+          end do
+        end do
+      end do
+      
+    case(2)
+      ! Flip along dimension 2
+      n = size(x, 2)
+      do k = 1, size(x, 3)
+        do i = 1, size(x, 1)
+          do j = 1, n/2
+            temp = x(i, j, k)
+            x(i, j, k) = x(i, n-j+1, k)
+            x(i, n-j+1, k) = temp
+          end do
+        end do
+      end do
+      
+    case(3)
+      ! Flip along dimension 3
+      n = size(x, 3)
+      do j = 1, size(x, 2)
+        do i = 1, size(x, 1)
+          do k = 1, n/2
+            temp = x(i, j, k)
+            x(i, j, k) = x(i, j, n-k+1)
+            x(i, j, n-k+1) = temp
+          end do
+        end do
+      end do
+      
+    case default
+      call crash('FLIP3D_DP - dim must be 1, 2, or 3')
+
+    end select
+  end subroutine flip3d_dp
+  ! ...
+  ! ===================================================================
+  ! ...
+  subroutine crash(message)
+
+    character(len=*), intent(in)                   :: message 
+
+    write(error_unit,'(A)') bold//red//error_x_symbol//' ERROR: '//reset // red//trim(message)//reset
+    stop 1  
+
+  end subroutine crash
+  ! ...
+  ! ===================================================================
+  ! ...
+  logical function ascending(x)
+
+    real(dp), dimension(:), intent(in)       :: x
+
+    ! ... Local variables
+    ! ...
+    integer i
+
+    ascending = .false.
+    do i=1,size(x)-1
+      if (x(i+1)-x(i).le.0.0d0) return
+    enddo
+    ascending = .true.
+
+  end function ascending
+  ! ...
+  ! ===================================================================
+  ! ...
+  logical function descending(x)
+
+    real(dp), dimension(:), intent(in)       :: x
+
+    ! ... Local variables
+    ! ...
+    integer i
+
+    descending = .false.
+    do i=1,size(x)-1
+      if (x(i+1)-x(i).ge.0.0d0) return
+    enddo
+    descending = .true.
+
+  end function descending
   ! ...
   ! ===================================================================
   ! ...

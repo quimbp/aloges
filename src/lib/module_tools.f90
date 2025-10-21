@@ -838,6 +838,32 @@ contains
   ! ...
   ! ===================================================================
   ! ...
+  subroutine matprint(label,A,fmt)
+
+    character(len=*), intent(in)                 :: label
+    real(dp), dimension(:,:), intent(in)         :: A
+    character(len=*), intent(in), optional       :: fmt 
+
+    ! ... Local variables:
+    ! ...
+    integer i,j
+    character(len=maxlen) lfmt
+
+    if (present(fmt)) then
+      lfmt = '(T2,10'//trim(fmt)//')'
+    else
+      lfmt = '*'
+    endif
+
+    write(*,*) trim(label)
+    do i=1,size(A,1)
+      write(*,lfmt) (A(i,j), j=1,min(10,size(A,2)) )
+    enddo
+    
+  end subroutine matprint
+  ! ...
+  ! ===================================================================
+  ! ...
   function unique_elements_i(arr) result(unique_arr)
 
     integer, intent(in)                          :: arr(:)
