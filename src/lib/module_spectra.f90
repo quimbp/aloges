@@ -325,24 +325,43 @@ contains
   ! ====================================================================
   ! ...
   subroutine check_uniform_spacing(x, is_uniform, dx, tolerance)
-    real(dp), intent(in)    :: x(:)
-    logical, intent(out)    :: is_uniform
-    real(dp), intent(out)    :: dx
-    real(dp), intent(in), optional :: tolerance
+    ! ... Given an array X, check if it is, up to a tolerance limit, uniformly
+    ! ... spaced. Returns the average spacing (dx).
+    ! ... On input:
+    ! ...   real(dp)  :: x(:)
+    ! ...   real(dp)  :: tolerance (Optional, default = 1.0e-6)
+    ! ... On output:
+    ! ...   logical   :: is_uniform (.True. or .False.)
+    ! ...   dx        :: average spacing
+    ! ...
+    real(dp), intent(in)                            :: x(:)
+    logical, intent(out)                            :: is_uniform
+    real(dp), intent(out)                           :: dx
+    real(dp), intent(in), optional                  :: tolerance
+
+    ! ... Local variables
+    ! ...
     integer :: n,i
     real(dp) :: tol, dx_mean, dx_std, dx_i
+
     n = size(x)
     tol = 1.0e-6_dp
     if (present(tolerance)) tol = tolerance
+
     dx_mean = (x(n) - x(1)) / real(n - 1, dp)
     dx = dx_mean
     dx_std = 0.0_dp
+
     do i = 1, n - 1
-    dx_i = x(i+1) - x(i)
-    dx_std = dx_std + (dx_i - dx_mean)**2
+      dx_i = x(i+1) - x(i)
+      dx_std = dx_std + (dx_i - dx_mean)**2
     end do
+
+    ! ... Perform the check, using the deviation of dx over the mean value
+    ! ...
     dx_std = sqrt(dx_std / real(n - 1, dp))
     is_uniform = (dx_std / dx_mean) < tol
+
   end subroutine check_uniform_spacing
   ! ...
   ! ====================================================================
