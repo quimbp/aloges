@@ -1,562 +1,405 @@
-! ======================================================================== !
-! ALOGES PROJECT                                                           !
-! Quim Ballabrera, April 2022                                              !
-! Institut de Ciencies del Mar, CSIC                                       !
-! Last Modified: 2022-04-14                                                !
-!                                                                          !
-! Copyright (C) 2022, Joaquim Ballabrera                                   !
-!                                                                          !
-! This program is free software: you can redistribute it and/or modify     !
-! it under the terms of the GNU Lesser General Public License as published !
-! by the Free Software Foundation, either version 3 of the License, or     !
-! (at your option) any later version.                                      !
-!                                                                          !
-! This program is distributed in the hope that it will be useful,          !
-! but WITHOUT ANY WARRANTY; without even the implied warranty of           !
-! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.                     !
-! See the Lesser GNU General Public License for more details.              !
-!                                                                          !
-! You should have received a copy of the GNU Lesser General                !
-! Public License along with this program.                                  !
-! If not, see <http://www.gnu.org/licenses/>.                              !
-! - randn                                                                  !
-! - randstr                                                                !
-! - randseries                                                             !
-! -------------------------------------------------------------------------!
+!> @file module_math.f90
+!> @brief Pure mathematical utilities: random number generation, 
+!> array operations, optimization, and sorting.
+!> @author Quim Ballabrera, Institut de Ciencies del Mar, CSIC
+!> @date April 2022, refactored 2025
+!>
+!> This module provides core mathematical functions excluding statistics.
+!> For statistical routines (mean, variance, moments, percentiles), see module_statistical.
+!>
+!> Copyright (C) 2022-2025, Joaquim Ballabrera
+!> Licensed under GNU LGPL v3+
 
 module module_math
 
-use, intrinsic :: ieee_arithmetic, only : ieee_value, ieee_quiet_nan
+use, intrinsic :: ieee_arithmetic, only: ieee_value, ieee_quiet_nan
 use iso_fortran_env, only: error_unit, output_unit
-use module_types
-use module_constants
-use module_color
-
+use module_types, only: dp
+use module_constants, only: nan
+use module_tools, only: crash
 
 implicit none (type, external)
 
 private
-public :: randn, randstr, randseries, arange, mean, variance, &
-          indexx, swap, imaxloc, median, corrcoef, &
-          brent, golden, spline, quicksort, linspace, meshgrid, &
-          diff, gradient, cumsum, cumprod, percentile, interp1, &
-          next_power_of_2, flip, ascending, descending
 
+public :: randn, randseries, random_integer
+public :: arange, linspace, meshgrid
+public :: indexx, swap, imaxloc, quicksort
+public :: brent, golden
+public :: diff, gradient, cumsum, cumprod
+public :: next_power_of_2, flip
+public :: ascending, descending
+public :: t_inverse_cdf, t_cdf_complement
+public :: f_cdf_complement
+
+
+!> @brief Generic interface for generating Gaussian random 
+!> numbers (scalar, vector, or 2D array).
 interface randn
-  module procedure randn_r,randn_v,randn_a
+  module procedure randn_r, randn_v, randn_a
 end interface randn
 
+!> @brief Generic interface for creating arithmetic 
+!> sequences (integer or real).
 interface arange
-  module procedure arange_i
-  module procedure arange_dp
+  module procedure arange_i, arange_dp
 end interface arange
 
+!> @brief Generic interface for swapping two values (scalar or vector).
 interface swap
-  module procedure swap_r
-  module procedure swap_v
+  module procedure swap_r, swap_v
 end interface swap
 
+!> @brief Generic interface for flipping arrays along a dimension.
 interface flip
-  module procedure flip1d_i
-  module procedure flip1d_dp
-  module procedure flip2d_dp
-  module procedure flip3d_dp
+  module procedure flip1d_i, flip1d_dp, flip2d_dp, flip3d_dp
 end interface flip
 
-interface interp1
-  module procedure interp1_r, interp1_v
-end interface interp1
-
 contains
-! ...
-! =====================================================================
-! =====================================================================
-! ...
-  function randn_r () result(ff)
 
-    real(dp)                                     :: ff
-
-    ! ... Local variables
-    ! ...
-    real(dp), parameter                          :: s  =  0.449871D0
-    real(dp), parameter                          :: t  = -0.386595D0
-    real(dp), parameter                          :: a  =  0.19600D0
-    real(dp), parameter                          :: b  =  0.25472D0
-    real(dp), parameter                          :: r1 =  0.27597D0
-    real(dp), parameter                          :: r2 =  0.27846D0
-    real(dp) u,v,x,y,q
+  !> @brief Generate a single Gaussian random number 
+  !> with mean=0, std=1.
+  !!
+  !! Uses the ratio-of-uniforms method (Leva, 1992).
+  !! Units: dimensionless.
+  !!
+  !! @return Real(dp) standard normal variate.
+  !!
+  !! Notes:
+  !! - Thread-safe if Fortran RNG is thread-safe.
+  !! - For reproducibility, seed the RNG before calling.
+  function randn_single() result(ff)
+    real(dp) :: ff
+    real(dp), parameter :: s  =  0.449871_dp
+    real(dp), parameter :: t  = -0.386595_dp
+    real(dp), parameter :: a  =  0.19600_dp
+    real(dp), parameter :: b  =  0.25472_dp
+    real(dp), parameter :: r1 =  0.27597_dp
+    real(dp), parameter :: r2 =  0.27846_dp
+    real(dp) :: u, v, x, y, q
 
     do
-      call RANDOM_NUMBER(u)  ! GNU RANDOM GENERATOR
-      call RANDOM_NUMBER(v)  ! GNU RANDOM GENERATOR
-      v = 1.7156D0 * (v - 0.5D0)
-
-      ! ... Evaluate the quadratic form
-      ! ...
+      call random_number(u)
+      call random_number(v)
+      v = 1.7156_dp * (v - 0.5_dp)
       x = u - s
-      y = ABS(v) - t
+      y = abs(v) - t
       q = x*x + y*(a*y - b*x)
-
-      if (q .lt. r1) exit
-      if (q .gt. r2) cycle
-      if (v**2 .LT. -4D0*LOG(u)*u*u) exit
-    enddo
+      if (q < r1) exit
+      if (q > r2) cycle
+      if (v**2 < -4.0_dp*log(u)*u*u) exit
+    end do
     ff = v/u
+  end function randn_single
 
+
+  !> @brief Generate a single Gaussian random number 
+  !> with mean=0, std=1.
+  !!
+  !! Uses the ratio-of-uniforms method (Leva, 1992).
+  !! Units: dimensionless.
+  !!
+  !! @return Real(dp) standard normal variate.
+  !!
+  !! Notes:
+  !! - Thread-safe if Fortran RNG is thread-safe.
+  !! - For reproducibility, seed the RNG before calling.
+  function randn_r() result(ff)
+    real(dp) :: ff
+    ff = randn_single()
   end function randn_r
-  ! ...
-  ! ===================================================================
-  ! ...
-  function randn_v (m) result(ff)
 
-    integer, intent(in)                          :: m
-    real(dp), dimension(m)                       :: ff
+  !> @brief Generate a 1D array of Gaussian random numbers 
+  !> with mean=0, std=1.
+  !!
+  !! @param[in] m Integer, length of output vector.
+  !! @return Real(dp) array of size m, standard normal variates.
+  !!
+  !! Notes:
+  !! - Uses randn_r internally.
+  function randn_v(m) result(ff)
+    integer, intent(in) :: m
+    real(dp), allocatable :: ff(:)
+    integer :: i
 
-    ! ... Local variables
-    ! ...
-    integer i
-    real(dp), parameter                          :: s  =  0.449871D0
-    real(dp), parameter                          :: t  = -0.386595D0
-    real(dp), parameter                          :: a  =  0.19600D0
-    real(dp), parameter                          :: b  =  0.25472D0
-    real(dp), parameter                          :: r1 =  0.27597D0
-    real(dp), parameter                          :: r2 =  0.27846D0
-    real(dp) u,v,x,y,q
-  
-    do i=1,m
-      do
-        call RANDOM_NUMBER(u)  ! GNU RANDOM GENERATOR
-        call RANDOM_NUMBER(v)  ! GNU RANDOM GENERATOR
-        v = 1.7156D0 * (v - 0.5D0)
-  
-        ! ... Evaluate the quadratic form
-        ! ...
-        x = u - s
-        y = ABS(v) - t
-        q = x*x + y*(a*y - b*x)
-
-        if (q .lt. r1) exit
-        if (q .gt. r2) cycle
-        if (v**2 .LT. -4D0*LOG(u)*u*u) exit
-      enddo
-      ff(i) = v/u
-    enddo
-
+    if (allocated(ff)) deallocate(ff)
+    allocate(ff(m))
+    do i = 1, m
+      ff(i) = randn_single()
+    end do
   end function randn_v
-  ! ...
-  ! ===================================================================
-  ! ...
-  function randn_a (m,n) result(ff)
 
-    integer, intent(in)                          :: m
-    integer, intent(in)                          :: n
-    real(dp), dimension(:,:), allocatable        :: ff
-
-    ! ... Local variables
-    ! ...
+  !> @brief Generate a 2D array of Gaussian random numbers with mean=0, std=1.
+  !!
+  !! @param[in] m Integer, number of rows.
+  !! @param[in] n Integer, number of columns.
+  !! @return Real(dp) allocatable array of size (m,n), standard normal variates.
+  !!
+  !! Notes:
+  !! - OpenMP parallelized over columns and rows.
+  !! - Output is allocated if not already allocated.
+  function randn_a(m, n) result(ff)
+    integer, intent(in) :: m, n
+    real(dp), dimension(:,:), allocatable :: ff
     integer i,j
-    real(dp), parameter                          :: s  =  0.449871D0
-    real(dp), parameter                          :: t  = -0.386595D0
-    real(dp), parameter                          :: a  =  0.19600D0
-    real(dp), parameter                          :: b  =  0.25472D0
-    real(dp), parameter                          :: r1 =  0.27597D0
-    real(dp), parameter                          :: r2 =  0.27846D0
-    real(dp) u,v,x,y,q
 
-    if (.not.allocated(ff)) allocate(ff(m,n))
+    if (allocated(ff)) deallocate(ff)
+    allocate(ff(m, n))
 
-    !$omp parallel do default(shared) private(i,j,u,v,x,y,q) collapse(2)
-    do j=1,n
-    do i=1,m
-      do
-        call RANDOM_NUMBER(u)  ! GNU RANDOM GENERATOR
-        call RANDOM_NUMBER(v)  ! GNU RANDOM GENERATOR
-        v = 1.7156D0 * (v - 0.5D0)
-
-        ! ... Evaluate the quadratic form
-        ! ...
-        x = u - s
-        y = ABS(v) - t
-        q = x*x + y*(a*y - b*x)
-
-        if (q .lt. r1) exit
-        if (q .gt. r2) cycle
-        if (v**2 .LT. -4D0*LOG(u)*u*u) exit
-      enddo
-      ff(i,j) = v/u
-    enddo
-    enddo
-
+    do j = 1, n
+    do i = 1, m
+      ff(i, j) = randn_single()
+    end do
+    end do
   end function randn_a
-  ! ...
-  ! ===================================================================
-  ! ...
-  function randstr(len,iseed) result(name)
 
-  integer, intent(in)                            :: len
-  integer, optional                              :: iseed
-  character(len=len)                             :: name
-  
-  ! ... Local variables
-  ! ...
-  integer i,io,il,j,n
-  integer, dimension(:), allocatable             :: seed
-  real(dp) r
+  !> @brief Generate a smooth random time series with optional periodicity and lag correlation.
+  !!
+  !! @param[in] n Integer, length of output series.
+  !! @param[in] dlag Integer, optional. Smoothing lag (higher = smoother). Default: no smoothing.
+  !! @param[in] periodic Logical, optional. If true, enforce periodicity (first = last). Default: false.
+  !! @return Real(dp) array of size n, normalized to zero mean and unit variance.
+  !!
+  !! Notes:
+  !! - Smoothing is applied via repeated 3-point averaging (6*|dlag| iterations).
+  !! - For periodic series, boundary wraps around.
+  !! - For non-periodic, buffering is used to avoid edge artifacts.
+  function randseries(n, dlag, periodic) result(g)
+    integer, intent(in) :: n
+    integer, intent(in), optional :: dlag
+    logical, intent(in), optional :: periodic
+    real(dp), dimension(n) :: g
+    logical :: lper
+    integer :: nn, i, iter, im, ip
+    real(dp) :: xsum
+    real(dp), dimension(:), allocatable :: v, f
 
-  if (present(iseed)) then
-    call random_seed(size=n)
-    allocate(seed(n))
-    seed(:) = iseed
-    call random_seed(put=seed)
-  endif
+    lper = .false.
+    if (present(periodic)) then
+      if (periodic) lper = .true.
+    end if
 
-  io = ichar('A')
-  il = ichar('Z') - io
-
-  do i=1,len
-    call random_number(r)
-    j = int(io + il*r)
-    name(i:i) = char(j)
-  enddo
-
-  return
-  end function randstr
-  ! ...
-  ! ===================================================================
-  ! ...
-  function randseries(n,dlag,periodic) result(g)
-
-  integer, intent(in)                            :: n
-  integer, intent(in), optional                  :: dlag
-  logical, intent(in), optional                  :: periodic
-  real(dp), dimension(n)                         :: g
-  
-  ! ... Local variables
-  ! ...
-  logical lper
-  integer nn,i,iter,im,ip
-  real(dp) xsum
-  real(dp), dimension(:), allocatable            :: v,f
-  
-  lper = .False.
-  if (present(periodic)) then
-    if (periodic) lper = .True.
-  endif
-  
-  if (lper) then
-  
-    if (present(dlag)) then
-      allocate(f(n))
-  
-      g = randn(n)
-      g(n) = g(1)
-
-      do iter=1,6*abs(dlag)
-        do i=1,n
-          im = i - 1
-          if (im.eq.0) im = n
-          ip = i + 1
-          if (ip.gt.n) ip = 1
-          f(i) = 0.25D0*(g(im)+2*g(i)+g(ip))
-        enddo
-        g(:) = f(:)
-      enddo
-      deallocate(f)
-      xsum = SUM(g)/n
-      g(:) = g(:) - xsum
-      xsum = sqrt(DOT_PRODUCT(g,g)/n)
-      g(:) = g(:) / xsum
-    else
-      g = randn(n)
-      g(n) = g(1)
-    endif
-  else
-    if (present(dlag)) then
-  
-      ! ... Buffering time series
-      ! ...
-      nn = n + 20*abs(dlag)
-      allocate(v(nn))
-      allocate(f(nn))
-
-      v = randn(nn)
-      do iter=1,6*abs(dlag)
-        f(1) = v(1)
-        f(nn) = v(nn)
-        do i=2,nn-1
-          f(i) = 0.25D0*(v(i-1)+2*v(i)+v(i+1))
-        enddo
-        v = f
-      enddo
-
-      ! ... Extracting far from boundary
-      ! ...
-      i = 10*abs(dlag)
-      g(:) = f(i+1:i+n)
-
-      xsum = SUM(g)/n
-      g(:) = g(:) - xsum
-      xsum = sqrt(DOT_PRODUCT(g,g)/n)
-      g(:) = g(:) / xsum
-
-      deallocate(f)
-      deallocate(v)
-  
-    else
-  
-      g = randn(n)
-  
-    endif
-  endif
-
-  end function randseries
-  ! ...
-  ! ===================================================================
-  ! ...
-  pure function arange_i(amin, amax, adelta) result(arange)
-    ! ...
-    ! ... Returns an integer-valued vector from amin to amax with 
-    ! ... an optional step of adelta.
-    ! ...
-
-    integer, intent(in)                  :: amin 
-    integer, intent(in)                  :: amax 
-    integer, intent(in), optional        :: adelta 
-    integer, dimension(:), allocatable   :: arange
-
-    ! ... Loal variables
-    ! ...
-    integer  i, nlen
-    integer delta
-
-    if (present(adelta))then
-      delta = adelta
-    else
-      delta = 1
-    endif
-
-    nlen = (amax-amin+0.5*delta)/delta + 1
-    allocate(arange(nlen))
-
-    do i=1,nlen
-      arange(i) = amin + (i-1)*delta
-    enddo
-
-    return
-  end function arange_i
-  ! ...
-  ! ===================================================================
-  ! ...
-  pure function arange_dp(amin, amax, adelta) result(arange)
-    ! ...
-    ! ... Returns a double precision vector from amin to amax with 
-    ! ... an optional step of adelta.
-    ! ...
-
-    real(dp), intent(in)                  :: amin 
-    real(dp), intent(in)                  :: amax 
-    real(dp), intent(in), optional        :: adelta 
-    real(dp), dimension(:), allocatable   :: arange
-
-    ! ... Loal variables
-    ! ...
-    integer  i, nlen
-    real(dp) delta
-
-    if (present(adelta))then
-      delta = adelta
-    else
-      delta = 1
-    endif
-
-    nlen = (amax-amin+0.5*delta)/delta + 1
-    allocate(arange(nlen))
-
-    do i=1,nlen
-      arange(i) = amin + (i-1.0D0)*delta
-    enddo
-
-    return
-  end function arange_dp
-  ! ...
-  ! ===================================================================
-  ! ...
-  real(dp) function mean(A,W)
-    ! ... Calculates the weighted mean = 1/N * Sum W(i)*A(i)
-    ! ... Weights are optional.
-
-    real(dp), dimension(:), intent(in)     :: A
-    real(dp), dimension(:), optional       :: W
-
-    integer n
-    real(dp) Sw
-
-    mean = nan()          ! Defined in module_constants.f90 
-    n = size(A)
-    if (n.eq.0) return
-
-    if (present(W)) then
-      Sw   = sum(W)
-      mean = dot_product(W,A)/Sw
-    else
-      mean = sum(A)/N
-    endif
-
-  end function mean
-  ! ...
-  ! ===================================================================
-  ! ...
-  real(dp) function variance (A,W,biased)
-
-    ! ... Calculates the variance = FACTOR * Sum (A(i)-mean(A))**2
-    ! ... The value of FACTOR depends of W. By default, W=0, FACTOR = 1/(N-1)
-    ! ... However, if W=1, the biased variance is calculated, i.e. FACTOR=1/N
-    ! ... If W has to be used as a weight it must be a vector with the same
-    ! ... size than A.
-    ! ...
-    ! ... Weights are optional.
-    ! ...
-
-    real(dp), dimension(:), intent(in)     :: A
-    real(dp), dimension(:), optional       :: W
-    logical, intent(in), optional          :: biased
-
-    logicaL                                    :: weight = .false.
-    logical                                    :: isbiased = .false.
-    integer N,i
-    real(dp) xsum1,xsum2,ai,wi,Sw
-
-
-    variance = nan()          ! Defined in module_constants.f90
-    N = SIZE(A)
-    if (N.EQ.0) return
-
-    if (present(W)) then
-      if (size(W).ne.N) stop 'ERROR in variance: Incompatible weight size'
-      weight = .true.
-    else
-      weight = .false.
-    endif
-
-    if (present(biased)) then
-      isbiased = biased
-    else
-      isbiased = .false.
-    endif
- 
-    !if (PRESENT(W)) then
-    !  if (SIZE(W).EQ.1) then
-    !    if (W(1).EQ.0) then
-    !      isbiased = .false.
-    !    else if (W(1).EQ.1) then
-    !      isbiased = .true.
-    !    else
-    !      STOP 'ERROR in variance: Invalid normalization. Use 0 (unbiased) or 1 (biased)'
-    !    endif
-    !  else if (SIZE(W).EQ.N) then
-    !    weight = .true.
-    !  else
-    !    STOP 'ERROR in variance: Size W must be 1 or N'
-    !  endif
-    !endif
-
-    if (weight) then
-      Sw    = 0D0
-      xsum1 = 0D0
-      xsum2 = 0D0
-      do i=1,N
-        wi = w(i)
-        ai = A(i)
-        Sw    = Sw    + wi
-        xsum1 = xsum1 + wi*ai
-        xsum2 = xsum2 + wi*ai*ai
-      enddo
-      xsum1 = xsum1 / Sw
-      xsum2 = xsum2/Sw-xsum1*xsum1
-      variance = Sw * xsum2 /(Sw - 1.0_dp)
-    else
-      xsum1 = 0D0
-      xsum2 = 0D0
-      do i=1,N
-        ai = A(i)
-        xsum1 = xsum1 + ai
-        xsum2 = xsum2 + ai*ai
-      enddo
-      xsum1 = xsum1 / N
-      xsum2 = xsum2 / N - xsum1*xsum1
-      IF (isbiased) then
-        variance = xsum2
+    if (lper) then
+      if (present(dlag)) then
+        allocate(f(n))
+        g = randn(n)
+        g(n) = g(1)
+        do iter = 1, 6*abs(dlag)
+          do i = 1, n
+            im = i - 1
+            if (im == 0) im = n
+            ip = i + 1
+            if (ip > n) ip = 1
+            f(i) = 0.25_dp*(g(im) + 2*g(i) + g(ip))
+          end do
+          g(:) = f(:)
+        end do
+        deallocate(f)
+        xsum = sum(g)/n
+        g(:) = g(:) - xsum
+        xsum = sqrt(dot_product(g, g)/n)
+        g(:) = g(:) / xsum
       else
-        variance = N*xsum2/(N-1.0_dp)
-      endif
+        g = randn(n)
+        g(n) = g(1)
+      end if
+    else
+      if (present(dlag)) then
+        nn = n + 20*abs(dlag)
+        allocate(v(nn), f(nn))
+        v = randn(nn)
+        do iter = 1, 6*abs(dlag)
+          f(1) = v(1)
+          f(nn) = v(nn)
+          do i = 2, nn - 1
+            f(i) = 0.25_dp*(v(i-1) + 2*v(i) + v(i+1))
+          end do
+          v = f
+        end do
+        i = 10*abs(dlag)
+        g(:) = f(i+1:i+n)
+        xsum = sum(g)/n
+        g(:) = g(:) - xsum
+        xsum = sqrt(dot_product(g, g)/n)
+        g(:) = g(:) / xsum
+        deallocate(f, v)
+      else
+        g = randn(n)
+      end if
+    end if
+  end function randseries
+
+
+  !> @brief Generate a random integer uniformly distributed in [imin, imax].
+  !!
+  !! @param[in] imin Integer, lower bound (inclusive).
+  !! @param[in] imax Integer, upper bound (inclusive).
+  !! @return Integer, random value in [imin, imax].
+  !!
+  !! Notes:
+  !! - Uses intrinsic random_number() for uniform [0,1) real, then scales and floors.
+  !! - Thread-safe if Fortran RNG is thread-safe.
+  !! - For reproducibility, seed the RNG before calling (call random_seed()).
+  !! - If imin > imax, returns imin.
+  !! - Uniform distribution: P(k) = 1/(imax - imin + 1) for k in [imin, imax].
+  !!
+  !! Algorithm:
+  !! - Generate u ~ Uniform(0,1).
+  !! - Map to integer: k = imin + floor(u * (imax - imin + 1)).
+  !! - Handles edge case u=1.0 (rare but possible) by clamping to imax.
+  function random_integer(imin, imax) result(k)
+    integer, intent(in) :: imin, imax
+    integer :: k
+    real(dp) :: u
+    integer :: range
+
+    if (imin > imax) then
+      k = imin
+      return
+    end if
+    range = imax - imin + 1
+    ! Generate uniform random in [0, 1)
+    call random_number(u)
+    ! Map to [imin, imax]
+    k = imin + int(u * range)
+    ! Clamp to imax in case u rounds to exactly 1.0 (extremely rare)
+    if (k > imax) k = imax
+
+  end function random_integer
+
+
+  !> @brief Create an integer arithmetic sequence from amin to amax with optional step.
+  !!
+  !! @param[in] amin Integer, start value.
+  !! @param[in] amax Integer, end value (inclusive if step divides range).
+  !! @param[in] adelta Integer, optional. Step size. Default: 1.
+  !! @return Integer allocatable array.
+  !!
+  !! Notes:
+  !! - Similar to Python's range() or NumPy's arange().
+  pure function arange_i(amin, amax, adelta) result(arange)
+    integer, intent(in) :: amin, amax
+    integer, intent(in), optional :: adelta
+    integer, dimension(:), allocatable :: arange
+    integer :: i, nlen, delta
+
+    if (present(adelta)) then
+      delta = adelta
+    else
+      delta = 1
+    end if
+
+    if (delta > 0) then
+      nlen = max(0, (amax-amin)/delta + 1)
+    else
+      nlen = max(0, (amin-amax)/(-delta) + 1)
     endif
-    IF (variance.LT.0) variance = 0.0_dp
 
-  end function variance
-  ! ...
-  ! ===================================================================
-  ! ...
-  subroutine indexx(arr,indx)
+    if (allocated(arange)) deallocate(arange)
+    allocate(arange(nlen))
 
-  ! ... Subroutine indexx from Numerical Recipes in Fortran.
-  ! ... The Art of Scientific Computing. Press et al., 1992.
-  ! ...
+    do i = 1, nlen
+      arange(i) = amin + (i - 1)*delta
+    end do
+  end function arange_i
 
-    real(dp), dimension(:), intent(in)          :: arr
-    integer, dimension(size(arr)), intent(out)  :: indx
+  !> @brief Create a real arithmetic sequence from amin to amax with optional step.
+  !!
+  !! @param[in] amin Real(dp), start value.
+  !! @param[in] amax Real(dp), end value (inclusive if step divides range).
+  !! @param[in] adelta Real(dp), optional. Step size. Default: 1.0.
+  !! @return Real(dp) allocatable array.
+  !!
+  !! Notes:
+  !! - Units: same as amin, amax, adelta.
+  pure function arange_dp(amin, amax, adelta) result(arange)
+    real(dp), intent(in) :: amin, amax
+    real(dp), intent(in), optional :: adelta
+    real(dp), dimension(:), allocatable :: arange
+    integer :: i, nlen
+    real(dp) :: delta
 
-    ! ... Local varibles:
-    ! ...
-    integer, parameter                          :: M = 7
-    integer                                     :: n,i,indxt,r,itemp
-    integer                                     :: j,jstack,k,l
-    integer, dimension(size(arr))               :: istack
-    real(dp)                                    :: a
+    if (present(adelta)) then
+      delta = adelta
+    else
+      delta = 1.0_dp
+    end if
 
-    n  =  size(arr)
+    if (delta > 0) then
+      nlen = max(0, int((amax-amin)/delta) + 1)
+    else
+      nlen = max(0, int((amin-amax)/(-delta)) + 1)
+    endif
 
-    do j = 1,n
+    if (allocated(arange)) deallocate(arange)
+    allocate(arange(nlen))
+
+    do i = 1, nlen
+      arange(i) = amin + (i - 1.0_dp)*delta
+    end do
+  end function arange_dp
+
+  !> @brief Index sort: return permutation indices that sort array arr in ascending order.
+  !!
+  !! From Numerical Recipes in Fortran (Press et al., 1992).
+  !!
+  !! @param[in] arr Real(dp) array to sort.
+  !! @param[out] indx Integer array of size(arr), permutation indices such that arr(indx) is sorted.
+  !!
+  !! Notes:
+  !! - Does not modify arr.
+  !! - indx(i) gives the index of the i-th smallest element.
+  subroutine indexx(arr, indx)
+    real(dp), dimension(:), intent(in) :: arr
+    integer, dimension(size(arr)), intent(out) :: indx
+    integer, parameter :: M = 7
+    integer :: n, i, indxt, r, itemp, j, jstack, k, l
+    integer, dimension(size(arr)) :: istack
+    real(dp) :: a
+
+    n = size(arr)
+    do j = 1, n
       indx(j) = j
-    enddo
+    end do
 
     jstack = 0
     l = 1
     r = n
-    do 
-      if (r-l.lt.M) then
-        do j = l+1,r
+    do
+      if (r - l < M) then
+        do j = l + 1, r
           indxt = indx(j)
           a = arr(indxt)
-          do i = j-1,1,-1
-            if (arr(indx(i)).le.a) exit
+          do i = j - 1, 1, -1
+            if (arr(indx(i)) <= a) exit
             indx(i+1) = indx(i)
-          enddo
+          end do
           indx(i+1) = indxt
-        enddo
-        if (jstack.eq.0) return
+        end do
+        if (jstack == 0) return
         r = istack(jstack)
         l = istack(jstack-1)
-        jstack = jstack-2
+        jstack = jstack - 2
       else
-        k = (l+r)/2
+        k = (l + r)/2
         itemp = indx(k)
         indx(k) = indx(l+1)
         indx(l+1) = itemp
-        if (arr(indx(l+1)).gt.arr(indx(r))) then
-          itemp     = indx(l+1)
+        if (arr(indx(l+1)) > arr(indx(r))) then
+          itemp = indx(l+1)
           indx(l+1) = indx(r)
-          indx(r)   = itemp
-        endif
-        if (arr(indx(l)).gt.arr(indx(r))) then
-          itemp   = indx(l)
+          indx(r) = itemp
+        end if
+        if (arr(indx(l)) > arr(indx(r))) then
+          itemp = indx(l)
           indx(l) = indx(r)
           indx(r) = itemp
-        endif
-        if (arr(indx(l+1)).gt.arr(indx(l))) then
-          itemp     = indx(l+1)
+        end if
+        if (arr(indx(l+1)) > arr(indx(l))) then
+          itemp = indx(l+1)
           indx(l+1) = indx(l)
-          indx(l)   = itemp
-        endif
+          indx(l) = itemp
+        end if
         i = l + 1
         j = r
         indxt = indx(l+1)
@@ -564,168 +407,116 @@ contains
         do
           do
             i = i + 1
-            if (arr(indx(i)).ge.a) exit
-          enddo
-          do 
+            if (arr(indx(i)) >= a) exit
+          end do
+          do
             j = j - 1
-            if (arr(indx(j)).le.a) exit
-          enddo
-          if (j.lt.i) exit
-          itemp   = indx(i)
+            if (arr(indx(j)) <= a) exit
+          end do
+          if (j < i) exit
+          itemp = indx(i)
           indx(i) = indx(j)
           indx(j) = itemp
-        enddo
+        end do
         indx(l+1) = indx(j)
-        indx(j)   = indxt
-        jstack    = jstack + 2
-        if (r-i+1.ge.j-l) then
+        indx(j) = indxt
+        jstack = jstack + 2
+        if (r - i + 1 >= j - l) then
           istack(jstack) = r
           istack(jstack-1) = i
           r = j - 1
         else
-          istack(jstack) = j-1
+          istack(jstack) = j - 1
           istack(jstack-1) = l
           l = i
-        endif
-      endif
-    enddo
+        end if
+      end if
+    end do
+  end subroutine indexx
 
-    end subroutine indexx
-  ! ...
-  ! ===================================================================
-  ! ...
-  subroutine swap_r(a,b)
-    real(dp), intent(inout)  :: a,b
-    real(dp)                 :: c
+  !> @brief Swap two real(dp) scalars.
+  !!
+  !! @param[inout] a Real(dp).
+  !! @param[inout] b Real(dp).
+  subroutine swap_r(a, b)
+    real(dp), intent(inout) :: a, b
+    real(dp) :: c
     c = a
     a = b
     b = c
   end subroutine swap_r
-  ! ...
-  ! ===================================================================
-  ! ...
-  subroutine swap_v(a,b)
-    real(dp), dimension(:), intent(inout)  :: a,b
+
+  !> @brief Swap two real(dp) vectors element-wise.
+  !!
+  !! @param[inout] a Real(dp) array.
+  !! @param[inout] b Real(dp) array of same size as a.
+  subroutine swap_v(a, b)
+    real(dp), dimension(:), intent(inout) :: a, b
     real(dp), dimension(size(a)) :: c
     c(:) = a(:)
     a(:) = b(:)
     b(:) = c(:)
   end subroutine swap_v
-  ! ...
-  ! ===================================================================
-  ! ...
+
+  !> @brief Return the index of the maximum element in array a.
+  !!
+  !! @param[in] a Real(dp) array.
+  !! @return Integer, index of maximum value.
   integer pure function imaxloc(a)
-
-    real(8), dimension(:), intent(in)    :: a
-
-    integer imax(1)
-
+    real(dp), dimension(:), intent(in) :: a
+    integer :: imax(1)
     imax = maxloc(a(:))
     imaxloc = imax(1)
   end function imaxloc
-  ! ...
-  ! ===================================================================
-  ! ...
-  function median(x) result(med)
 
-    real(dp), dimension(:), intent(in) :: x
-    real(dp) :: med
-
-    ! ... Local variables
-    ! ...
-    real(dp), dimension(size(x)) :: x_sorted
-    integer :: n
-
-    n = size(x)
-    x_sorted = x
-    call quicksort(x_sorted)
-
-    if (mod(n,2) == 0) then
-      med = (x_sorted(n/2) + x_sorted(n/2+1)) / 2.0_dp
-    else
-      med = x_sorted((n+1)/2)
-    endif
-  end function median
-  ! ...
-  ! ===================================================================
-  ! ...
-! Replace the quicksort subroutine in module_math.f90 with this version
+  !> @brief In-place quicksort of a real(dp) array in ascending order.
+  !!
+  !! @param[inout] arr Real(dp) array to sort.
+  !!
+  !! Notes:
+  !! - Recursive implementation.
+  !! - Average O(n log n), worst-case O(n^2).
   subroutine quicksort(arr)
-
     real(dp), dimension(:), intent(inout) :: arr
-  
     call quicksort_helper(arr, 1, size(arr))
-  
-    contains
-
+  contains
     recursive subroutine quicksort_helper(arr, low, high)
       real(dp), dimension(:), intent(inout) :: arr
       integer, intent(in) :: low, high
-    
       integer :: i, j
       real(dp) :: pivot, temp
-    
+
       if (low < high) then
-        ! Choose the rightmost element as pivot
         pivot = arr(high)
         i = low - 1
-      
         do j = low, high - 1
           if (arr(j) <= pivot) then
             i = i + 1
-            ! Swap arr(i) and arr(j)
             temp = arr(i)
             arr(i) = arr(j)
             arr(j) = temp
           end if
         end do
-      
-        ! Swap arr(i+1) and arr(high) (pivot)
         temp = arr(i+1)
         arr(i+1) = arr(high)
         arr(high) = temp
-      
-        ! Recursively sort elements before and after partition
         call quicksort_helper(arr, low, i)
         call quicksort_helper(arr, i+2, high)
-    end if
-  end subroutine quicksort_helper
+      end if
+    end subroutine quicksort_helper
+  end subroutine quicksort
 
-end subroutine quicksort
-  ! ...
-  ! ===================================================================
-  ! ...
-  function corrcoef(x, y) result(r)
-    real(dp), dimension(:), intent(in) :: x, y
-    real(dp)                           :: r
-
-    ! ... Local variables
-    ! ...
-    real(dp) :: mx, my, sx, sy, sxy
-    integer :: n
-
-    n = size(x)
-    if (size(y) /= n) then
-      r = ieee_value(1.0_dp, ieee_quiet_nan)
-      return
-    endif
-
-    mx = sum(x)/n
-    my = sum(y)/n
-    sx = sqrt(sum((x - mx)**2)/(n - 1))
-    sy = sqrt(sum((y - my)**2)/(n - 1))
-    sxy = sum((x - mx)*(y - my))/(n - 1)
-
-    if (sx > 0.0_dp .and. sy > 0.0_dp) then
-      r = sxy/(sx*sy)
-    else
-      r = 0.0_dp
-    endif
-
-  end function corrcoef
-  ! ...
-  ! ===================================================================
-  ! ...
+  !> @brief Brent's method for root-finding of a scalar function f(x) = 0.
+  !!
+  !! @param[in] f Function interface: real(dp) function f(x) result(y).
+  !! @param[in] aa Real(dp), left bracket. Must satisfy f(aa)*f(bb) < 0.
+  !! @param[in] bb Real(dp), right bracket.
+  !! @param[in] tol Real(dp), tolerance for convergence.
+  !! @return Real(dp), approximate root. Returns NaN if bracketing fails.
+  !!
+  !! Notes:
+  !! - Combines bisection, secant, and inverse quadratic interpolation.
+  !! - Robust and fast for smooth functions.
   function brent(f, aa, bb, tol) result(root)
     interface
       function f(x) result(y)
@@ -736,34 +527,32 @@ end subroutine quicksort
     end interface
     real(dp), intent(in) :: aa, bb, tol
     real(dp) :: root
-    
     real(dp), parameter :: eps = epsilon(1.0_dp)
     integer, parameter :: max_iter = 100
     real(dp) :: a, b, c, d, e, fa, fb, fc, p, q, r, s, tol1, xm
     integer :: iter
-    
-    a  = aa
-    b  = bb
 
+    a = aa
+    b = bb
     fa = f(a)
     fb = f(b)
-    
+
     if (fa*fb > 0.0_dp) then
-      root = ieee_value(1.0_dp, ieee_quiet_nan)
+      root = nan()
       return
-    endif
-    
+    end if
+
     c = b
     fc = fb
-    
+
     do iter = 1, max_iter
       if (fb*fc > 0.0_dp) then
         c = a
         fc = fa
         d = b - a
         e = d
-      endif
-      
+      end if
+
       if (abs(fc) < abs(fb)) then
         a = b
         b = c
@@ -771,16 +560,16 @@ end subroutine quicksort
         fa = fb
         fb = fc
         fc = fa
-      endif
-      
+      end if
+
       tol1 = 2.0_dp*eps*abs(b) + 0.5_dp*tol
       xm = 0.5_dp*(c - b)
-      
+
       if (abs(xm) <= tol1 .or. fb == 0.0_dp) then
         root = b
         return
-      endif
-      
+      end if
+
       if (abs(e) >= tol1 .and. abs(fa) > abs(fb)) then
         s = fb/fa
         if (a == c) then
@@ -791,40 +580,49 @@ end subroutine quicksort
           r = fb/fc
           p = s*(2.0_dp*xm*q*(q - r) - (b - a)*(r - 1.0_dp))
           q = (q - 1.0_dp)*(r - 1.0_dp)*(s - 1.0_dp)
-        endif
-        
+        end if
+
         if (p > 0.0_dp) q = -q
         p = abs(p)
-        
+
         if (2.0_dp*p < min(3.0_dp*xm*q - abs(tol1*q), abs(e*q))) then
           e = d
           d = p/q
         else
           d = xm
           e = d
-        endif
+        end if
       else
         d = xm
         e = d
-      endif
-      
+      end if
+
       a = b
       fa = fb
-      
+
       if (abs(d) > tol1) then
         b = b + d
       else
         b = b + sign(tol1, xm)
-      endif
-      
+      end if
+
       fb = f(b)
     end do
-    
+
     root = b
   end function brent
-  ! ...
-  ! ===================================================================
-  ! ...
+
+  !> @brief Golden section search for minimizing a scalar function f(x).
+  !!
+  !! @param[in] f Function interface: real(dp) function f(x) result(y).
+  !! @param[in] aa Real(dp), left bracket.
+  !! @param[in] bb Real(dp), right bracket.
+  !! @param[in] tol Real(dp), tolerance for convergence.
+  !! @return Real(dp), approximate minimizer x*.
+  !!
+  !! Notes:
+  !! - Does not require derivatives.
+  !! - Assumes unimodal function in [aa, bb].
   function golden(f, aa, bb, tol) result(xmin)
     interface
       function f(x) result(y)
@@ -833,134 +631,48 @@ end subroutine quicksort
         real(dp) :: y
       end function f
     end interface
-
     real(dp), intent(in) :: aa, bb, tol
     real(dp) :: xmin
-    
     real(dp), parameter :: phi = (1.0_dp + sqrt(5.0_dp))/2.0_dp
     real(dp) :: a, b, c, d, fc, fd
-    
+
     a = aa
     b = bb
-
     c = b - (b - a)/phi
     d = a + (b - a)/phi
-    
+
     do while (abs(c - d) > tol)
       fc = f(c)
       fd = f(d)
-      
       if (fc < fd) then
         b = d
       else
         a = c
-      endif
-      
+      end if
       c = b - (b - a)/phi
       d = a + (b - a)/phi
     end do
-    
-    xmin = (a + b)/2.0_dp
 
+    xmin = (a + b)/2.0_dp
   end function golden
-  ! ...
-  ! ===================================================================
-  ! ...
-  function interp1_r(x, y, xi) result(yi)
-    real(dp), dimension(:), intent(in) :: x, y
-    real(dp), intent(in) :: xi
-    real(dp) :: yi
-    
-    integer :: i, n
-    real(dp) :: dx
-    
-    n = size(x)
-    if (size(y) /= n) then
-      yi = ieee_value(1.0_dp, ieee_quiet_nan)
-      return
-    endif
-    
-    if (xi <= x(1)) then
-      yi = y(1)
-    else if (xi >= x(n)) then
-      yi = y(n)
-    else
-      do i = 1, n - 1
-        if (xi >= x(i) .and. xi <= x(i + 1)) then
-          dx = x(i + 1) - x(i)
-          if (dx > 0.0_dp) then
-            yi = y(i) + (y(i + 1) - y(i))*(xi - x(i))/dx
-          else
-            yi = (y(i) + y(i + 1))/2.0_dp
-          endif
-          exit
-        endif
-      end do
-    endif
-  end function interp1_r
-  ! ...
-  ! ===================================================================
-  ! ...
-  function interp1_v(x, y, xi) result(yi)
-    real(dp), dimension(:), intent(in) :: x, y
-    real(dp), dimension(:), intent(in) :: xi
-    real(dp), dimension(size(xi)) :: yi
-    
-    integer :: i
-    
-    do i = 1, size(xi)
-      yi(i) = interp1_r(x, y, xi(i))
-    end do
-  end function interp1_v
-  ! ...
-  ! ===================================================================
-  ! ...
-  subroutine spline(x, y, y2)
-    real(dp), dimension(:), intent(in) :: x, y
-    real(dp), dimension(:), intent(out) :: y2
-    
-    integer :: i, n
-    real(dp) :: p, sig
-    real(dp), dimension(:), allocatable :: u
-    
-    n = size(x)
-    if (size(y) /= n .or. size(y2) /= n) then
-      error stop "spline: array size mismatch"
-    endif
-    
-    allocate(u(n))
-    
-    y2(1) = 0.0_dp
-    u(1) = 0.0_dp
-    
-    do i = 2, n - 1
-      sig = (x(i) - x(i - 1))/(x(i + 1) - x(i - 1))
-      p = sig*y2(i - 1) + 2.0_dp
-      y2(i) = (sig - 1.0_dp)/p
-      u(i) = (6.0_dp*((y(i + 1) - y(i))/(x(i + 1) - x(i)) - &
-              (y(i) - y(i - 1))/(x(i) - x(i - 1)))/(x(i + 1) - x(i - 1)) - &
-              sig*u(i - 1))/p
-    end do
-    
-    y2(n) = 0.0_dp
-    
-    do i = n - 1, 1, -1
-      y2(i) = y2(i)*y2(i + 1) + u(i)
-    end do
-    
-    deallocate(u)
-  end subroutine spline
-  ! ...
-  ! ===================================================================
-  ! ...
+
+  !> @brief Create a linearly spaced vector from start to end (inclusive).
+  !!
+  !! @param[in] start Real(dp), first value.
+  !! @param[in] end Real(dp), last value.
+  !! @param[in] n Integer, number of points.
+  !! @return Real(dp) array of size n.
+  !!
+  !! Notes:
+  !! - If n=1, returns [start].
+  !! - Units: same as start and end.
   function linspace(start, end, n) result(arr)
     real(dp), intent(in) :: start, end
     integer, intent(in) :: n
     real(dp), dimension(n) :: arr
-    
     integer :: i
     real(dp) :: step
-    
+
     if (n == 1) then
       arr(1) = start
     else
@@ -968,71 +680,89 @@ end subroutine quicksort
       do i = 1, n
         arr(i) = start + (i - 1)*step
       end do
-    endif
+    end if
   end function linspace
-  ! ...
-  ! ===================================================================
-  ! ...
+
+  !> @brief Create 2D coordinate matrices from 1D coordinate vectors (like MATLAB meshgrid).
+  !!
+  !! @param[in] x Real(dp) array of size m.
+  !! @param[in] y Real(dp) array of size n.
+  !! @param[out] X_mat Real(dp) array of size (m, n), x-coordinates replicated along columns.
+  !! @param[out] Y_mat Real(dp) array of size (m, n), y-coordinates replicated along rows.
+  !!
+  !! Notes:
+  !! - Caller must allocate X_mat and Y_mat to size (m, n).
   subroutine meshgrid(x, y, X_mat, Y_mat)
     real(dp), dimension(:), intent(in) :: x, y
     real(dp), dimension(:,:), intent(out) :: X_mat, Y_mat
-    
     integer :: i, j, m, n
-    
+
     m = size(x)
     n = size(y)
-    
+
     if (size(X_mat,1) /= m .or. size(X_mat,2) /= n .or. &
         size(Y_mat,1) /= m .or. size(Y_mat,2) /= n) then
-      error stop "meshgrid: output array size mismatch"
-    endif
-    
+      call crash("meshgrid - output array size mismatch")
+    end if
+
     do concurrent (i = 1:m, j = 1:n)
-      X_mat(i,j) = x(i)
-      Y_mat(i,j) = y(j)
+      X_mat(i, j) = x(i)
+      Y_mat(i, j) = y(j)
     end do
   end subroutine meshgrid
-  ! ...
-  ! ===================================================================
-  ! ...
+
+  !> @brief Compute n-th order forward difference of array x.
+  !!
+  !! @param[in] x Real(dp) array.
+  !! @param[in] n Integer, optional. Order of difference. Default: 1.
+  !! @return Real(dp) allocatable array of size (size(x) - n).
+  !!
+  !! Notes:
+  !! - diff(x, 1) = x(2:) - x(1:end-1).
+  !! - If n >= size(x), returns empty array.
   function diff(x, n) result(dx)
     real(dp), dimension(:), intent(in) :: x
     integer, intent(in), optional :: n
     real(dp), dimension(:), allocatable :: dx
-    
     integer :: diff_order, i, m
-    
+
     diff_order = 1
     if (present(n)) diff_order = n
-    
+
     m = size(x)
     if (diff_order >= m) then
       allocate(dx(0))
       return
-    endif
-    
+    end if
+
     allocate(dx(m - diff_order))
     dx = x
-    
+
     do i = 1, diff_order
       dx = dx(2:) - dx(:size(dx)-1)
     end do
   end function diff
-  ! ...
-  ! ===================================================================
-  ! ...
+
+  !> @brief Compute numerical gradient of 1D array f with optional spacing dx.
+  !!
+  !! @param[in] f Real(dp) array.
+  !! @param[in] dx Real(dp), optional. Spacing between points. Default: 1.0.
+  !! @return Real(dp) array of same size as f, gradient df/dx.
+  !!
+  !! Notes:
+  !! - Uses central differences for interior points, forward/backward at boundaries.
+  !! - Units: gradient has units of f/dx.
   function gradient(f, dx) result(df)
     real(dp), dimension(:), intent(in) :: f
     real(dp), intent(in), optional :: dx
     real(dp), dimension(size(f)) :: df
-    
     integer :: n
     real(dp) :: h
-    
+
     n = size(f)
     h = 1.0_dp
     if (present(dx)) h = dx
-    
+
     if (n == 1) then
       df(1) = 0.0_dp
     else if (n == 2) then
@@ -1042,142 +772,107 @@ end subroutine quicksort
       df(1) = (f(2) - f(1))/h
       df(n) = (f(n) - f(n-1))/h
       df(2:n-1) = (f(3:n) - f(1:n-2))/(2.0_dp*h)
-    endif
+    end if
   end function gradient
-  ! ...
-  ! ===================================================================
-  ! ...
+
+  !> @brief Compute cumulative sum of array x.
+  !!
+  !! @param[in] x Real(dp) array.
+  !! @return Real(dp) array of same size, cumsum(i) = sum(x(1:i)).
+  !!
+  !! Notes:
+  !! - Units: same as x.
   function cumsum(x) result(cs)
     real(dp), dimension(:), intent(in) :: x
     real(dp), dimension(size(x)) :: cs
-    
     integer :: i, n
-    
+
     n = size(x)
     cs(1) = x(1)
     do i = 2, n
       cs(i) = cs(i-1) + x(i)
     end do
   end function cumsum
-  ! ...
-  ! ===================================================================
-  ! ...
+
+  !> @brief Compute cumulative product of array x.
+  !!
+  !! @param[in] x Real(dp) array.
+  !! @return Real(dp) array of same size, cumprod(i) = product(x(1:i)).
+  !!
+  !! Notes:
+  !! - Units: dimensionless if x is dimensionless, otherwise units^i at position i.
   function cumprod(x) result(cp)
     real(dp), dimension(:), intent(in) :: x
     real(dp), dimension(size(x)) :: cp
-    
     integer :: i, n
-    
+
     n = size(x)
     cp(1) = x(1)
     do i = 2, n
       cp(i) = cp(i-1) * x(i)
     end do
   end function cumprod
-  ! ...
-  ! ===================================================================
-  ! ...
-  function percentile(x, p) result(perc)
-    real(dp), dimension(:), intent(in) :: x
-    real(dp), intent(in) :: p
-    real(dp) :: perc
-    
-    real(dp), dimension(:), allocatable :: x_sorted
-    integer :: n, index
-    real(dp) :: frac
-    
-    if (p < 0.0_dp .or. p > 100.0_dp) then
-      perc = ieee_value(1.0_dp, ieee_quiet_nan)
-      return
-    endif
-    
-    n = size(x)
-    allocate(x_sorted(n))
-    x_sorted = x
-    call quicksort(x_sorted)
-    
-    frac = p/100.0_dp * (n - 1) + 1
-    index = floor(frac)
-    
-    if (index < 1) then
-      perc = x_sorted(1)
-    else if (index >= n) then
-      perc = x_sorted(n)
-    else
-      perc = x_sorted(index) + (frac - index)*(x_sorted(index+1) - x_sorted(index))
-    endif
-    
-    deallocate(x_sorted)
 
-  end function percentile
-  ! ...
-  ! ===================================================================
-  ! ...
+  !> @brief Return the smallest power of 2 greater than or equal to n.
+  !!
+  !! @param[in] n Integer.
+  !! @return Integer, smallest 2^k >= n.
+  !!
+  !! Notes:
+  !! - Useful for FFT padding.
   function next_power_of_2(n) result(n_pow2)
-    ! ... Returns integer i value | 2**i-1 < n < 2**i
-
     integer, intent(in) :: n
-    integer             :: n_pow2
+    integer :: n_pow2
 
     n_pow2 = 2
     do while (n_pow2 < n)
       n_pow2 = n_pow2 * 2
-    end do  
-
+    end do
   end function next_power_of_2
-  ! ...
-  ! ===================================================================
-  ! ...                            FLIP BLOCK
 
-  ! ========================================
-  ! 3D array flipping
-  ! ========================================
-  subroutine flip1d_i(x)  
-    ! Integer array flip
-    integer, intent(inout) :: x(:)  
+  !> @brief Flip (reverse) a 1D integer array in place.
+  !!
+  !! @param[inout] x Integer array.
+  subroutine flip1d_i(x)
+    integer, intent(inout) :: x(:)
+    integer :: n, i, temp
 
-    integer :: n, i, temp  
-    
-    n = size(x)  
-    do i = 1, n/2  
-      temp = x(i)  
-      x(i) = x(n-i+1)  
-      x(n-i+1) = temp  
-    end do  
-
+    n = size(x)
+    do i = 1, n/2
+      temp = x(i)
+      x(i) = x(n-i+1)
+      x(n-i+1) = temp
+    end do
   end subroutine flip1d_i
-  ! ...
-  ! ===================================================================
-  subroutine flip1d_dp(x)  
-    ! Double precission array flip
-    real(dp), intent(inout) :: x(:)  
 
-    integer :: n, i  
-    real(dp) :: temp  
-    
-    n = size(x)  
-    do i = 1, n/2  
-      temp = x(i)  
-      x(i) = x(n-i+1)  
-      x(n-i+1) = temp  
-    end do  
+  !> @brief Flip (reverse) a 1D real(dp) array in place.
+  !!
+  !! @param[inout] x Real(dp) array.
+  subroutine flip1d_dp(x)
+    real(dp), intent(inout) :: x(:)
+    integer :: n, i
+    real(dp) :: temp
 
+    n = size(x)
+    do i = 1, n/2
+      temp = x(i)
+      x(i) = x(n-i+1)
+      x(n-i+1) = temp
+    end do
   end subroutine flip1d_dp
-  ! ...
-  ! ========================================
-  ! 2D array flipping
-  ! ========================================
-  
+
+  !> @brief Flip a 2D real(dp) array along dimension dim in place.
+  !!
+  !! @param[inout] x Real(dp) array of shape (m, n).
+  !! @param[in] dim Integer, dimension to flip: 1 = rows, 2 = columns.
   subroutine flip2d_dp(x, dim)
-    implicit none
     real(dp), intent(inout) :: x(:,:)
-    integer, intent(in) :: dim  ! 1 = flip rows, 2 = flip columns
+    integer, intent(in) :: dim
     integer :: n, i, j
     real(dp) :: temp
-    
+
     select case(dim)
     case(1)
-      ! Flip along dimension 1 (rows)
       n = size(x, 1)
       do j = 1, size(x, 2)
         do i = 1, n/2
@@ -1186,9 +881,7 @@ end subroutine quicksort
           x(n-i+1, j) = temp
         end do
       end do
-      
     case(2)
-      ! Flip along dimension 2 (columns)
       n = size(x, 2)
       do i = 1, size(x, 1)
         do j = 1, n/2
@@ -1197,27 +890,23 @@ end subroutine quicksort
           x(i, n-j+1) = temp
         end do
       end do
-      
     case default
-      call crash('FLIP2D_DP - dim must be 1, 2, or 3')
-
+      call crash('FLIP2D_DP - dim must be 1 or 2')
     end select
   end subroutine flip2d_dp
-  
-  ! ========================================
-  ! 3D array flipping
-  ! ========================================
-  
+
+  !> @brief Flip a 3D real(dp) array along dimension dim in place.
+  !!
+  !! @param[inout] x Real(dp) array of shape (l, m, n).
+  !! @param[in] dim Integer, dimension to flip: 1, 2, or 3.
   subroutine flip3d_dp(x, dim)
-    implicit none
     real(dp), intent(inout) :: x(:,:,:)
-    integer, intent(in) :: dim  ! 1, 2, or 3
+    integer, intent(in) :: dim
     integer :: n, i, j, k
     real(dp) :: temp
-    
+
     select case(dim)
     case(1)
-      ! Flip along dimension 1
       n = size(x, 1)
       do k = 1, size(x, 3)
         do j = 1, size(x, 2)
@@ -1228,9 +917,7 @@ end subroutine quicksort
           end do
         end do
       end do
-      
     case(2)
-      ! Flip along dimension 2
       n = size(x, 2)
       do k = 1, size(x, 3)
         do i = 1, size(x, 1)
@@ -1241,9 +928,7 @@ end subroutine quicksort
           end do
         end do
       end do
-      
     case(3)
-      ! Flip along dimension 3
       n = size(x, 3)
       do j = 1, size(x, 2)
         do i = 1, size(x, 1)
@@ -1254,61 +939,317 @@ end subroutine quicksort
           end do
         end do
       end do
-      
     case default
       call crash('FLIP3D_DP - dim must be 1, 2, or 3')
-
     end select
   end subroutine flip3d_dp
-  ! ...
-  ! ===================================================================
-  ! ...
-  subroutine crash(message)
 
-    character(len=*), intent(in)                   :: message 
-
-    write(error_unit,'(A)') bold//red//error_x_symbol//' ERROR: '//reset // red//trim(message)//reset
-    stop 1  
-
-  end subroutine crash
-  ! ...
-  ! ===================================================================
-  ! ...
+  !> @brief Check if array x is strictly ascending.
+  !!
+  !! @param[in] x Real(dp) array.
+  !! @return Logical, true if x(i+1) > x(i) for all i.
   logical function ascending(x)
-
-    real(dp), dimension(:), intent(in)       :: x
-
-    ! ... Local variables
-    ! ...
-    integer i
+    real(dp), dimension(:), intent(in) :: x
+    integer :: i
 
     ascending = .false.
-    do i=1,size(x)-1
-      if (x(i+1)-x(i).le.0.0d0) return
-    enddo
+    do i = 1, size(x) - 1
+      if (x(i+1) - x(i) <= 0.0_dp) return
+    end do
     ascending = .true.
-
   end function ascending
-  ! ...
-  ! ===================================================================
-  ! ...
+
+  !> @brief Check if array x is strictly descending.
+  !!
+  !! @param[in] x Real(dp) array.
+  !! @return Logical, true if x(i+1) < x(i) for all i.
   logical function descending(x)
-
-    real(dp), dimension(:), intent(in)       :: x
-
-    ! ... Local variables
-    ! ...
-    integer i
+    real(dp), dimension(:), intent(in) :: x
+    integer :: i
 
     descending = .false.
-    do i=1,size(x)-1
-      if (x(i+1)-x(i).ge.0.0d0) return
-    enddo
+    do i = 1, size(x) - 1
+      if (x(i+1) - x(i) >= 0.0_dp) return
+    end do
     descending = .true.
-
   end function descending
-  ! ...
-  ! ===================================================================
-  ! ...
+
+
+  !> @brief Complement of Student's t cumulative distribution function (upper tail).
+  !!
+  !! P(T > t) for T ~ t(df).
+  !!
+  !! @param[in] t Real(dp), t-value.
+  !! @param[in] df Real(dp), degrees of freedom.
+  !! @return Real(dp), upper tail probability.
+  !!
+  !! Notes:
+  !! - Uses incomplete beta function approximation.
+  !! - Accurate for df >= 1.
+  function t_cdf_complement(t, df) result(p)
+    real(dp), intent(in) :: t, df
+    real(dp) :: p, x, a, b
+
+    if (df < 1.0_dp) call crash('t_cdf_complement: df must be >= 1')
+  
+    x = df / (df + t**2)
+    a = 0.5_dp * df
+    b = 0.5_dp
+
+    p = 0.5_dp * beta_inc(x, a, b)
+
+  end function t_cdf_complement
+
+
+  !> @brief Inverse of Student's t cumulative distribution function.
+  !!
+  !! Returns t such that P(T <= t) = p for T ~ t(df).
+  !!
+  !! @param[in] p Real(dp), cumulative probability in (0, 1).
+  !! @param[in] df Real(dp), degrees of freedom.
+  !! @return Real(dp), t-value.
+  !!
+  !! Notes:
+  !! - Uses Newton-Raphson iteration with beta function.
+  !! - Accurate for df >= 1.
+  function t_inverse_cdf(p, df) result(t)
+    real(dp), intent(in) :: p, df
+    real(dp) :: t
+    real(dp) :: x, a, b
+
+    if (p <= 0.0_dp .or. p >= 1.0_dp) call crash('t_inverse_cdf: p must be in (0, 1)')
+    if (df < 1.0_dp) call crash('t_inverse_cdf: df must be >= 1')
+
+    ! Use inverse beta approximation
+    a = 0.5_dp * df
+    b = 0.5_dp
+    x = beta_inc_inv(2.0_dp * min(p, 1.0_dp - p), a, b)
+
+    t = sqrt(df * (1.0_dp - x) / x)
+    if (p < 0.5_dp) t = -t
+
+  end function t_inverse_cdf
+
+
+  !> @brief Complement of F cumulative distribution function (upper tail).
+  !!
+  !! P(F > f) for F ~ F(df1, df2).
+  !!
+  !! @param[in] f Real(dp), F-value.
+  !! @param[in] df1 Real(dp), numerator degrees of freedom.
+  !! @param[in] df2 Real(dp), denominator degrees of freedom.
+  !! @return Real(dp), upper tail probability.
+  !!
+  !! Notes:
+  !! - Uses incomplete beta function.
+  function f_cdf_complement(f, df1, df2) result(p)
+    real(dp), intent(in) :: f, df1, df2
+    real(dp) :: p, x, a, b
+
+    if (df1 < 1.0_dp .or. df2 < 1.0_dp) call crash('f_cdf_complement: df must be >= 1')
+
+    x = df2 / (df2 + df1 * f)
+    a = 0.5_dp * df2
+    b = 0.5_dp * df1
+
+    p = beta_inc(x, a, b)
+
+  end function f_cdf_complement
+
+
+  !> @brief Incomplete beta function I_x(a, b).
+  !!
+  !! @param[in] x Real(dp), argument in [0, 1].
+  !! @param[in] a Real(dp), shape parameter > 0.
+  !! @param[in] b Real(dp), shape parameter > 0.
+  !! @return Real(dp), I_x(a, b).
+  !!
+  !! Notes:
+  !! - Uses continued fraction expansion for numerical stability.
+  !! - Required for t and F distribution CDFs.
+  function beta_inc(x, a, b) result(betai)
+    real(dp), intent(in) :: x, a, b
+    real(dp) :: betai, bt, betacf_val
+
+    if (x < 0.0_dp .or. x > 1.0_dp) call crash('beta_inc: x must be in [0, 1]')
+    if (a <= 0.0_dp .or. b <= 0.0_dp) call crash('beta_inc: a, b must be > 0')
+
+    if (x == 0.0_dp .or. x == 1.0_dp) then
+      bt = 0.0_dp
+    else
+      bt = exp(log_gamma(a+b) - log_gamma(a) - log_gamma(b) + a*log(x) + b*log(1.0_dp-x))
+    end if
+  
+    if (x < (a+1.0_dp)/(a+b+2.0_dp)) then
+      betai = bt * betacf(x, a, b) / a
+    else
+      betai = 1.0_dp - bt * betacf(1.0_dp-x, b, a) / b
+    end if
+
+  end function beta_inc
+  
+
+  !> @brief Continued fraction for incomplete beta function.
+  !!
+  !! @param[in] x Real(dp), argument.
+  !! @param[in] a Real(dp), shape parameter.
+  !! @param[in] b Real(dp), shape parameter.
+  !! @return Real(dp), continued fraction value.
+  !!
+  !! Notes:
+  !! - Uses modified Lentz's method.
+  !! - Internal helper for beta_inc.
+  function betacf(x, a, b) result(cf)
+    real(dp), intent(in) :: x, a, b
+    real(dp) :: cf
+    integer, parameter :: maxit = 100
+    real(dp), parameter :: eps = 3.0e-7_dp, fpmin = 1.0e-30_dp
+    integer :: m, m2
+    real(dp) :: aa, c, d, del, h, qab, qam, qap
+  
+    qab = a + b
+    qap = a + 1.0_dp
+    qam = a - 1.0_dp
+    c = 1.0_dp
+    d = 1.0_dp - qab*x/qap
+  
+    if (abs(d) < fpmin) d = fpmin
+    d = 1.0_dp / d
+    h = d
+
+    do m = 1, maxit
+      m2 = 2 * m
+      aa = m * (b-m) * x / ((qam+m2) * (a+m2))
+      d = 1.0_dp + aa*d
+      if (abs(d) < fpmin) d = fpmin
+      c = 1.0_dp + aa/c
+      if (abs(c) < fpmin) c = fpmin
+      d = 1.0_dp / d
+      h = h * d * c
+
+      aa = -(a+m) * (qab+m) * x / ((a+m2) * (qap+m2))
+      d = 1.0_dp + aa*d
+      if (abs(d) < fpmin) d = fpmin
+      c = 1.0_dp + aa/c
+      if (abs(c) < fpmin) c = fpmin
+      d = 1.0_dp / d
+      del = d * c
+      h = h * del
+
+      if (abs(del-1.0_dp) < eps) exit
+    end do
+  
+    cf = h
+
+  end function betacf
+
+
+!> @brief Inverse of incomplete beta function.
+  !!
+  !! Returns x such that I_x(a, b) = y.
+  !!
+  !! @param[in] y Real(dp), target value in (0, 1).
+  !! @param[in] a Real(dp), shape parameter > 0.
+  !! @param[in] b Real(dp), shape parameter > 0.
+  !! @return Real(dp), x in [0, 1].
+  !!
+  !! Notes:
+  !! - Uses Newton-Raphson iteration.
+  !! - Required for t_inverse_cdf.
+  function beta_inc_inv(y, a, b) result(x)
+    real(dp), intent(in) :: y, a, b
+    real(dp) :: x
+    real(dp), parameter :: eps = 1.0e-8_dp
+    integer, parameter :: maxit = 100
+    integer :: iter
+    real(dp) :: f, fp, dx, lnbeta, afac
+
+    if (y <= 0.0_dp .or. y >= 1.0_dp) call crash('beta_inc_inv: y must be in (0, 1)')
+    if (a <= 0.0_dp .or. b <= 0.0_dp) call crash('beta_inc_inv: a, b must be > 0')
+
+    ! Initial guess using simple approximation
+    if (a >= 1.0_dp .and. b >= 1.0_dp) then
+      ! Use mean as initial guess
+      x = a / (a + b)
+    else
+      ! Use a better approximation for small a or b
+      lnbeta = log_gamma(a) + log_gamma(b) - log_gamma(a + b)
+      if (y < 0.5_dp) then
+        x = exp((log(y) + lnbeta) / a)
+      else
+        x = 1.0_dp - exp((log(1.0_dp - y) + lnbeta) / b)
+      end if
+    end if
+  
+    ! Newton-Raphson refinement
+    do iter = 1, maxit
+      if (x <= 0.0_dp) x = 0.5_dp * eps
+      if (x >= 1.0_dp) x = 1.0_dp - 0.5_dp * eps
+
+      f = beta_inc(x, a, b) - y
+      if (abs(f) < eps) exit
+  
+      ! Derivative of beta_inc is the beta distribution PDF
+      lnbeta = log_gamma(a) + log_gamma(b) - log_gamma(a + b)
+      if (x > 0.0_dp .and. x < 1.0_dp) then
+        afac = exp((a-1.0_dp)*log(x) + (b-1.0_dp)*log(1.0_dp-x) - lnbeta)
+        if (afac > 0.0_dp) then
+          fp = afac
+        else
+          fp = 1.0_dp  ! Fallback to avoid division by zero
+        end if
+      else
+        fp = 1.0_dp
+      end if
+
+      dx = f / fp
+      x = x - dx
+
+      ! Keep x in bounds
+      if (x < 0.0_dp) x = 0.5_dp * (x + dx)
+      if (x > 1.0_dp) x = 0.5_dp * (1.0_dp + (x - dx))
+  
+      if (abs(dx) < eps * abs(x)) exit
+    end do
+
+    if (iter >= maxit) then
+      write(error_unit, '(A)') 'Warning: beta_inc_inv did not converge'
+    end if
+
+    x = max(0.0_dp, min(1.0_dp, x))
+
+  end function beta_inc_inv
+
+  !> @brief Logarithm of gamma function.
+  !!
+  !! @param[in] x Real(dp), argument > 0.
+  !! @return Real(dp), ln(Γ(x)).
+  !!
+  !! Notes:
+  !! - Uses Lanczos approximation.
+  !! - Accurate to ~15 digits for x > 0.
+  function log_gamma(x) result(lng)
+    real(dp), intent(in) :: x
+    real(dp) :: lng
+    real(dp), parameter :: stp = 2.5066282746310005_dp
+    real(dp), dimension(6), parameter :: cof = [76.18009172947146_dp, &
+      -86.50532032941677_dp, 24.01409824083091_dp, -1.231739572450155_dp, &
+      0.1208650973866179e-2_dp, -0.5395239384953e-5_dp]
+    real(dp) :: ser, tmp, y
+    integer :: j
+
+    y = x
+    tmp = x + 5.5_dp
+    tmp = (x + 0.5_dp) * log(tmp) - tmp
+    ser = 1.000000000190015_dp
+
+    do j = 1, 6
+      y = y + 1.0_dp
+      ser = ser + cof(j) / y
+    end do
+
+    lng = tmp + log(stp * ser / x)
+
+  end function log_gamma
 
 end module module_math

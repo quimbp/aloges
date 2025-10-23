@@ -29,6 +29,7 @@ use module_constants
 use module_color
 use module_timer
 use module_math
+use module_statistics
 use module_linalg
 use module_eofs
 use module_dictionary
@@ -48,6 +49,7 @@ use module_sysdyn
 use module_geodetic
 use module_codar
 use module_roms
+use module_fft
 use module_spectra
 
 implicit none

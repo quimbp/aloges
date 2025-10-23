@@ -83,6 +83,29 @@ type model_LotkaVolterra
     procedure                   :: show          => LV_show
 end type model_LotkaVolterra
 
+type model_World2  
+  ! Forrester “World2” (1971) – five state variables  
+  ! x(1) = Population                   (people)  
+  ! x(2) = Persistent Pollution         (pollution index)  
+  ! x(3) = Non-recoverable Resources    (dimensionless fraction)  
+  ! x(4) = Capital Investment           (2007 $ trillion)  
+  ! x(5) = Agricultural Capital Fraction (dimensionless)  
+  character(len=20) :: name  = 'WORLD2 MODEL'  
+  integer           :: nsys  = 5  
+  integer           :: npar  = 0            ! everything hard-wired  
+  real(dp)          :: dt    = 1.0_dp       ! 1 year  
+  real(dp)          :: to    = 0.0_dp  
+  real(dp), dimension(5) :: xo = [3.0e9_dp,  0.0_dp, 1.0_dp, 0.8_dp, 0.18_dp]  
+  real(dp), dimension(:),   allocatable :: t  
+  real(dp), dimension(:,:), allocatable :: x  
+contains  
+  procedure :: config => W2_config  
+  procedure :: set    => W2_set  
+  procedure :: run    => W2_run  
+  procedure :: save   => W2_save  
+  procedure :: plot   => W2_plot  
+  procedure :: show   => W2_show  
+end type model_World2  
 
 contains
 ! ...
@@ -276,7 +299,7 @@ contains
     open(iu,file=filename,status='unknown')
     rewind(iu)
     do step=1,size(t)
-      write(iu,'(4F10.4)') t(step), X(:,step)
+      write(iu,'(*(E15.6E3,1X))') t(step), X(:,step)
     enddo
     close(iu)
 
@@ -740,6 +763,203 @@ contains
     call system('python myLVplot.py')
 
   end subroutine LV_plot
+  ! ...
+  ! ===================================================================
+  ! ===================================================================
+  ! ...
+
+! ----  RHS and support ------------------------------------------------
+pure function W2_rhs(dummy,t,y) result(dy)
+  real(dp), dimension(:), intent(in) :: dummy
+  real(dp),           intent(in)     :: t
+  real(dp), dimension(:), intent(in) :: y
+  real(dp), dimension(size(y))       :: dy
+
+  ! States
+  real(dp) :: POP, POL, NRR, CAP, FRAC
+
+  ! Reference (normalizing) constants (approximate World2 standard-run)
+  real(dp), parameter :: POPN = 3.0e9_dp
+  real(dp), parameter :: CAPN = 0.8_dp
+  real(dp), parameter :: NRRN = 1.0_dp
+  real(dp), parameter :: POLN = 0.03_dp
+  real(dp), parameter :: FPCN = 1.0_dp     ! food per capita normalized
+
+  ! Nominal (unmodified) rates
+  real(dp), parameter :: BRN  = 0.032_dp   ! births per year
+  real(dp), parameter :: DRN  = 0.028_dp   ! deaths per year
+  real(dp), parameter :: DEP  = 0.05_dp    ! capital depreciation / yr
+  real(dp), parameter :: ICOR = 3.0_dp     ! capital-output ratio (yrs)
+  real(dp), parameter :: RES_EFF = 0.03_dp ! extraction intensity
+  real(dp), parameter :: POL_ABS = 0.30_dp ! baseline absorption / yr
+
+  ! Tables (x=normalized index, y=multipliers). Small but representative.
+  real(dp), dimension(5), parameter :: xcrowd = [0.5_dp, 1.0_dp, 2.0_dp, 4.0_dp, 8.0_dp]
+  real(dp), dimension(5), parameter :: tBR_crowd = [1.10_dp, 1.00_dp, 0.90_dp, 0.75_dp, 0.60_dp]
+  real(dp), dimension(5), parameter :: tDR_crowd = [0.95_dp, 1.00_dp, 1.10_dp, 1.30_dp, 1.60_dp]
+
+  real(dp), dimension(5), parameter :: xfpc = [0.5_dp, 1.0_dp, 1.5_dp, 2.0_dp, 3.0_dp]
+  real(dp), dimension(5), parameter :: tBR_fpc = [0.70_dp, 1.00_dp, 1.10_dp, 1.15_dp, 1.18_dp]
+  real(dp), dimension(5), parameter :: tDR_fpc = [1.60_dp, 1.00_dp, 0.85_dp, 0.80_dp, 0.78_dp]
+
+  real(dp), dimension(5), parameter :: xpol = [0.2_dp, 0.5_dp, 1.0_dp, 2.0_dp, 4.0_dp]
+  real(dp), dimension(5), parameter :: tDR_pol = [1.00_dp, 1.05_dp, 1.15_dp, 1.35_dp, 1.70_dp]
+  real(dp), dimension(5), parameter :: tABS_pol = [0.50_dp, 0.70_dp, 1.00_dp, 1.30_dp, 1.60_dp]
+
+  ! Food production side (very reduced): Food ~ FRAC*CAP with diminishing returns
+  real(dp), dimension(5), parameter :: xfcap = [0.5_dp, 1.0_dp, 1.5_dp, 2.0_dp, 3.0_dp]
+  real(dp), dimension(5), parameter :: tFood_cap = [0.6_dp, 1.0_dp, 1.3_dp, 1.45_dp, 1.50_dp]
+
+  real(dp) :: br_mult, dr_mult
+  real(dp) :: INV, DEPn
+  real(dp) :: EXTR
+  real(dp) :: PGEN, PABS
+  real(dp) :: BR, DR
+
+  ! Normalized indices
+  real(dp) :: CROWD, POLI, KIDX, FPC
+
+  POP = y(1); POL = y(2); NRR = y(3); CAP = y(4); FRAC = y(5)
+
+  CROWD = POP/POPN
+  POLI  = max(POL,1.0e-9_dp)/POLN
+  KIDX  = max(CAP,1.0e-9_dp)/CAPN
+
+  ! Food per capita index (very compact proxy)
+  FPC = TAB(KIDX, xfcap, tFood_cap) * max(FRAC,1.0e-6_dp)     ! invest share to agri
+  FPC = max(FPC, 1.0e-3_dp)                                   ! avoid zero
+
+  ! Birth/death multipliers from tables
+  br_mult = TAB(CROWD, xcrowd, tBR_crowd) * TAB(FPC/FPCN, xfpc, tBR_fpc)
+  dr_mult = TAB(CROWD, xcrowd, tDR_crowd) * TAB(FPC/FPCN, xfpc, tDR_fpc) * TAB(POLI, xpol, tDR_pol)
+
+  ! Effective rates
+  BR = BRN * br_mult
+  DR = DRN * dr_mult
+
+  ! Capital formation: simple Solow-like — Investment = Output/ICOR; Output ~ CAP
+  INV  = (CAP / ICOR)
+  DEPn = DEP * CAP
+
+  ! Resource extraction proportional to industrial capital and remaining stock
+  EXTR = RES_EFF * CAP * NRR         ! vanishes as NRR->0
+
+  ! Pollution generation proportional to industrial output; absorption depends on POL
+  PGEN = 0.02_dp * CAP
+  PABS = (POL_ABS * TAB(POLI, xpol, tABS_pol)) * POL
+
+  ! Dynamics
+  dy(1) = POP * (BR - DR)                  ! dPOP/dt
+  dy(2) = PGEN - PABS                      ! dPOL/dt
+  dy(3) = -EXTR                            ! dNRR/dt
+  dy(4) = INV - DEPn                       ! dCAP/dt
+  dy(5) = 0.02_dp * (0.18_dp - FRAC)       ! adjust investment share toward 0.18
+end function W2_rhs
+
+  ! ----  Basic bookkeeping ----------------------------------------------
+  subroutine W2_config(MODEL,dt)
+    class(model_World2), intent(inout) :: MODEL
+    real(dp), intent(in),   optional   :: dt
+    if (present(dt)) MODEL%dt = dt
+  end subroutine W2_config
+
+  subroutine W2_set(MODEL,to,xo)
+    class(model_World2), intent(inout)       :: MODEL
+    real(dp),             intent(in),optional :: to
+    real(dp), dimension(5),intent(in),optional :: xo
+    if (present(to)) MODEL%to = to
+    if (present(xo)) MODEL%xo = xo
+  end subroutine W2_set
+
+  subroutine W2_run(MODEL,niter)
+    class(model_World2), intent(inout) :: MODEL
+    integer, intent(in), optional      :: niter
+    integer :: step, nsteps
+    real(dp) :: t
+    real(dp), dimension(MODEL%nsys) :: y, yn
+    nsteps = merge(niter, 200, present(niter))  ! default 200 years
+    t  = MODEL%to
+    y  = MODEL%xo
+    if (allocated(MODEL%t)) deallocate(MODEL%t)
+    if (allocated(MODEL%x)) deallocate(MODEL%x)
+    allocate(MODEL%t(0:nsteps))
+    allocate(MODEL%x(MODEL%nsys,0:nsteps))
+    MODEL%t(0)   = t
+    MODEL%x(:,0) = y
+    do step=1,nsteps
+       yn = rk4([0.0_dp],t,y,MODEL%dt,W2_rhs)   ! dummy param vector
+       t  = t + MODEL%dt
+       y  = yn
+       MODEL%t(step)   = t
+       MODEL%x(:,step) = y
+    end do
+  end subroutine W2_run
+
+  subroutine W2_show(MODEL,label)
+    class(model_World2), intent(in) :: MODEL
+    character(len=*),   intent(in), optional :: label
+    if (present(label)) write(*,*) trim(label)
+    write(*,*) 'World2 status:  steps =', merge(size(MODEL%t)-1, 0, &
+                           allocated(MODEL%t))
+  end subroutine W2_show
+
+  subroutine W2_save(MODEL,filename)
+    class(model_World2), intent(in) :: MODEL
+    character(len=*), intent(in)    :: filename
+    call ModelSave(filename,MODEL%t,MODEL%x)
+  end subroutine W2_save
+
+  subroutine W2_plot(MODEL,filename)
+    class(model_World2), intent(in) :: MODEL
+    character(len=*),   intent(in), optional :: filename
+    ! Re-use the Python-snippet trick but show only Population & Resources
+    logical :: saveit
+    integer :: iu
+    call MODEL%save('myw2dat.dat')
+    saveit = present(filename)
+    iu = unitfree(); open(iu,file='myW2plot.py')
+    write(iu,'(A)') "import matplotlib.pyplot as plt, numpy as np"
+    write(iu,'(A)') "t,P,PP,R,K,F = np.loadtxt('myw2dat.dat',unpack=True)"
+    write(iu,'(A)') "plt.figure(figsize=(10,6),dpi=120)"
+    write(iu,'(A)') "plt.plot(t,P/1e9,'-k',lw=2,label='Population (billions)')"
+    write(iu,'(A)') "plt.plot(t,R,'--r',lw=2,label='Resources (fraction)')"
+    write(iu,'(A)') "plt.grid(); plt.legend(); plt.xlabel('Year');"
+    write(iu,'(A)') "plt.ylabel('State variable');"
+    if (saveit) then
+       write(iu,'(A)') "plt.savefig('"//trim(filename)//"',bbox_inches='tight')"
+    else
+       write(iu,'(A)') "plt.show()"
+    end if
+    close(iu)
+    call system('python myW2plot.py')
+
+  end subroutine W2_plot
+  ! ...
+  ! ===================================================================
+  ! ...
+  pure function TAB(x, xg, yg) result(y)  
+    ! --- helper: piecewise-linear table lookup, clamped ---  
+    real(dp), intent(in) :: x  
+    real(dp), dimension(:), intent(in) :: xg, yg  
+    real(dp) :: y  
+
+    integer :: n,i  
+
+    n = size(xg)  
+    if (x <= xg(1)) then  
+      y = yg(1)  
+    else if (x >= xg(n)) then  
+      y = yg(n)  
+    else  
+      do i=1,n-1  
+        if (xg(i) <= x .and. x <= xg(i+1)) then  
+          y = yg(i) + (yg(i+1)-yg(i))*(x - xg(i))/(xg(i+1)-xg(i))  
+          return  
+        end if  
+      end do  
+    end if  
+
+  end function TAB  
   ! ...
   ! ===================================================================
   ! ===================================================================

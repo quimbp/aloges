@@ -30,6 +30,7 @@ use module_types, only : dp
 use module_constants, only : pi, two_pi, nan
 use module_tools, only: crash
 use module_math, only: next_power_of_2
+use module_fft, only: fft1d
 
 implicit none
 private
@@ -445,64 +446,5 @@ contains
   ! ...
   ! =============================================================================
   ! ...
-  subroutine fft1d (dimx,funcionR,funcionI,signo)
-    integer, intent(in)    :: dimx,signo
-    real(dp), dimension(0:dimx-1), intent(inout) :: funcionR,funcionI
-    real(dp)    :: tempR,tempI, wpasoR,wpasoI, wwR,wwI, ttR,ttI
-    integer    :: ix,je,mm,mmax,istep
-    tempR = 0.0D0
-    tempI = 0.0D0
-    je = 1
-    DO ix=0,dimx-1
-    IF(je.GT.ix+1) THEN
-    tempR = funcionR(je-1)
-    tempI = funcionI(je-1)
-    funcionR(je-1) = funcionR(ix)
-    funcionI(je-1) = funcionI(ix)
-    funcionR(ix) = tempR
-    funcionI(ix) = tempI
-    ENDIF
-    mm = dimx/2
-    DO WHILE (mm.GT.1 .AND. je.GT.mm)
-    je = je - mm
-    mm = mm/2
-    ENDDO
-    je = je+mm
-    ENDDO
-    mmax = 1
-    DO WHILE (dimx .GT.mmax)
-    istep = 2*mmax
-    wpasoR = cos(PI/real(mmax,dp))
-    wpasoI = signo*sin(PI/real(mmax,dp))
-    wwR = 1.0_dp
-    wwI = 0.0_dp
-    DO mm = 1,mmax
-    DO ix = mm-1,dimx-1,istep
-    je = ix + mmax
-    call c_mult(wwR,wwI,funcionR(je),funcionI(je),tempR,tempI)
-    funcionR(je) = funcionR(ix) - tempR
-    funcionI(je) = funcionI(ix) - tempI
-    funcionR(ix) = funcionR(ix) + tempR
-    funcionI(ix) = funcionI(ix) + tempI
-    ENDDO
-    call c_mult(wwR,wwI,wpasoR,wpasoI,ttR,ttI)
-    wwR = ttR
-    wwI = ttI
-    ENDDO
-    mmax = istep
-    ENDDO
-
-    contains
-
-      subroutine c_mult (ar,ai,br,bi,cr,ci)
-        real(dp), INTENT(in)     :: ar,ai,br,bi
-        real(dp), INTENT(out)    :: cr,ci
-
-        cr = ar*br - ai*bi
-        ci = ar*bi + ai*br
-
-      end subroutine c_mult
-
-  end subroutine fft1d
 
 end module module_spectra

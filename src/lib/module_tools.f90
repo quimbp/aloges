@@ -34,13 +34,17 @@
 ! - ls                                                                     !
 ! - numlines                                                               !
 ! - numwords                                                               !
+! - randstr
 ! - unique_elements (integer, real(dp) interface)                          !
 ! - unitfree                                                               !
 ! - uppercase                                                              !
 ! - say                                                                    !
 ! - strcat                                                                 !
+! - ltrim
 ! - token_read                                                             !
 ! - vprint                                                                 !
+! - matprint                                                               !
+! - valid_index_range                                                      !
 ! -------------------------------------------------------------------------!
 
 module module_tools
@@ -48,7 +52,6 @@ use iso_fortran_env, only: error_unit, output_unit
 use module_types
 use module_constants
 use module_color
-use module_math, only: randstr
 
 implicit none (type, external)
 
@@ -144,13 +147,17 @@ contains
   ! ...
   ! ===================================================================
   ! ...
+
+  !> @brief Print error message and stop execution.
+  !!
+  !! @param[in] message Character string, error message to display.
+  !!
+  !! Notes:
+  !! - Uses ANSI color codes if module_color is available.
   subroutine crash(message)
-
-    character(len=*), intent(in)                   :: message
-
-    write(error_unit,'(A)') bold//red//error_x_symbol//' ERROR: '//reset // red//trim(message)//reset
-    stop 1
-
+    character(len=*), intent(in) :: message 
+    write(error_unit,'(A)') bold//red//error_x_symbol//' ERROR: '//reset//red//trim(message)//reset
+    stop 1  
   end subroutine crash
   ! ...
   ! ===================================================================
@@ -423,7 +430,7 @@ contains
     character(len=*), intent(in)                           :: dirname
     character(maxlen), dimension(:), allocatable           :: list
 
-    integer nl,i,iu
+    integer nl,i,iu,ir
     character(len=8) tmpname
     character(len=maxlen) aa
 
@@ -527,6 +534,38 @@ contains
 
     return
   end function numwords
+
+
+  !> @brief Generate a random uppercase alphabetic string.
+  !!
+  !! @param[in] len Integer, length of string to generate.
+  !! @param[in] iseed Integer, optional. If present, seeds the RNG with this value.
+  !! @return Character string of length `len` containing random uppercase letters A-Z.
+  !!
+  !! Notes:
+  !! - Useful for generating unique identifiers or temporary filenames.
+  function randstr(len, iseed) result(name)
+    integer, intent(in) :: len
+    integer, optional :: iseed
+    character(len=len) :: name 
+    integer :: i, io, il, j, n
+    integer, dimension(:), allocatable :: seed 
+    real(dp) :: r
+
+    if (present(iseed)) then
+      call random_seed(size=n)
+      allocate(seed(n))
+      seed(:) = iseed 
+      call random_seed(put=seed)
+    end if  
+
+    io = ichar('A'); il = ichar('Z') - io
+    do i = 1, len
+      call random_number(r)
+      j = int(io + il*r)
+      name(i:i) = char(j)
+    end do
+  end function randstr
   ! ...
   ! ===================================================================
   ! ...
@@ -636,6 +675,17 @@ contains
     s1 = trim(s1)//' '//trim(adjustl(s2))
 
   end subroutine strcat
+  ! ...
+  ! ===================================================================
+  ! ...
+  function ltrim(s1) result(s2)
+
+    character(len=*), intent(in)    :: s1
+    character(len=:), allocatable   :: s2
+
+    s2 = trim(adjustl(s1))
+
+  end function ltrim
   ! ...
   ! ===================================================================
   ! ...
@@ -1020,7 +1070,48 @@ contains
     deallocate(words)
 
   end function str2list
+  ! ...
+  ! ===================================================================
+  ! ...
+  subroutine valid_index_range(data,missing,il,ih)
+    ! ... Find the lower and upper indices of a segment containing
+    ! ... valid data. It is assumed that the data has missing data
+    ! ... only in the limits and does not have internal holes.
+    ! ... 
+    ! ... On input:
+    ! ...   real(dp)   :: data(:)    (input data, vector)
+    ! ...   real(dp)   :: missing    (missing value)
+    ! ... On output
+    ! ...   integer    :: il         (lower bound)
+    ! ...   integer    :: ih         (high bound)
+    ! ...
+    ! ... The range of valid data is thus (data(il:ih))
+    ! ...
+    real(dp), dimension(:), intent(in)           :: data
+    real(dp), intent(in)                         :: missing 
+    integer, intent(out)                         :: il, ih
 
+    ! ... Local variables
+    ! ...   
+    integer n,i
+
+    il = -1; ih = -2 
+    n = size(data)
+    do i=1,n
+      if (data(i).ne.missing) then
+        il = i
+        exit
+      endif   
+    enddo   
+
+    do i=n,1,-1
+      if (data(i).ne.missing) then
+        ih = i
+        exit
+      endif
+    enddo
+
+  end subroutine valid_index_range
   ! ...
   ! ===================================================================
   ! ...

@@ -1,419 +1,516 @@
-! ======================================================================== !
-! ALOGES PROJECT                                                           !
-! Quim Ballabrera, April 2022                                              !
-! Institut de Ciencies del Mar, CSIC                                       !
-! Last Modified: 2022-04-14                                                !
-!                                                                          !
-! Copyright (C) 2022, Joaquim Ballabrera                                   !
-!                                                                          !
-! This program is free software: you can redistribute it and/or modify     !
-! it under the terms of the GNU Lesser General Public License as published !
-! by the Free Software Foundation, either version 3 of the License, or     !
-! (at your option) any later version.                                      !
-!                                                                          !
-! This program is distributed in the hope that it will be useful,          !
-! but WITHOUT ANY WARRANTY; without even the implied warranty of           !
-! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.                     !
-! See the Lesser GNU General Public License for more details.              !
-!                                                                          !
-! You should have received a copy of the GNU Lesser General                !
-! Public License along with this program.                                  !
-! If not, see <http://www.gnu.org/licenses/>.                              !
-! - interp1d
-! - interp2d
-! -------------------------------------------------------------------------!
-
 module module_interp
 
-use, intrinsic :: ieee_arithmetic, only : ieee_value, ieee_quiet_nan, ieee_is_nan
-use module_types, only : dp
-use module_constants, only : nan
-use module_tools, only : lowercase, crash
+  use module_types, only : dp
+  use module_constants, only: nan
 
-implicit none (type, external)
+  implicit none (type, external)
+  private
 
-private
-public interp1d, interp2d
+  ! Kind selection: adjust if you already define rk elsewhere
+  integer, parameter :: rk = kind(1.0d0)
+
+  public :: interp1d, interp1d_vec, interp2d
+  public :: spline_coeffs, spline_eval
 
 contains
-! ...
-! =====================================================================
-! =====================================================================
-! ...
-  pure integer function lower_bound(arr, val) result(idx)  
-    ! ... Returns largest i | arr(i) <= val for ascending arr  
 
-    real(dp), intent(in) :: arr(:)  
-    real(dp), intent(in) :: val  
+  !========================
+  ! Binary search helper
+  ! Returns i such that x(i) <= xv < x(i+1), with 1 <= i <= n-1
+  ! If xv < x(1) returns 0; if xv >= x(n) returns n
+  !========================
+  pure function bracket_index(x, xv) result(i)
+    real(rk), intent(in) :: x(:), xv
+    integer :: i
+    integer :: lo, hi, mid, n
+    n = size(x)
+    if (n < 2) then
+      i = -1
+      return
+    end if
+    if (xv < x(1)) then
+      i = 0
+      return
+    else if (xv >= x(n)) then
+      i = n
+      return
+    end if
+    lo = 1
+    hi = n
+    do
+      if (hi - lo <= 1) exit
+      mid = (lo + hi)/2
+      if (x(mid) <= xv) then
+        lo = mid
+      else
+        hi = mid
+      end if
+    end do
+    i = lo
+  end function bracket_index
 
-    ! ... Local variables
-    ! ...
-    integer :: lo, hi, mid, n  
-
-    n = size(arr)  
-    lo = 1; hi = n  
-    if (val < arr(1)) then  
-      idx = 0  
-      return  
-    else if (val >= arr(n)) then  
-      idx = n-1  
-      return  
-    end if  
-    do  
-      if (hi - lo <= 1) exit  
-      mid = (lo + hi)/2  
-      if (arr(mid) <= val) then  
-        lo = mid  
-      else  
-        hi = mid  
-      end if  
-    end do  
-    idx = lo  
-
-  end function lower_bound  
-  ! ...
-  ! ====================================================================
-  ! ...
-  logical function is_monotonic_ascending(arr)  
-
-    real(dp), intent(in) :: arr(:)  
-
-    ! ... Local variables
-    ! ...
-    integer :: i  
-
-    is_monotonic_ascending = .true.  
-    do i = 1, size(arr)-1  
-      if (arr(i+1) <= arr(i)) then  
-        is_monotonic_ascending = .false.  
-        return  
-      end if  
-    end do  
-
-  end function is_monotonic_ascending  
-  ! ...
-  ! ====================================================================
-  ! ...
-  subroutine add_w(val, w, fsum, wsum)
- 
-    real(dp), intent(in) :: val, w
-    real(dp), intent(inout) :: fsum, wsum
-
-    if (.not. ieee_is_nan(val) .and. w > 0.0_dp) then
-      fsum = fsum + w*val 
-      wsum = wsum + w
-    end if  
-
-  end subroutine add_w
-  ! ...
-  ! ===================================================================
-  ! ...
-  function interp1d(f, x, xo, method, out_of_bounds) result(f_interp)
-
-    real(dp), intent(in) :: x(:)
-    real(dp), intent(in) :: f(size(x))
-    real(dp), intent(in) :: xo
-    character(len=*), intent(in) :: method
-    character(len=*), intent(in), optional :: out_of_bounds
-    real(dp) :: f_interp
-
-    ! ... Local variables
-    ! ...
-    character(len=:), allocatable :: mth, oob
-    integer :: n, i0
-    real(dp) :: dx, wsum, fsum, d2, eps2
+  !==========================================================
+  ! Natural cubic spline coefficients for strictly increasing x
+  !
+  ! Given x(1:n), y(1:n), returns second derivatives y2(1:n)
+  ! such that a cubic spline with natural boundary conditions
+  ! is defined. Algorithm based on Numerical Recipes.
+  !==========================================================
+  pure subroutine spline_coeffs(x, y, y2)
+    real(rk), intent(in)  :: x(:), y(:)
+    real(rk), intent(out) :: y2(:)
+    integer :: n, i, k
+    real(rk), allocatable :: u(:)
+    real(rk) :: sig, p
 
     n = size(x)
-    if (present(out_of_bounds)) then
-      oob = lowercase(adjustl(out_of_bounds))
-    else
-      oob = 'nan'
+    if (size(y) /= n .or. size(y2) /= n) then
+      y2 = nan()
+      return
     end if
-    mth = lowercase(adjustl(method))
-
-    if (n < 1) then
-      f_interp = nan(); return
-    end if
-    if (.not. is_monotonic_ascending(x)) then
-      f_interp = nan(); return
+    if (n < 2) then
+      y2 = 0.0_rk
+      return
+    else if (n == 2) then
+      y2 = 0.0_rk
+      return
     end if
 
-    select case (mth)
-    case ('nearest')
-      if (xo <= x(1)) then
-        if (oob == 'clamp' .or. oob == 'nearest') then
-          f_interp = f(1)
-        else
-          f_interp = nan()
-        end if
-        return
-      else if (xo >= x(n)) then
-        if (oob == 'clamp' .or. oob == 'nearest') then
-          f_interp = f(n)
-        else
-          f_interp = nan()
-        end if
+    ! Validate strictly increasing x
+    do i = 2, n
+      if (x(i) <= x(i-1)) then
+        y2 = nan()
         return
       end if
-      i0 = lower_bound(x, xo)
-      if (i0 < n .and. (xo - x(i0)) > (x(i0+1) - xo)) i0 = i0 + 1
-      if (i0 < 1) i0 = 1
-      f_interp = f(i0)
+    end do
+
+    allocate(u(n-1))
+    y2(1) = 0.0_rk
+    u(1)  = 0.0_rk
+
+    do i = 2, n-1
+      sig = (x(i) - x(i-1)) / (x(i+1) - x(i-1))
+      p   = sig*y2(i-1) + 2.0_rk
+      if (p == 0.0_rk) then
+        y2 = nan()
+        deallocate(u)
+        return
+      end if
+      y2(i) = (sig - 1.0_rk)/p
+      u(i)  = (6.0_rk*((y(i+1)-y(i))/(x(i+1)-x(i)) - (y(i)-y(i-1))/(x(i)-x(i-1))) / (x(i+1)-x(i-1)) - sig*u(i-1)) / p
+    end do
+
+    y2(n) = 0.0_rk
+    do k = n-1, 1, -1
+      y2(k) = y2(k)*y2(k+1) + u(k)
+    end do
+
+    deallocate(u)
+  end subroutine spline_coeffs
+
+  !==========================================================
+  ! Evaluate natural cubic spline at xv.
+  ! Inputs: x(1:n), y(1:n), y2(1:n) from spline_coeffs
+  !==========================================================
+  pure function spline_eval(x, y, y2, xv) result(fv)
+    real(rk), intent(in) :: x(:), y(:), y2(:), xv
+    real(rk) :: fv
+    integer :: n, klo, khi
+    real(rk) :: h, a, b
+
+    n = size(x)
+    if (size(y) /= n .or. size(y2) /= n) then
+      fv = nan()
       return
+    end if
+    if (n < 2) then
+      fv = nan()
+      return
+    end if
+
+    ! Handle outside range by clamping to end intervals
+    if (xv <= x(1)) then
+      klo = 1;  khi = 2
+    else if (xv >= x(n)) then
+      klo = n-1; khi = n
+    else
+      klo = bracket_index(x, xv)
+      if (klo < 1) klo = 1
+      khi = klo + 1
+    end if
+
+    h = x(khi) - x(klo)
+    if (h <= 0.0_rk) then
+      fv = nan()
+      return
+    end if
+
+    a = (x(khi) - xv)/h
+    b = (xv - x(klo))/h
+    fv = a*y(klo) + b*y(khi) + ((a**3 - a)*y2(klo) + (b**3 - b)*y2(khi))*(h*h)/6.0_rk
+  end function spline_eval
+
+  !==========================================================
+  ! 1D interpolation for a single point
+  !
+  ! method options: 'nearest' (default), 'linear', 'spline'
+  ! fill_value: used when xv is out-of-bounds (default NaN)
+  !
+  ! Requirements:
+  ! - x strictly increasing; y same length as x
+  !==========================================================
+  pure function interp1d(x, y, xv, method, fill_value) result(fv)
+    real(rk), intent(in)           :: x(:), y(:), xv
+    character(len=*), intent(in), optional :: method
+    real(rk), intent(in), optional :: fill_value
+    real(rk) :: fv
+    character(len=:), allocatable :: m
+    integer :: n, i
+    real(rk) :: t, yv
+    real(rk), allocatable :: y2(:)
+
+    n = size(x)
+    if (size(y) /= n .or. n < 1) then
+      fv = nan(); return
+    end if
+
+    ! Default method
+    if (present(method)) then
+      m = to_lower(trim(method))
+    else
+      m = 'nearest'
+    end if
+
+    ! Default fill
+    if (present(fill_value)) then
+      yv = fill_value
+    else
+      yv = nan()
+    end if
+
+    ! Validate increasing x
+    if (n >= 2) then
+      do i = 2, n
+        if (x(i) <= x(i-1)) then
+          fv = nan(); return
+        end if
+      end do
+    end if
+
+    ! Trivial n=1
+    if (n == 1) then
+      fv = y(1)
+      return
+    end if
+
+    ! Out-of-bounds
+    if (xv < x(1) .or. xv > x(n)) then
+      fv = yv
+      return
+    end if
+
+    select case (m)
+    case ('nearest')
+      i = bracket_index(x, xv)
+      if (i == 0) then
+        fv = y(1)
+      else if (i >= n) then
+        fv = y(n)
+      else
+        ! Choose nearest between i and i+1
+        if (abs(xv - x(i)) <= abs(x(i+1) - xv)) then
+          fv = y(i)
+        else
+          fv = y(i+1)
+        end if
+      end if
 
     case ('linear')
-      i0 = lower_bound(x, xo)
-      if (i0 < 1 .or. i0 >= n) then
-        select case (oob)
-        case ('clamp')
-          if (xo <= x(1)) then
-            f_interp = f(1); return
-          else if (xo >= x(n)) then
-            f_interp = f(n); return
-          else
-            f_interp = nan(); return
-          end if
-        case ('nearest')
-          if (xo <= x(1)) then
-            f_interp = f(1); return
-          else if (xo >= x(n)) then
-            f_interp = f(n); return
-          else
-            f_interp = nan(); return
-          end if
-        case default
-          f_interp = nan(); return
-        end select
+      i = bracket_index(x, xv)
+      if (i <= 0) then
+        fv = y(1); return
+      else if (i >= n) then
+        fv = y(n); return
       end if
-      if (x(i0+1) == x(i0)) then
-        f_interp = nan(); return
-      end if
-      dx = (xo - x(i0)) / (x(i0+1) - x(i0))
-      if (ieee_is_nan(f(i0)) .and. ieee_is_nan(f(i0+1))) then
-        f_interp = nan()
-      else if (ieee_is_nan(f(i0))) then
-        f_interp = f(i0+1)
-      else if (ieee_is_nan(f(i0+1))) then
-        f_interp = f(i0)
-      else
-        f_interp = (1.0_dp - dx)*f(i0) + dx*f(i0+1)
-      end if
-      return
+      t = (xv - x(i)) / (x(i+1) - x(i))
+      fv = (1.0_rk - t)*y(i) + t*y(i+1)
 
-    case ('inverse_distance','idw')
-      fsum = 0.0_dp; wsum = 0.0_dp
-      eps2 = 1.0e-12_dp
-      do i0 = 1, n
-        d2 = (x(i0) - xo)**2
-        if (d2 <= eps2) then
-          f_interp = f(i0); return
-        end if
-        if (.not. ieee_is_nan(f(i0))) then
-          wsum = wsum + 1.0_dp/d2
-          fsum = fsum + f(i0)/d2
-        end if
-      end do
-      if (wsum > 0.0_dp) then
-        f_interp = fsum/wsum
-      else
-        f_interp = nan()
-      end if
-      return
+    case ('spline')
+      allocate(y2(n))
+      call spline_coeffs(x, y, y2)
+      fv = spline_eval(x, y, y2, xv)
+      deallocate(y2)
 
     case default
-      call crash('In interp1d - invalid method '//trim(mth))
-
+      ! Fallback to linear for unknown method
+      i = bracket_index(x, xv)
+      if (i <= 0) then
+        fv = y(1); return
+      else if (i >= n) then
+        fv = y(n); return
+      end if
+      t = (xv - x(i)) / (x(i+1) - x(i))
+      fv = (1.0_rk - t)*y(i) + t*y(i+1)
     end select
-
   end function interp1d
-  ! ...
-  ! ===================================================================
-  ! ...
-  function interp2d(f,x, y, xo, yo, method, out_of_bounds) result(f_interp)
 
-    ! ... f(x(:), y(:)) : input function
-    ! ... x(:), y(:)    : input grid
-    ! ... xo, yo        : interpolation point
-    ! ... method        : 'nearest', 'bilinear', 'inverse_distance'='idw'
-    ! ... out_of_bounds : 'clamp', 'nearest', 'nan'
+  !==========================================================
+  ! Vectorized 1D interpolation for many query points
+  ! method: 'nearest' (default), 'linear', 'spline'
+  ! fill_value applied for out-of-bounds
+  !==========================================================
+  pure subroutine interp1d_vec(x, y, xq, yq, method, fill_value)
+    real(rk), intent(in)           :: x(:), y(:)
+    real(rk), intent(in)           :: xq(:)
+    real(rk), intent(out)          :: yq(:)
+    character(len=*), intent(in), optional :: method
+    real(rk), intent(in), optional :: fill_value
 
-    real(dp), intent(in)                   :: x(:), y(:)
-    real(dp), intent(in)                   :: f(size(x), size(y))
-    real(dp), intent(in)                   :: xo, yo
-    character(len=*), intent(in)           :: method
-    character(len=*), intent(in), optional :: out_of_bounds
-    real(dp)                               :: f_interp
+    character(len=:), allocatable :: m
+    integer :: n, nq, i, j
+    real(rk) :: t, fv
+    real(rk), allocatable :: y2(:)
 
-    ! ... Local variables
-    ! ... 
-    logical ascx, ascy
-    integer i, j, nx, ny, ix, iy
-    real(dp) dx, dy, wsum, fsum, d2, eps2
-    real(dp) f00, f10, f01, f11
-    real(dp) w00, w10, w01, w11
-    character(len=:), allocatable  :: mth, oob
+    n  = size(x)
+    nq = size(xq)
+    if (size(y) /= n .or. size(yq) /= nq) then
+      if (nq > 0) yq = nan()
+      return
+    end if
+
+    ! Default method and fill
+    if (present(method)) then
+      m = to_lower(trim(method))
+    else
+      m = 'nearest'
+    end if
+    if (present(fill_value)) then
+      fv = fill_value
+    else
+      fv = nan()
+    end if
+
+    ! Validate x strictly increasing
+    if (n >= 2) then
+      do i = 2, n
+        if (x(i) <= x(i-1)) then
+          yq = nan()
+          return
+        end if
+      end do
+    end if
+
+    ! Trivial n cases
+    if (n == 0) then
+      if (nq > 0) yq = nan()
+      return
+    else if (n == 1) then
+      yq = y(1)
+      return
+    end if
+
+    select case (m)
+    case ('nearest')
+      do j = 1, nq
+        i = bracket_index(x, xq(j))
+        if (i == 0) then
+          yq(j) = fv
+        else if (i >= n) then
+          yq(j) = fv
+        else
+          if (xq(j) < x(1) .or. xq(j) > x(n)) then
+            yq(j) = fv
+          else if (abs(xq(j) - x(i)) <= abs(x(i+1) - xq(j))) then
+            yq(j) = y(i)
+          else
+            yq(j) = y(i+1)
+          end if
+        end if
+      end do
+
+    case ('linear')
+      do j = 1, nq
+        if (xq(j) < x(1) .or. xq(j) > x(n)) then
+          yq(j) = fv
+        else
+          i = bracket_index(x, xq(j))
+          if (i <= 0) then
+            yq(j) = y(1)
+          else if (i >= n) then
+            yq(j) = y(n)
+          else
+            t = (xq(j) - x(i)) / (x(i+1) - x(i))
+            yq(j) = (1.0_rk - t)*y(i) + t*y(i+1)
+          end if
+        end if
+      end do
+
+    case ('spline')
+      allocate(y2(n))
+      call spline_coeffs(x, y, y2)
+      do j = 1, nq
+        if (xq(j) < x(1) .or. xq(j) > x(n)) then
+          yq(j) = fv
+        else
+          yq(j) = spline_eval(x, y, y2, xq(j))
+        end if
+      end do
+      deallocate(y2)
+
+    case default
+      ! Fallback to linear
+      do j = 1, nq
+        if (xq(j) < x(1) .or. xq(j) > x(n)) then
+          yq(j) = fv
+        else
+          i = bracket_index(x, xq(j))
+          if (i <= 0) then
+            yq(j) = y(1)
+          else if (i >= n) then
+            yq(j) = y(n)
+          else
+            t = (xq(j) - x(i)) / (x(i+1) - x(i))
+            yq(j) = (1.0_rk - t)*y(i) + t*y(i+1)
+          end if
+        end if
+      end do
+    end select
+  end subroutine interp1d_vec
+
+  !==========================================================
+  ! 2D interpolation on a rectilinear grid
+  !
+  ! Inputs:
+  ! - x(1:nx), y(1:ny): strictly increasing axes
+  ! - z(nx, ny): function values at grid points (Fortran order)
+  ! - xq, yq: query points (same length)
+  !
+  ! method: 'bilinear' (default), 'nearest'
+  ! fill_value for out-of-bounds (default NaN)
+  !==========================================================
+  pure subroutine interp2d(x, y, z, xq, yq, zq, method, fill_value)
+    real(rk), intent(in)           :: x(:), y(:)
+    real(rk), intent(in)           :: z(:,:)
+    real(rk), intent(in)           :: xq(:), yq(:)
+    real(rk), intent(out)          :: zq(:)
+    character(len=*), intent(in), optional :: method
+    real(rk), intent(in), optional :: fill_value
+
+    integer :: nx, ny, nq
+    integer :: i, j, ix, iy
+    real(rk) :: fv, tx, ty
+    character(len=:), allocatable :: m
 
     nx = size(x); ny = size(y)
+    if (size(z,1) /= nx .or. size(z,2) /= ny) then
+      if (size(zq) > 0) zq = nan()
+      return
+    end if
+    nq = size(xq)
+    if (size(yq) /= nq .or. size(zq) /= nq) then
+      if (nq > 0) zq = nan()
+      return
+    end if
 
-    ! ... Interpolation method and out of bounds
-    ! ...
-    mth = lowercase(adjustl(method))
-    if (present(out_of_bounds)) then
-      oob = lowercase(adjustl(out_of_bounds))
+    ! Defaults
+    if (present(method)) then
+      m = to_lower(trim(method))
     else
-      oob = 'nan'
-    endif
+      m = 'bilinear'
+    end if
+    if (present(fill_value)) then
+      fv = fill_value
+    else
+      fv = nan()
+    end if
 
-    ! ... Basic input validation
-    ! ...
-    if (nx.lt.1.or.ny.lt.1) then
-      f_interp = nan()
+    ! Validate monotonicity
+    if (nx < 2 .or. ny < 2) then
+      if (nq > 0) zq = nan()
       return
-    endif
-    ascx = is_monotonic_ascending(x)
-    ascy = is_monotonic_ascending(y)
-    if (.not.ascx.or..not.ascy) then
-      write(*,*) 'Warning in interp2d: not ascending unique grid'
-      f_interp = nan()
-      return
-    endif
+    end if
+    do i = 2, nx
+      if (x(i) <= x(i-1)) then
+        zq = nan(); return
+      end if
+    end do
+    do j = 2, ny
+      if (y(j) <= y(j-1)) then
+        zq = nan(); return
+      end if
+    end do
 
-    select case (mth)
+    select case (m)
     case ('nearest')
-      ! Use lower_bound and clamp based on oob policy
-      if (xo < x(1)) then
-        if (oob == 'clamp' .or. oob == 'nearest') then
-          ix = 1
+      do i = 1, nq
+        ix = bracket_index(x, xq(i))
+        iy = bracket_index(y, yq(i))
+        if (xq(i) < x(1) .or. xq(i) > x(nx) .or. yq(i) < y(1) .or. yq(i) > y(ny)) then
+          zq(i) = fv
         else
-          f_interp = nan(); return
-        end if
-      else if (xo > x(nx)) then
-        if (oob == 'clamp' .or. oob == 'nearest') then
-          ix = nx
-        else
-          f_interp = nan(); return
-        end if
-      else
-        ix = lower_bound(x, xo)
-        if (ix < nx .and. (xo - x(ix)) > (x(ix+1) - xo)) ix = ix + 1
-        if (ix == 0) ix = 1
-      end if
-
-      if (yo < y(1)) then
-        if (oob == 'clamp' .or. oob == 'nearest') then
-          iy = 1
-        else
-          f_interp = nan(); return
-        end if
-      else if (yo > y(ny)) then
-        if (oob == 'clamp' .or. oob == 'nearest') then
-          iy = ny
-        else
-          f_interp = nan(); return
-        end if
-      else
-        iy = lower_bound(y, yo)
-        if (iy < ny .and. (yo - y(iy)) > (y(iy+1) - yo)) iy = iy + 1
-        if (iy == 0) iy = 1
-      end if
-      f_interp = f(ix, iy)
-      return
-
-    case ('bilinear','linear')
-      ! ... Bilinear interpolation between four grid corners:
-      ! ...  f(x,y) = (1−dx)*(1−dy)*f00 + dx*(1−dy)*f10 + (1−dx)*dy*f01 + dx*dy*f11
-      ! ...
-      ix = lower_bound(x, xo)
-      iy = lower_bound(y, yo)
-      if (ix < 1 .or. iy < 1 .or. ix >= nx .or. iy >= ny) then
-        select case (oob)
-        case ('clamp')
-          ix = max(1, min(nx-1, ix)); iy = max(1, min(ny-1, iy))
-        case ('nearest')
-          ! Project to nearest valid cell:
-          if (xo <= x(1)) ix = 1
-          if (xo >= x(nx)) ix = nx-1
-          if (yo <= y(1)) iy = 1
-          if (yo >= y(ny)) iy = ny-1
-          if (ix < 1 .or. iy < 1 .or. ix >= nx .or. iy >= ny) then
-            f_interp = nan(); return
+          ! resolve nearest in x
+          if (ix <= 0) then
+            ix = 1
+          else if (ix >= nx) then
+            ix = nx
+          else
+            if (abs(xq(i)-x(ix)) > abs(x(ix+1)-xq(i))) ix = ix+1
           end if
-        case default
-          f_interp = nan(); return
-        end select
-      end if
-      if (x(ix+1) == x(ix) .or. y(iy+1) == y(iy)) then
-        f_interp = nan(); return
-      end if
+          ! resolve nearest in y
+          if (iy <= 0) then
+            iy = 1
+          else if (iy >= ny) then
+            iy = ny
+          else
+            if (abs(yq(i)-y(iy)) > abs(y(iy+1)-yq(i))) iy = iy+1
+          end if
+          zq(i) = z(ix, iy)
+        end if
+      end do
 
-      dx = (xo - x(ix)) / (x(ix+1) - x(ix))
-      dy = (yo - y(iy)) / (y(iy+1) - y(iy))
-
-      ! ... Function values
-      ! ...
-      f00 = f(ix  , iy  )
-      f10 = f(ix+1, iy  )
-      f01 = f(ix  , iy+1)
-      f11 = f(ix+1, iy+1)
-
-      ! ... Weights:
-      ! ...
-      w00 = (1.0_dp - dx) * (1.0_dp - dy)
-      w10 =       dx      * (1.0_dp - dy)
-      w01 = (1.0_dp - dx) *       dy
-      w11 =       dx      *       dy
-
-      if (all(.not. ieee_is_nan([f00, f10, f01, f11]))) then
-        ! ... All finite values
-        ! ...
-        f_interp = w00*f00 + w10*f10 + w01*f01 + w11*f11
-      else
-        ! ... Graceful degradation
-        ! ...
-        fsum = 0.0_dp; wsum = 0.0_dp
-        call add_w(f00, w00, fsum, wsum)
-        call add_w(f10, w10, fsum, wsum)
-        call add_w(f01, w01, fsum, wsum)
-        call add_w(f11, w11, fsum, wsum)
-
-        if (wsum > 0.0_dp) then
-          f_interp = fsum / wsum
+    case default   ! 'bilinear'
+      do i = 1, nq
+        if (xq(i) < x(1) .or. xq(i) > x(nx) .or. yq(i) < y(1) .or. yq(i) > y(ny)) then
+          zq(i) = fv
         else
-          f_interp = nan()
-        end if
-      end if
-      return
-
-    case ('inverse_distance','idw')
-      fsum = 0.0_dp; wsum = 0.0_dp
-      eps2 = (1.0e-12_dp)
-      do i = 1, nx
-      do j = 1, ny
-        d2 = (x(i) - xo)**2 + (y(j) - yo)**2
-        if (d2 <= eps2) then
-          f_interp = f(i, j); return
-        end if
-        if (.not. ieee_is_nan(f(i,j))) then
-          wsum = wsum + 1.0_dp/d2
-          fsum = fsum + f(i,j)/d2
+          ix = bracket_index(x, xq(i))
+          iy = bracket_index(y, yq(i))
+          if (ix <= 0) then
+            ix = 1
+          else if (ix >= nx) then
+            ix = nx-1
+          end if
+          if (iy <= 0) then
+            iy = 1
+          else if (iy >= ny) then
+            iy = ny-1
+          end if
+          tx = (xq(i) - x(ix)) / (x(ix+1) - x(ix))
+          ty = (yq(i) - y(iy)) / (y(iy+1) - y(iy))
+          zq(i) = (1.0_rk-tx)*(1.0_rk-ty)*z(ix  ,iy  ) + &
+                   tx      *(1.0_rk-ty)*z(ix+1,iy  ) + &
+                  (1.0_rk-tx)*ty      *z(ix  ,iy+1) + &
+                   tx      *ty      *z(ix+1,iy+1)
         end if
       end do
-      end do
-      if (wsum > 0.0_dp) then
-        f_interp = fsum/wsum
-      else
-        f_interp = nan()
-      end if
-      return
-
-    case default
-      call crash('In interp2d - invalid method '//trim(mth))
-
     end select
+  end subroutine interp2d
 
-  end function interp2d
-  ! ...
-  ! ===================================================================
-  ! ...
+  !========================
+  ! to_lower helper
+  !========================
+  pure function to_lower(s) result(t)
+    character(len=*), intent(in) :: s
+    character(len=len(s)) :: t
+    integer :: i, ia, iz
+    ia = ichar('A'); iz = ichar('Z')
+    do i = 1, len(s)
+      if (ichar(s(i:i)) >= ia .and. ichar(s(i:i)) <= iz) then
+        t(i:i) = achar(ichar(s(i:i)) + 32)
+      else
+        t(i:i) = s(i:i)
+      end if
+    end do
+  end function to_lower
 
 end module module_interp

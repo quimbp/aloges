@@ -47,14 +47,14 @@ else
 endif
 
 OBJ = module_types.o $(PLOBJ) module_constants.o module_color.o     \
-      module_timer.o module_dictionary.o module_nc.o                \
+      module_tools.o module_timer.o module_dictionary.o module_nc.o \
       module_math.o module_linalg.o module_eofs.o                   \
-      module_tools.o module_time.o module_solar.o                   \
+      module_time.o module_solar.o                                  \
       module_grid.o module_lineargs.o  module_help.o                \
       module_trajectories.o module_minpack.o module_matrix.o        \
       module_enkf.o module_sysdyn.o module_interp.o                 \
-      module_geodetic.o module_codar.o module_roms.o aloges.o       \
-      module_spectra.o
+      module_geodetic.o module_codar.o module_roms.o                \
+      module_fft.o module_spectra.o module_statistics.o   
 
 all: $(OBJ) $(LIBDIR) $(INCDIR) aloges.o
 	rm -f $(TARGET)
@@ -70,6 +70,7 @@ clean:
 	if test -d $(INCDIR); then rm -f $(INCDIR)module_timer.mod; fi
 	if test -d $(INCDIR); then rm -f $(INCDIR)module_dictionary.mod; fi
 	if test -d $(INCDIR); then rm -f $(INCDIR)module_math.mod; fi
+	if test -d $(INCDIR); then rm -f $(INCDIR)module_statistics.mod; fi
 	if test -d $(INCDIR); then rm -f $(INCDIR)module_linalg.mod; fi
 	if test -d $(INCDIR); then rm -f $(INCDIR)module_eofs.mod; fi
 	if test -d $(INCDIR); then rm -f $(INCDIR)module_tools.mod; fi
@@ -88,6 +89,7 @@ clean:
 	if test -d $(INCDIR); then rm -f $(INCDIR)module_matrix.mod; fi
 	if test -d $(INCDIR); then rm -f $(INCDIR)module_nc.mod; fi
 	if test -d $(INCDIR); then rm -f $(INCDIR)module_roms.mod; fi
+	if test -d $(INCDIR); then rm -f $(INCDIR)module_fft.mod; fi
 	if test -d $(INCDIR); then rm -f $(INCDIR)module_spectra.mod; fi
 	if test -d $(INCDIR); then rm -f $(INCDIR)aloges.mod; fi
 
@@ -120,11 +122,17 @@ module_timer.o: module_types.o module_timer.f90
 module_dictionary.o: module_types.o module_dictionary.f90
 	$(FC) -c $(FFLAGS) $(INC) module_dictionary.f90
 
+module_tools.o: module_types.o module_constants.o module_color.o module_tools.f90
+	$(FC) -c $(FFLAGS) $(INC) module_tools.f90
+
 module_nc.o: module_types.o module_tools.o module_nc.f90
 	$(FC) -c $(FFLAGS) $(INC) module_nc.f90
 
-module_math.o: module_types.o module_constants.o module_math.f90
+module_math.o: module_types.o module_constants.o module_tools.o module_math.f90
 	$(FC) -c $(FFLAGS) $(INC) module_math.f90
+
+module_statistics.o: module_types.o module_constants.o module_tools.o module_math.o module_statistics.f90
+	$(FC) -c $(FFLAGS) $(INC) module_statistics.f90
 
 module_linalg.o: module_types.o module_constants.o module_math.o module_linalg.f90
 	$(FC) -c $(FFLAGS) $(INC) module_linalg.f90
@@ -135,10 +143,10 @@ module_eofs.o: module_types.o module_constants.o module_math.o module_linalg.o m
 module_interp.o: module_types.o module_constants.o module_interp.f90
 	$(FC) -c $(FFLAGS) $(INC) module_interp.f90
 
-module_tools.o: module_types.o module_constants.o module_math.o module_tools.f90
-	$(FC) -c $(FFLAGS) $(INC) module_tools.f90
+module_fft.o: module_types.o module_constants.o module_math.o module_tools.o module_fft.f90
+	$(FC) -c $(FFLAGS) $(INC) module_fft.f90
 
-module_spectra.o: module_types.o module_constants.o module_math.o module_tools.o module_spectra.f90
+module_spectra.o: module_types.o module_constants.o module_math.o module_tools.o module_fft.o module_spectra.f90
 	$(FC) -c $(FFLAGS) $(INC) module_spectra.f90
 
 module_time.o: module_types.o module_tools.o module_time.f90
