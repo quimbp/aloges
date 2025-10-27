@@ -20,6 +20,13 @@
 # Public License along with this program.                                  #
 # If not, see <http://www.gnu.org/licenses/>.                              #
 # -------------------------------------------------------------------------#
+# Last Modified: 2025-10-27                                                #
+# -------------------------------------------------------------------------#  
+  
+include make.inc  
+  
+.PHONY: all clean distclean afort install uninstall lib model  
+
 #
 # To compile the library and lagrangian model:
 # > make
@@ -28,14 +35,20 @@
 
 include make.inc
 
-all:
+all: lib model
 	(cd src/lib; make)
 	(cd src/lagrangian; make)
 
+lib: 
+	$(MAKE) -C src/lib
+
+model:
+	$(MAKE) -C src/lagrangian
+
 clean:
-	(cd src/lib; make clean)
-	(cd src/lagrangian; make clean)
-	(rm -f bin/afort)
+	$(MAKE) -C src/lib clean
+	$(MAKE) -C src/lagrangian clean
+	rm -f bin/afort
 
 afort:
 	(cd scripts; sed \
@@ -48,3 +61,5 @@ afort:
 		-e 's@#PLPLOT_LIB.*@PLPLOT_LIB="'"${PLPLOT_LIB}"'"@' \
 		afort.template > ../bin/afort)
 	chmod +x bin/afort
+
+

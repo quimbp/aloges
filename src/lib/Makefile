@@ -2,7 +2,7 @@
 # ALOGES PROJECT                                                           #
 # Quim Ballabrera, April 2022                                              #
 # Institut de Ciencies del Mar, CSIC                                       #
-# Last Modified: 2022-04-14                                                #
+# Created created: 2022-04-14                                              #
 #                                                                          #
 # Copyright (C) 2022, Joaquim Ballabrera                                   #
 #                                                                          #
@@ -20,19 +20,17 @@
 # Public License along with this program.                                  #
 # If not, see <http://www.gnu.org/licenses/>.                              #
 # -------------------------------------------------------------------------#
+# ALOGES PROJECT - src/lib Makefile (build static library)                 #
+# Last Modified: 2025-10-27                                                #
+# -------------------------------------------------------------------------#  
 
 include ../../make.inc
+.PHONY: all clean 
 
-#DBFLAGS = -ffpe-summary=zero,invalid,overflow,underflow
-#DBFLAGS = -ffpe-trap=zero,invalid,overflow,underflow
-DBFLAGS =
-FCFLAGS = $(FFLAGS) $(DBFLAGS)
-
-LIBDIR = ../../lib/
-INCDIR = ../../include/
-INC = $(PLPLOT_INC) $(CDFINC)
-
-TARGET = ../../lib/libaloges.a
+LIBDIR := ../../lib/
+INCDIR := ../../include/
+LIBNAME := libaloges.a
+TARGET := $(LIBDIR)/$(LIBNAME)
 
 $(info $(MODULE_PLPLOT))
 
@@ -102,92 +100,92 @@ $(LIBDIR):
 	mkdir -p $@
 
 module_types.o: module_types.f90
-	$(FC) -c $(FFLAGS) $(INC) module_types.f90
+	$(FC) -c $(FFLAGS) $(COMMON_INCS) module_types.f90
 
 module_plplot.o: module_types.f90 module_plplot.f90
-	$(FC) -c $(FFLAGS) $(INC) module_plplot.f90
+	$(FC) -c $(FFLAGS) $(COMMON_INCS) module_plplot.f90
 
 module_plplot_empty.o: module_plplot_empty.f90
-	$(FC) -c $(FFLAGS) $(INC) module_plplot_empty.f90
+	$(FC) -c $(FFLAGS) $(COMMON_INCS) module_plplot_empty.f90
 
 module_constants.o: module_types.o module_constants.f90
-	$(FC) -c $(FFLAGS) $(INC) module_constants.f90
+	$(FC) -c $(FFLAGS) $(COMMON_INCS) module_constants.f90
 
 module_color.o: module_color.f90
-	$(FC) -c $(FFLAGS) $(INC) module_color.f90
+	$(FC) -c $(FFLAGS) $(COMMON_INCS) module_color.f90
 
 module_timer.o: module_types.o module_timer.f90
-	$(FC) -c $(FFLAGS) $(INC) module_timer.f90
+	$(FC) -c $(FFLAGS) $(COMMON_INCS) module_timer.f90
 
 module_dictionary.o: module_types.o module_dictionary.f90
-	$(FC) -c $(FFLAGS) $(INC) module_dictionary.f90
+	$(FC) -c $(FFLAGS) $(COMMON_INCS) module_dictionary.f90
 
 module_tools.o: module_types.o module_constants.o module_color.o module_tools.f90
-	$(FC) -c $(FFLAGS) $(INC) module_tools.f90
+	$(FC) -c $(FFLAGS) $(COMMON_INCS) module_tools.f90
 
 module_nc.o: module_types.o module_tools.o module_nc.f90
-	$(FC) -c $(FFLAGS) $(INC) module_nc.f90
+	$(FC) -c $(FFLAGS) $(COMMON_INCS) module_nc.f90
 
 module_math.o: module_types.o module_constants.o module_tools.o module_math.f90
-	$(FC) -c $(FFLAGS) $(INC) module_math.f90
+	$(FC) -c $(FFLAGS) $(COMMON_INCS) module_math.f90
 
 module_statistics.o: module_types.o module_constants.o module_tools.o module_math.o module_statistics.f90
-	$(FC) -c $(FFLAGS) $(INC) module_statistics.f90
+	$(FC) -c $(FFLAGS) $(COMMON_INCS) module_statistics.f90
 
 module_linalg.o: module_types.o module_constants.o module_math.o module_linalg.f90
-	$(FC) -c $(FFLAGS) $(INC) module_linalg.f90
+	$(FC) -c $(FFLAGS) $(COMMON_INCS) module_linalg.f90
 
 module_eofs.o: module_types.o module_constants.o module_math.o module_linalg.o module_eofs.f90
-	$(FC) -c $(FFLAGS) $(INC) module_eofs.f90
+	$(FC) -c $(FFLAGS) $(COMMON_INCS) module_eofs.f90
 
 module_interp.o: module_types.o module_constants.o module_interp.f90
-	$(FC) -c $(FFLAGS) $(INC) module_interp.f90
+	$(FC) -c $(FFLAGS) $(COMMON_INCS) module_interp.f90
 
 module_fft.o: module_types.o module_constants.o module_math.o module_tools.o module_fft.f90
-	$(FC) -c $(FFLAGS) $(INC) module_fft.f90
+	$(FC) -c $(FFLAGS) $(COMMON_INCS) module_fft.f90
 
 module_spectra.o: module_types.o module_constants.o module_math.o module_tools.o module_fft.o module_spectra.f90
-	$(FC) -c $(FFLAGS) $(INC) module_spectra.f90
+	$(FC) -c $(FFLAGS) $(COMMON_INCS) module_spectra.f90
 
 module_time.o: module_types.o module_tools.o module_time.f90
-	$(FC) -c $(FFLAGS) $(INC) module_time.f90
+	$(FC) -c $(FFLAGS) $(COMMON_INCS) module_time.f90
 
 module_solar.o: module_types.o module_tools.o module_time.o module_solar.f90
-	$(FC) -c $(FFLAGS) $(INC) module_solar.f90
+	$(FC) -c $(FFLAGS) $(COMMON_INCS) module_solar.f90
 
 module_matrix.o: module_types.o module_constants.o module_tools.o module_matrix.f90
-	$(FC) -c $(FFLAGS) $(INC) module_matrix.f90
+	$(FC) -c $(FFLAGS) $(COMMON_INCS) module_matrix.f90
 
 module_grid.o: module_types.o module_constants.o module_math.o module_tools.o module_grid.f90
-	$(FC) -c $(FFLAGS) $(INC) module_grid.f90
+	$(FC) -c $(FFLAGS) $(COMMON_INCS) module_grid.f90
 
 module_lineargs.o: module_types.o module_constants.o module_tools.o module_lineargs.f90
-	$(FC) -c $(FFLAGS) $(INC) module_lineargs.f90
+	$(FC) -c $(FFLAGS) $(COMMON_INCS) module_lineargs.f90
 
 module_help.o: module_types.o module_constants.o module_tools.o module_help.f90
-	$(FC) -c $(FFLAGS) $(INC) module_help.f90
+	$(FC) -c $(FFLAGS) $(COMMON_INCS) module_help.f90
 
 module_trajectories.o: module_types.o module_constants.o module_tools.o module_nc.o module_trajectories.f90
-	$(FC) -c $(FFLAGS) $(INC) module_trajectories.f90
+	$(FC) -c $(FFLAGS) $(COMMON_INCS) module_trajectories.f90
 
 module_minpack.o: module_types.o module_minpack.f90
-	$(FC) -c $(FFLAGS) $(INC) module_minpack.f90
+	$(FC) -c $(FFLAGS) $(COMMON_INCS) module_minpack.f90
 
 module_enkf.o: module_types.o module_constants.o module_math.o module_enkf.f90
-	$(FC) -c $(FFLAGS) $(INC) module_enkf.f90
+	$(FC) -c $(FFLAGS) $(COMMON_INCS) module_enkf.f90
 
 module_sysdyn.o: module_types.o module_constants.o module_math.o module_tools.o module_sysdyn.f90
-	$(FC) -c $(FFLAGS) $(INC) module_sysdyn.f90
+	$(FC) -c $(FFLAGS) $(COMMON_INCS) module_sysdyn.f90
 
 module_geodetic.o: module_types.o module_tools.o module_math.o module_geodetic.f90
-	$(FC) -c $(FFLAGS) $(INC) module_geodetic.f90
+	$(FC) -c $(FFLAGS) $(COMMON_INCS) module_geodetic.f90
 
 module_codar.o: module_types.o module_dictionary.o module_tools.o module_codar.f90
-	$(FC) -c $(FFLAGS) $(INC) module_codar.f90
+	$(FC) -c $(FFLAGS) $(COMMON_INCS) module_codar.f90
 
 module_roms.o: module_types.o module_time.o module_tools.o module_nc.o module_roms.f90
-	$(FC) -c $(FFLAGS) $(INC) module_roms.f90
+	$(FC) -c $(FFLAGS) $(COMMON_INCS) module_roms.f90
 
 aloges.o: $(OBJ) aloges.f90
-	$(FC) -c $(FFLAGS) $(INC) aloges.f90
+	$(FC) -c $(FFLAGS) $(COMMON_INCS) aloges.f90
 
