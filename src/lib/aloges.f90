@@ -60,9 +60,17 @@ character(len=20) :: ALOGES_DATE    = "April, 2022"
 
 contains
 
-subroutine head_aloges()
+subroutine head_aloges(fortran_version,fortran_options)
 
+  logical, intent(in), optional             :: fortran_version
+  logical, intent(in), optional             :: fortran_options
+  logical cver,copt
   character(len=maxlen) progname
+
+  cver = .false.; copt = .false.
+  if (present(fortran_version)) cver = fortran_version
+  if (present(fortran_options)) copt = fortran_options
+   
   call getarg(0,progname)
 
   write(*,*) 
@@ -70,8 +78,8 @@ subroutine head_aloges()
   write(*,*) 'Program: ' // trim(progname)
   write(*,*) 'Aloges version: ' // ALOGES_VERSION
   write(*,*) 'Aloges version date: ' // ALOGES_DATE
-  write(*,*) 'Compiler version: ', compiler_version()
-  write(*,*) 'Compiler options: ', compiler_options()
+  if (cver) write(*,*) 'Compiler version: ', compiler_version()
+  if (copt) write(*,*) 'Compiler options: ', compiler_options()
   write(*,*) '======================================================================='
   write(*,*) 
 

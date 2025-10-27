@@ -59,7 +59,7 @@ OBJ = module_types.o $(PLOBJ) module_constants.o module_color.o     \
 all: $(OBJ) $(LIBDIR) $(INCDIR) aloges.o
 	rm -f $(TARGET)
 	$(INSTALL) *.mod $(INCDIR)
-	$(AR) $(TARGET) $(OBJ)
+	$(AR) $(TARGET) $(OBJ) aloges.o
 
 clean:
 	rm -f $(TARGET) *.o *.mod 
