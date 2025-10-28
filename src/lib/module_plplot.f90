@@ -883,22 +883,34 @@ contains
 
   ! ==== Legend functions ====
   
-  subroutine plplot_legend(PLT)
+  subroutine plplot_legend(PLT,position)
     class(type_plplot), intent(inout) :: PLT
-    call plt_legend_show(PLT%ax%axis_legend)
+    character(len=*), intent(in), optional     :: position
+    call plt_legend_show(PLT%ax%axis_legend,position)
   end subroutine plplot_legend
 
-  subroutine plaxis_legend(AX)
+  subroutine plaxis_legend(AX,position)
     class(type_plaxis), intent(inout) :: AX
-    call plt_legend_show(AX%axis_legend)
+    character(len=*), intent(in), optional     :: position
+    call plt_legend_show(AX%axis_legend,position)
   end subroutine plaxis_legend
 
-  subroutine plt_legend_show(L)
+  subroutine plt_legend_show(L,position)
     class(type_legend), intent(inout) :: L
-    integer :: nlegend
+    character(len=*), intent(in), optional     :: position
+    integer :: nlegend,ipos
 
     nlegend = L%nlegend
     if (nlegend <= 0) return
+
+    ipos = 0  ! Default
+    if (present(position)) then
+      if (index(position,'left').gt.0)    ipos = ipos + PL_POSITION_LEFT
+      if (index(position,'top').gt.0)     ipos = ipos + PL_POSITION_TOP
+      if (index(position,'bottom').gt.0)  ipos = ipos + PL_POSITION_BOTTOM
+      if (index(position,'right').gt.0)   ipos = ipos + PL_POSITION_RIGHT
+    endif
+    L%position = ipos
 
     call pllegend(L%legend_width, L%legend_height, &
       L%opt, L%position, &
