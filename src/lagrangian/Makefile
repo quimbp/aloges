@@ -32,8 +32,8 @@ BINDIR = ../../bin/
 INCDIR = ../../include/
 LIBDIR = ../../lib/
 
-INC = -I$(INCDIR) $(CDFINC)
-LIB = -L$(LIBDIR) -laloges $(CDFLIB)
+LIB = -L$(LIBDIR) -laloges $(CDF_LIB)
+INC = $(COMMON_INCS) -I$(INCDIR)
 
 TARGET = aloges
 OBJ = module_alm.o module_forcing.o module_float.o module_model.o module_options.o \
