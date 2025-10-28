@@ -35,7 +35,7 @@ character(len=*), parameter :: dim         = esc//'[2m'
 character(len=*), parameter :: italic      = esc//'[3m'
 character(len=*), parameter :: underline   = esc//'[4m'
 character(len=*), parameter :: blink       = esc//'[5m'
-character(len=*), parameter :: reverse     = esc//'[7m'
+!character(len=*), parameter :: reverse     = esc//'[7m'
 character(len=*), parameter :: hidden      = esc//'[8m'
 character(len=*), parameter :: strike      = esc//'[9m'
 
