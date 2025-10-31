@@ -25,7 +25,7 @@
 ! - polar_to_compass
 ! -------------------------------------------------------------------------!
 
-module module_geodetic
+module module_geodesy
 
 use, intrinsic :: IEEE_ARITHMETIC, ONLY : IEEE_VALUE, IEEE_QUIET_NAN
 use module_types
@@ -505,4 +505,4 @@ contains
   ! ...
   ! =====================================================================
   ! ...
-end module module_geodetic
+end module module_geodesy

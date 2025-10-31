@@ -51,7 +51,7 @@ OBJ = module_types.o $(PLOBJ) module_constants.o module_color.o     \
       module_grid.o module_lineargs.o  module_help.o                \
       module_trajectories.o module_minpack.o module_matrix.o        \
       module_enkf.o module_sysdyn.o module_interp.o                 \
-      module_geodetic.o module_codar.o module_roms.o                \
+      module_geodesy.o module_codar.o module_roms.o                \
       module_fft.o module_spectra.o module_statistics.o   
 
 all: $(OBJ) $(LIBDIR) $(INCDIR) aloges.o
@@ -83,7 +83,7 @@ clean:
 	if test -d $(INCDIR); then rm -f $(INCDIR)module_sysdyn.mod; fi
 	if test -d $(INCDIR); then rm -f $(INCDIR)module_interp.mod; fi
 	if test -d $(INCDIR); then rm -f $(INCDIR)module_codar.mod; fi
-	if test -d $(INCDIR); then rm -f $(INCDIR)module_geodetic.mod; fi
+	if test -d $(INCDIR); then rm -f $(INCDIR)module_geodesy.mod; fi
 	if test -d $(INCDIR); then rm -f $(INCDIR)module_matrix.mod; fi
 	if test -d $(INCDIR); then rm -f $(INCDIR)module_nc.mod; fi
 	if test -d $(INCDIR); then rm -f $(INCDIR)module_roms.mod; fi
@@ -177,8 +177,8 @@ module_enkf.o: module_types.o module_constants.o module_math.o module_enkf.f90
 module_sysdyn.o: module_types.o module_constants.o module_math.o module_tools.o module_sysdyn.f90
 	$(FC) -c $(FFLAGS) $(COMMON_INCS) module_sysdyn.f90
 
-module_geodetic.o: module_types.o module_tools.o module_math.o module_geodetic.f90
-	$(FC) -c $(FFLAGS) $(COMMON_INCS) module_geodetic.f90
+module_geodesy.o: module_types.o module_tools.o module_math.o module_geodesy.f90
+	$(FC) -c $(FFLAGS) $(COMMON_INCS) module_geodesy.f90
 
 module_codar.o: module_types.o module_dictionary.o module_tools.o module_codar.f90
 	$(FC) -c $(FFLAGS) $(COMMON_INCS) module_codar.f90
