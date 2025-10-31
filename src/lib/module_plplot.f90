@@ -34,6 +34,7 @@ private
 public type_plplot
 public init_custom_colormap0
 public line_options, line_opts, quiver_options, quiver_opts
+public contour_options, contour_opts
 public PIVOT_TAIL, PIVOT_MID, PIVOT_TIP
 
 ! Custom color indices
@@ -86,6 +87,16 @@ type quiver_options
     real(dp)             :: min_magnitude = 0.001_dp
     integer              :: pivot = PIVOT_TAIL
 end type quiver_options
+
+! Contour options type
+type contour_options
+  integer                :: levels_n = 10
+  real(dp), allocatable  :: levels(:)       ! explicit contour levels
+  character(len=10)      :: color = 'black' ! line color (contour)
+  real(dp)               :: width = 1.0_dp  ! line width (contour)
+  character(len=20)      :: label = ''      ! optional legend label (contour only)
+  character(len=2)       :: style = '-'
+end type contour_options
 
 type type_legend
   integer                              :: nlegend = 0
@@ -171,6 +182,10 @@ type type_plplot
     procedure :: quiver_2d
     procedure :: quiver_1d
     generic, public :: quiver => quiver_2d, quiver_1d
+    procedure       :: contour_xy   ! x,y vectors with 2D z(nx,ny)
+    procedure       :: contourf_xy  ! filled version
+    generic, public :: contour  => contour_xy
+    generic, public :: contourf => contourf_xy
 end type type_plplot
 
 character(len=20), parameter :: XWINDOW = 'qtwidget'
@@ -850,6 +865,166 @@ contains
     end if
   end subroutine draw_arrow
 
+  ! ==== Contour helper functions ====
+
+!  subroutine build_tr_from_xy(x, y, tr, ok)
+!    real(dp), intent(in)  :: x(:), y(:)
+!    real(dp), intent(out) :: tr(6)
+!    logical, intent(out)  :: ok
+!    real(dp) :: dx, dy
+!    integer :: nx, ny
+!
+!    nx = size(x); ny = size(y)
+!    ok = .false.
+!    if (nx < 2 .or. ny < 2) return
+!
+!    dx = (x(nx) - x(1)) / real(nx-1, dp)
+!    dy = (y(ny) - y(1)) / real(ny-1, dp)
+!
+!    ! Require approximately uniform spacing
+!    if (abs(dx) <= 0.0_dp .or. abs(dy) <= 0.0_dp) return
+!    ! You can add stricter uniformity checks if needed
+!
+!    ! PLplot tr mapping for indices (i,j) starting at 1:
+!    ! x = tr0 + tr1*i + tr2*j
+!    ! y = tr3 + tr4*i + tr5*j
+!    tr(1) = x(1) - dx        ! tr0
+!    tr(2) = dx               ! tr1
+!    tr(3) = 0.0_dp           ! tr2
+!    tr(4) = y(1) - dy        ! tr3
+!    tr(5) = 0.0_dp           ! tr4
+!    tr(6) = dy               ! tr5
+!    ok = .true.
+!  end subroutine build_tr_from_xy
+
+!  subroutine set_cmap1_bluered()
+!    integer, parameter :: n=2
+!    real(dp) :: pos(n), r(n), g(n), b(n)
+!    pos = [0.0_dp, 1.0_dp]
+!    r = [0.0_dp, 1.0_dp]
+!    g = [0.0_dp, 0.0_dp]
+!    b = [1.0_dp, 0.0_dp]
+!    call plscmap1l(.true., pos, r, g, b, .false.)
+!  end subroutine set_cmap1_bluered
+
+  subroutine contour_xy(PLT, x, y, z, options)
+    class(type_plplot), intent(inout) :: PLT
+    real(dp), intent(in) :: x(:), y(:)
+    real(dp), intent(in) :: z(:,:)
+    type(contour_options), intent(in), optional :: options
+    type(contour_options) :: opts
+    integer :: nx, ny, nlev, i, k, color_index
+    real(dp), allocatable :: clev(:)
+    real(dp) :: zmin, zmax
+    integer :: line_style
+
+    opts = contour_options()
+    if (present(options)) opts = options
+
+    nx = size(x); ny = size(y)
+    if (size(z,1) /= nx .or. size(z,2) /= ny) then
+      write(*,*) 'ERROR: contour: z must be (nx,ny)'
+      return
+    end if
+
+    call setup_plot_environment(PLT, x, y)
+
+    if (allocated(opts%levels)) then
+      nlev = size(opts%levels)
+      allocate(clev(nlev)); clev = opts%levels
+    else
+      zmin = minval(z); zmax = maxval(z)
+      nlev = max(2, opts%levels_n)
+      allocate(clev(nlev))
+      if (zmax == zmin) then
+        do i = 1, nlev
+          clev(i) = zmin + real(i-1,dp)
+        end do
+      else
+        do i = 1, nlev
+          clev(i) = zmin + (zmax - zmin) * real(i-1,dp)/real(nlev-1,dp)
+        end do
+      end if
+    end if
+
+    color_index = get_color_index(opts%color)
+    call plcol0(color_index)
+    call plwidth(opts%width)
+
+    line_style = get_line_style_code(opts%style)
+    call pllsty(line_style)
+
+    call plcont(z, 1, nx, 1, ny, clev, x, y)
+
+    if (len_trim(opts%label) > 0) then
+      PLT%ax%axis_legend%nlegend = PLT%ax%axis_legend%nlegend + 1
+      k = PLT%ax%axis_legend%nlegend
+      PLT%ax%axis_legend%opt_array(k) = PL_LEGEND_LINE
+      PLT%ax%axis_legend%text_colors(k) = COLOR_BLACK
+      PLT%ax%axis_legend%text_labels(k) = trim(opts%label)
+      PLT%ax%axis_legend%line_colors(k) = color_index
+      PLT%ax%axis_legend%line_styles(k) = 1
+      PLT%ax%axis_legend%line_widths(k) = opts%width
+    end if
+
+    deallocate(clev)
+  end subroutine contour_xy
+
+  subroutine contourf_xy(PLT, x, y, z, options)
+    class(type_plplot), intent(inout) :: PLT
+    real(dp), intent(in) :: x(:), y(:)
+    real(dp), intent(in) :: z(:,:)
+    type(contour_options), intent(in), optional :: options
+    type(contour_options) :: opts
+    integer :: nx, ny, nlev, i
+    real(dp), allocatable :: clev(:)
+    real(dp) :: zmin, zmax
+    real(dp) :: xmin, xmax, ymin, ymax
+    integer cont_color
+    real(dp) :: fill_width, cont_width
+
+    opts = contour_options()
+    if (present(options)) opts = options
+
+    nx = size(x); ny = size(y)
+    if (size(z,1) /= nx .or. size(z,2) /= ny) then
+      write(*,*) 'ERROR: contourf: z must be (nx,ny)'
+      return
+    end if
+
+    call setup_plot_environment(PLT, x, y)
+
+    xmin = minval(x); xmax = maxval(x)
+    ymin = minval(y); ymax = maxval(y)
+
+    if (allocated(opts%levels)) then
+      nlev = size(opts%levels)
+      allocate(clev(nlev)); clev = opts%levels
+    else
+      zmin = minval(z); zmax = maxval(z)
+      nlev = max(3, opts%levels_n)
+      allocate(clev(nlev))
+      if (zmax == zmin) then
+        do i = 1, nlev
+          clev(i) = zmin + real(i-1,dp)
+        end do
+      else
+        do i = 1, nlev
+          clev(i) = zmin + (zmax - zmin) * real(i-1,dp)/real(nlev-1,dp)
+        end do
+      end if
+    end if
+
+    fill_width = 2.0_dp
+    cont_color = 2
+    cont_width = 1.0_dp
+
+    call plshades(z, xmin, xmax, ymin, ymax, clev, fill_width, cont_color, &
+                  cont_width, .false.)
+
+    deallocate(clev)
+  end subroutine contourf_xy
+
   ! ==== Option constructor functions ====
   
   function line_opts(width, color, style, label) result(opts)
@@ -880,6 +1055,26 @@ contains
     if (present(min_magnitude)) opts%min_magnitude = min_magnitude
     if (present(pivot)) opts%pivot = pivot
   end function quiver_opts
+
+  function contour_opts(levels_n, levels, style, color, width, label) result(opts)
+    integer,           intent(in),  optional :: levels_n
+    real(dp),          intent(in),  optional :: levels(:)
+    character(len=*),  intent(in),  optional :: style
+    character(len=*),  intent(in),  optional :: color
+    real(dp),          intent(in),  optional :: width
+    character(len=*),  intent(in),  optional :: label
+    type(contour_options)                    :: opts
+
+    if (present(levels_n)) opts%levels_n = levels_n
+    if (present(levels)) then
+      allocate(opts%levels(size(levels)))
+      opts%levels = levels
+    end if
+    if (present(color)) opts%color = trim(color)
+    if (present(width)) opts%width = width
+    if (present(style)) opts%style = trim(style)
+    if (present(label)) opts%label = trim(label)
+  end function contour_opts
 
   ! ==== Legend functions ====
   
