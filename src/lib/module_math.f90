@@ -31,6 +31,7 @@ public :: next_power_of_2, flip
 public :: ascending, descending
 public :: t_inverse_cdf, t_cdf_complement
 public :: f_cdf_complement
+public :: nanmax, nanmin, nanmean
 
 
 !> @brief Generic interface for generating Gaussian random 
@@ -54,6 +55,22 @@ end interface swap
 interface flip
   module procedure flip1d_i, flip1d_dp, flip2d_dp, flip3d_dp
 end interface flip
+
+!> @brief Generic interface for calculating nanmax
+interface nanmax
+  module procedure nanmax1d, nanmax2d, nanmax3d
+end interface nanmax
+
+!> @brief Generic interface for calculating nanmin
+interface nanmin
+  module procedure nanmin1d, nanmin2d, nanmin3d
+end interface nanmin
+
+!> @brief Generic interface for calculating nanmean
+interface nanmean
+  module procedure nanmean1d, nanmean2d, nanmean3d
+end interface nanmean
+
 
 contains
 
@@ -1251,5 +1268,157 @@ contains
     lng = tmp + log(stp * ser / x)
 
   end function log_gamma
+
+  !> @brief Maximum value of a 1D real(dp) array removing nan values-
+  !!
+  !! @param[in] x Real(dp) aray of shape (l).
+  !! @return Real(dp) nan-trimmed max-value.
+  pure function nanmax1d(x) result(xmax)
+    real(dp), intent(in) :: x(:)
+    real(dp) :: xmax
+    logical good(size(x))
+    good = .not.isnan(x)
+    xmax = maxval(x,mask=good)
+  end function nanmax1d
+
+  !> @brief Maximum value of a 2D real(dp) array removing nan values-
+  !!
+  !! @param[in] x Real(dp) aray of shape (l, m).
+  !! @return Real(dp) nan-trimmed max-value.
+  pure function nanmax2d(x) result(xmax)
+    real(dp), intent(in) :: x(:,:)
+    real(dp) :: xmax
+    logical good(size(x,1),size(x,2))
+    good = .not.isnan(x)
+    xmax = maxval(x,mask=good)
+  end function nanmax2d
+
+  !> @brief Maximum value of a 3D real(dp) array removing nan values-
+  !!
+  !! @param[in] x Real(dp) aray of shape (l, m, n).
+  !! @return Real(dp) nan-trimmed max-value.
+  pure function nanmax3d(x) result(xmax)
+    real(dp), intent(in) :: x(:,:,:)
+    real(dp) :: xmax
+    logical good(size(x,1),size(x,2),size(x,3))
+    good = .not.isnan(x)
+    xmax = maxval(x,mask=good)
+  end function nanmax3d
+
+  !> @brief Minimum value of a 1D real(dp) array removing nan values-
+  !!
+  !! @param[in] x Real(dp) aray of shape (l).
+  !! @return Real(dp) nan-trimmed min-value.
+  pure function nanmin1d(x) result(xmin)
+    real(dp), intent(in) :: x(:)
+    real(dp) :: xmin
+    logical good(size(x))
+    good = .not.isnan(x)
+    xmin = minval(x,mask=good)
+  end function nanmin1d
+
+  !> @brief Minimum value of a 2D real(dp) array removing nan values-
+  !!
+  !! @param[in] x Real(dp) aray of shape (l, m).
+  !! @return Real(dp) nan-trimmed min-value.
+  pure function nanmin2d(x) result(xmin)
+    real(dp), intent(in) :: x(:,:)
+    real(dp) :: xmin
+    logical good(size(x,1),size(x,2))
+    good = .not.isnan(x)
+    xmin = minval(x,mask=good)
+  end function nanmin2d
+
+  !> @brief Minimum value of a 3D real(dp) array removing nan values-
+  !!
+  !! @param[in] x Real(dp) aray of shape (l, m, n).
+  !! @return Real(dp) nan-trimmed min-value.
+  pure function nanmin3d(x) result(xmin)
+    real(dp), intent(in) :: x(:,:,:)
+    real(dp) :: xmin
+    logical good(size(x,1),size(x,2),size(x,3))
+    good = .not.isnan(x)
+    xmin = minval(x,mask=good)
+  end function nanmin3d
+
+
+  !> @brief Mean of a 1D real(dp) array removing nan values-
+  !!
+  !! @param[in] x Real(dp) aray of shape (l).
+  !! @return Real(dp) nan-trimmed mean average.
+  pure function nanmean1d(x) result(xmean)
+    real(dp), intent(in) :: x(:)
+    real(dp) :: xmean
+    integer i,isum
+    xmean = 0.0_dp; isum = 0
+    do i=1,size(x)
+      if (isnan(x(i))) then
+        ! pass
+      else
+        xmean = xmean + x(i)
+        isum = isum  + 1
+      endif
+    enddo
+    if (isum.gt.0) then
+      xmean = xmean/real(isum,dp)
+    else
+      xmean = nan()
+    endif
+  end function nanmean1d
+
+  !> @brief Mean of a 2D real(dp) array removing nan values-
+  !!
+  !! @param[in] x Real(dp) aray of shape (l, m).
+  !! @return Real(dp) nan-trimmed mean average.
+  pure function nanmean2d(x) result(xmean)
+    real(dp), intent(in) :: x(:,:)
+    real(dp) :: xmean
+    integer i,j,isum
+    xmean = 0.0_dp; isum = 0
+    do j=1,size(x,2)
+    do i=1,size(x,1)
+      if (isnan(x(i,j))) then
+        ! pass
+      else
+        xmean = xmean + x(i,j)
+        isum = isum  + 1
+      endif
+    enddo
+    enddo
+    if (isum.gt.0) then
+      xmean = xmean/real(isum,dp)
+    else
+      xmean = nan()
+    endif
+  end function nanmean2d
+
+  !> @brief Mean of a 3D real(dp) array removing nan values-
+  !!
+  !! @param[in] x Real(dp) aray of shape (l, m, n).
+  !! @return Real(dp) nan-trimmed mean average.
+  pure function nanmean3d(x) result(xmean)
+    real(dp), intent(in) :: x(:,:,:)
+    real(dp) :: xmean
+    integer i,j,k,isum
+    xmean = 0.0_dp; isum = 0
+    do k=1,size(x,3)
+    do j=1,size(x,2)
+    do i=1,size(x,1)
+      if (isnan(x(i,j,k))) then
+        ! pass
+      else
+        xmean = xmean + x(i,j,k)
+        isum = isum  + 1
+      endif
+    enddo
+    enddo
+    enddo
+    if (isum.gt.0) then
+      xmean = xmean/real(isum,dp)
+    else
+      xmean = nan()
+    endif
+  end function nanmean3d
+
 
 end module module_math
