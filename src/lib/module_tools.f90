@@ -26,6 +26,7 @@
 ! - crash                                                                  !
 ! - filename_split                                                         !
 ! - get_commandline                                                        !
+! - indexx                                                                 !
 ! - is_numeric                                                             !
 ! - line_replace                                                           !
 ! - line_word                                                              !
@@ -49,6 +50,7 @@
 ! - cell_bounds1d                                                          !
 ! - cell_bounds2d                                                          !
 ! - imaxloc                                                                !
+! - quicksort
 ! -------------------------------------------------------------------------!
 
 module module_tools
@@ -257,6 +259,103 @@ contains
   ! ...
   ! ===================================================================
   ! ...
+  !> @brief Index sort: return permutation indices that sort array arr in ascending order.
+  !!
+  !! From Numerical Recipes in Fortran (Press et al., 1992).
+  !!
+  !! @param[in] arr Real(dp) array to sort.
+  !! @param[out] indx Integer array of size(arr), permutation indices such that arr(indx) is sorted.
+  !!
+  !! Notes:
+  !! - Does not modify arr.
+  !! - indx(i) gives the index of the i-th smallest element.
+  subroutine indexx(arr, indx)
+    real(dp), dimension(:), intent(in) :: arr
+    integer, dimension(size(arr)), intent(out) :: indx
+    integer, parameter :: M = 7
+    integer :: n, i, indxt, r, itemp, j, jstack, k, l
+    integer, dimension(size(arr)) :: istack
+    real(dp) :: a
+
+    n = size(arr)
+    do j = 1, n
+      indx(j) = j
+    end do
+
+    jstack = 0
+    l = 1
+    r = n
+    do
+      if (r - l < M) then
+        do j = l + 1, r
+          indxt = indx(j)
+          a = arr(indxt)
+          do i = j - 1, 1, -1
+            if (arr(indx(i)) <= a) exit
+            indx(i+1) = indx(i)
+          end do
+          indx(i+1) = indxt
+        end do
+        if (jstack == 0) return
+        r = istack(jstack)
+        l = istack(jstack-1)
+        jstack = jstack - 2
+      else
+        k = (l + r)/2
+        itemp = indx(k)
+        indx(k) = indx(l+1)
+        indx(l+1) = itemp
+        if (arr(indx(l+1)) > arr(indx(r))) then
+          itemp = indx(l+1)
+          indx(l+1) = indx(r)
+          indx(r) = itemp
+        end if
+        if (arr(indx(l)) > arr(indx(r))) then
+          itemp = indx(l)
+          indx(l) = indx(r)
+          indx(r) = itemp
+        end if
+        if (arr(indx(l+1)) > arr(indx(l))) then
+          itemp = indx(l+1)
+          indx(l+1) = indx(l)
+          indx(l) = itemp
+        end if
+        i = l + 1
+        j = r
+        indxt = indx(l+1)
+        a = arr(indxt)
+        do
+          do
+            i = i + 1
+            if (arr(indx(i)) >= a) exit
+          end do
+          do
+            j = j - 1
+            if (arr(indx(j)) <= a) exit
+          end do
+          if (j < i) exit
+          itemp = indx(i)
+          indx(i) = indx(j)
+          indx(j) = itemp
+        end do
+        indx(l+1) = indx(j)
+        indx(j) = indxt
+        jstack = jstack + 2
+        if (r - i + 1 >= j - l) then
+          istack(jstack) = r
+          istack(jstack-1) = i
+          r = j - 1
+        else
+          istack(jstack) = j - 1
+          istack(jstack-1) = l
+          l = i
+        end if
+      end if
+    end do
+  end subroutine indexx
+  ! ...
+  ! ===================================================================
+  ! ...
   logical function is_numeric(string)
   ! ... From Rosetta Code: https://rosettacode.org
   ! ...
@@ -367,7 +466,7 @@ contains
 ! ...
 ! =====================================================================
 ! ...
-  integer function locate(x,xo) result(j)
+  pure integer function locate(x,xo) result(j)
   ! ... Returns the location of the array x(1:n), such that x(j) < xo < x(j+1)
 
     real(dp), dimension(:), intent(in)   :: x
@@ -1234,6 +1333,73 @@ contains
     imax = maxloc(a(:))
     imaxloc = imax(1)
   end function imaxloc
+  ! ...
+  ! ===================================================================
+  ! ...
+  subroutine quicksort(arr)
+
+    real(dp), intent(inout) :: arr(:)
+    call quicksort_rec(arr, 1, size(arr))
+
+  contains
+
+    recursive subroutine quicksort_rec(a, low, high)
+      real(dp), intent(inout) :: a(:)
+      integer, intent(in) :: low, high
+      integer :: i, j
+      real(dp) :: pivot, tmp
+      integer :: mid
+
+      if (low < high) then
+        ! --- Median-of-three pivot selection ---
+        mid = (low + high) / 2
+        pivot = median3(a(low), a(mid), a(high))
+
+        i = low
+        j = high
+        do
+          do while (a(i) < pivot)
+            i = i + 1
+          end do
+          do while (a(j) > pivot)
+            j = j - 1
+          end do
+          if (i <= j) then
+            tmp = a(i); a(i) = a(j); a(j) = tmp
+            i = i + 1
+            j = j - 1
+          end if
+          if (i > j) exit
+        end do
+
+        if (low < j) call quicksort_rec(a, low, j)
+        if (i < high) call quicksort_rec(a, i, high)
+      end if
+    end subroutine quicksort_rec
+  
+    pure function median3(x, y, z) result(m)
+      real(dp), intent(in) :: x, y, z
+      real(dp) :: m
+      if (x < y) then
+        if (y < z) then
+          m = y
+        else if (x < z) then
+          m = z
+        else
+          m = x
+        end if
+      else
+        if (x < z) then
+          m = x
+        else if (y < z) then
+          m = z
+        else
+          m = y
+        end if
+      end if
+    end function median3
+
+  end subroutine quicksort
   ! ...
   ! ===================================================================
   ! ...

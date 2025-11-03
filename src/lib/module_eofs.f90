@@ -15,7 +15,7 @@ module module_eofs
 use, intrinsic :: IEEE_ARITHMETIC, ONLY : IEEE_VALUE, IEEE_QUIET_NAN
 use module_types
 use module_constants
-use module_math, only : indexx
+use module_tools, only : indexx
 use module_linalg
 
 implicit none (type, external)

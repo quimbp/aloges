@@ -14,8 +14,8 @@ module module_statistics
 use iso_fortran_env, only: output_unit
 use module_types, only: dp
 use module_constants, only: nan
-use module_tools, only: crash
-use module_math, only: indexx, quicksort, t_inverse_cdf, t_cdf_complement, f_cdf_complement
+use module_tools, only: crash, indexx, quicksort
+use module_math, only: t_inverse_cdf, t_cdf_complement, f_cdf_complement
 
 implicit none (type, external)
 
