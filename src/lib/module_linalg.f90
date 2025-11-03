@@ -15,7 +15,7 @@ module module_linalg
 use, intrinsic :: IEEE_ARITHMETIC, ONLY : IEEE_VALUE, IEEE_QUIET_NAN
 use module_types
 use module_constants
-use module_math
+use module_tools, only: swap, imaxloc
 
 implicit none (type, external)
 

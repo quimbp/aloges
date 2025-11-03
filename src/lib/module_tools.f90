@@ -34,17 +34,21 @@
 ! - ls                                                                     !
 ! - numlines                                                               !
 ! - numwords                                                               !
-! - randstr
+! - randstr                                                                !
 ! - unique_elements (integer, real(dp) interface)                          !
 ! - unitfree                                                               !
 ! - uppercase                                                              !
 ! - say                                                                    !
 ! - strcat                                                                 !
-! - ltrim
+! - swap                                                                   !
+! - ltrim                                                                  !
 ! - token_read                                                             !
 ! - vprint                                                                 !
 ! - matprint                                                               !
 ! - valid_index_range                                                      !
+! - cell_bounds1d                                                          !
+! - cell_bounds2d                                                          !
+! - imaxloc                                                                !
 ! -------------------------------------------------------------------------!
 
 module module_tools
@@ -59,6 +63,12 @@ interface unique_elements
   module procedure unique_elements_i
   module procedure unique_elements_r
 end interface unique_elements
+
+!> @brief Generic interface for swapping two values (scalar or vector).
+interface swap
+  module procedure swap_r, swap_v
+end interface swap
+
 
 contains
 ! ...
@@ -1112,6 +1122,118 @@ contains
     enddo
 
   end subroutine valid_index_range
+  ! ...
+  ! ===================================================================
+  ! ...
+  !> @brief Swap two real(dp) scalars.
+  !!
+  !! @param[inout] a Real(dp).
+  !! @param[inout] b Real(dp).
+  pure subroutine swap_r(a, b)
+    real(dp), intent(inout) :: a, b 
+    real(dp) :: c
+    c = a
+    a = b
+    b = c   
+  end subroutine swap_r
+
+  !> @brief Swap two real(dp) vectors element-wise.
+  !!
+  !! @param[inout] a Real(dp) array.
+  !! @param[inout] b Real(dp) array of same size as a.
+  pure subroutine swap_v(a, b)
+    real(dp), dimension(:), intent(inout) :: a, b 
+    real(dp), dimension(size(a)) :: c
+    c(:) = a(:)
+    a(:) = b(:)
+    b(:) = c(:)
+  end subroutine swap_v
+  ! ...
+  ! ===================================================================
+  ! ...
+  pure subroutine cell_bounds1d(X,Y,i,j,xL,xR,yB,yT)
+
+    real(dp), intent(in)             :: X(:), Y(:)
+    integer, intent(in)              :: i, j
+    real(dp), intent(out)            :: xR, xL, yB, yT
+    integer                          :: nx,ny
+
+    nx = size(X); ny = size(Y)
+    if (i == 1) then 
+      xL = 2.0_dp*X(1) - 0.5_dp*(X(1) + X(2))
+    else    
+      xL = 0.5_dp*(X(i-1) + X(i))
+    end if  
+    if (i == nx) then
+      xR = 2.0_dp*X(nx) - 0.5_dp*(X(nx-1) + X(nx))
+    else    
+      xR = 0.5_dp*(X(i) + X(i+1))
+    end if  
+
+    if (j == 1) then 
+      yB = 2.0_dp*Y(1) - 0.5_dp*(Y(1) + Y(2))
+    else    
+      yB = 0.5_dp*(Y(j-1) + Y(j))
+    end if  
+    if (j == ny) then
+      yT = 2.0_dp*Y(ny) - 0.5_dp*(Y(ny-1) + Y(ny))
+    else    
+      yT = 0.5_dp*(Y(j) + Y(j+1))
+    end if  
+
+    if (xL > xR) call swap(xL,xR)
+    if (yB > yT) call swap(yB,yT)
+  end subroutine cell_bounds1d
+  ! ...
+  ! ===================================================================
+  ! ...
+  pure subroutine cell_bounds2d(X,Y,i,j,xL,xR,yB,yT)
+
+    real(dp), intent(in)             :: X(:,:), Y(:,:)
+    integer, intent(in)              :: i, j
+    real(dp), intent(out)            :: xR, xL, yB, yT
+    integer                          :: nx,ny
+
+    nx = size(X,1); ny = size(Y,2)
+    if (i == 1) then 
+      xL = 2.0_dp*X(1,j) - 0.5_dp*(X(1,j) + X(2,j))
+    else    
+      xL = 0.5_dp*(X(i-1,j) + X(i,j))
+    end if  
+    if (i == nx) then
+      xR = 2.0_dp*X(nx,j) - 0.5_dp*(X(nx-1,j) + X(nx,j))
+    else    
+      xR = 0.5_dp*(X(i,j) + X(i+1,j))
+    end if  
+
+    if (j == 1) then 
+      yB = 2.0_dp*Y(i,1) - 0.5_dp*(Y(i,1) + Y(i,2))
+    else    
+      yB = 0.5_dp*(Y(i,j-1) + Y(i,j))
+    end if  
+    if (j == ny) then
+      yT = 2.0_dp*Y(i,ny) - 0.5_dp*(Y(i,ny-1) + Y(i,ny))
+    else    
+      yT = 0.5_dp*(Y(i,j) + Y(i,j+1))
+    end if  
+
+    if (xL > xR) call swap(xL,xR)
+    if (yB > yT) call swap(yB,yT)
+
+  end subroutine cell_bounds2d
+  ! ...
+  ! ===================================================================
+  ! ...
+  !> @brief Return the index of the maximum element in array a.
+  !!
+  !! @param[in] a Real(dp) array.
+  !! @return Integer, index of maximum value.
+  integer pure function imaxloc(a)
+    real(dp), dimension(:), intent(in) :: a
+    integer :: imax(1)
+    imax = maxloc(a(:))
+    imaxloc = imax(1)
+  end function imaxloc
   ! ...
   ! ===================================================================
   ! ...

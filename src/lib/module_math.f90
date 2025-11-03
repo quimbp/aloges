@@ -24,7 +24,7 @@ private
 
 public :: randn, randseries, random_integer
 public :: arange, linspace, meshgrid
-public :: indexx, swap, imaxloc, quicksort
+public :: indexx, quicksort
 public :: brent, golden
 public :: diff, gradient, cumsum, cumprod
 public :: next_power_of_2, flip
@@ -45,11 +45,6 @@ end interface randn
 interface arange
   module procedure arange_i, arange_dp
 end interface arange
-
-!> @brief Generic interface for swapping two values (scalar or vector).
-interface swap
-  module procedure swap_r, swap_v
-end interface swap
 
 !> @brief Generic interface for flipping arrays along a dimension.
 interface flip
@@ -450,41 +445,6 @@ contains
       end if
     end do
   end subroutine indexx
-
-  !> @brief Swap two real(dp) scalars.
-  !!
-  !! @param[inout] a Real(dp).
-  !! @param[inout] b Real(dp).
-  subroutine swap_r(a, b)
-    real(dp), intent(inout) :: a, b
-    real(dp) :: c
-    c = a
-    a = b
-    b = c
-  end subroutine swap_r
-
-  !> @brief Swap two real(dp) vectors element-wise.
-  !!
-  !! @param[inout] a Real(dp) array.
-  !! @param[inout] b Real(dp) array of same size as a.
-  subroutine swap_v(a, b)
-    real(dp), dimension(:), intent(inout) :: a, b
-    real(dp), dimension(size(a)) :: c
-    c(:) = a(:)
-    a(:) = b(:)
-    b(:) = c(:)
-  end subroutine swap_v
-
-  !> @brief Return the index of the maximum element in array a.
-  !!
-  !! @param[in] a Real(dp) array.
-  !! @return Integer, index of maximum value.
-  integer pure function imaxloc(a)
-    real(dp), dimension(:), intent(in) :: a
-    integer :: imax(1)
-    imax = maxloc(a(:))
-    imaxloc = imax(1)
-  end function imaxloc
 
   !> @brief In-place quicksort of a real(dp) array in ascending order.
   !!
