@@ -29,6 +29,7 @@ use module_constants
 use module_color
 use module_timer
 use module_math
+use module_regrid
 use module_statistics
 use module_linalg
 use module_eofs
