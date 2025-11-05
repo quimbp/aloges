@@ -26,7 +26,7 @@
 
 module module_plplot
 
-use module_types
+use module_types,  only: dp, maxlen
 use plplot
 
 implicit none (type, external)
@@ -182,9 +182,10 @@ type type_plplot
     procedure :: quiver_2d
     procedure :: quiver_1d
     generic, public :: quiver => quiver_2d, quiver_1d
-    procedure       :: contour_xy   ! x,y vectors with 2D z(nx,ny)
+    procedure       :: contour_z    ! with 2D z(nx,ny)
+    procedure       :: contour_xyz  ! x,y vectors with 2D z(nx,ny)
     procedure       :: contourf_xy  ! filled version
-    generic, public :: contour  => contour_xy
+    generic, public :: contour  => contour_z, contour_xyz
     generic, public :: contourf => contourf_xy
 end type type_plplot
 
@@ -907,7 +908,24 @@ contains
 !    call plscmap1l(.true., pos, r, g, b, .false.)
 !  end subroutine set_cmap1_bluered
 
-  subroutine contour_xy(PLT, x, y, z, options)
+  subroutine contour_z(PLT, z, options)
+    class(type_plplot), intent(inout) :: PLT
+    real(dp), intent(in) :: z(:,:)
+    type(contour_options), intent(in), optional :: options
+    integer  :: i,j
+    real(dp) :: x(size(z,1)), y(size(z,2))
+
+    do i=1,size(z,1)
+      x(i) = real(i,dp)
+    enddo
+    do j=1,size(z,2)
+      y(j) = real(j,dp)
+    enddo
+    call contour_xyz(PLT, x, y, z, options)
+
+  end subroutine contour_z 
+
+  subroutine contour_xyz(PLT, x, y, z, options)
     class(type_plplot), intent(inout) :: PLT
     real(dp), intent(in) :: x(:), y(:)
     real(dp), intent(in) :: z(:,:)
@@ -968,7 +986,7 @@ contains
     end if
 
     deallocate(clev)
-  end subroutine contour_xy
+  end subroutine contour_xyz
 
   subroutine contourf_xy(PLT, x, y, z, options)
     class(type_plplot), intent(inout) :: PLT
