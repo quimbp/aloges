@@ -202,9 +202,19 @@ contains
   ! ...
   ! ==================================================================
   ! ...
-  subroutine nc_dump(SD)
+  subroutine nc_close(SD)
 
-    implicit none
+    class(type_dataset), intent(inout)               :: SD
+    integer err
+
+    err = NF90_CLOSE(SD%fid)
+    call nc_error(err,'nc_close - unable to close file')
+
+  end subroutine nc_close
+  ! ...
+  ! ==================================================================
+  ! ...
+  subroutine nc_dump(SD)
 
     class(type_dataset), intent(inout)               :: SD
 
