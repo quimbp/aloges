@@ -40,6 +40,7 @@
 !                                                                          !
 ! List of routines:                                                        !
 ! - nc_open                                                                !
+! - nc_close                                                               !
 ! - nc_dump                                                                !
 ! - nc_copyatts                                                            !
 ! - nc_error                                                               !
@@ -103,6 +104,7 @@ type type_dataset
 
   contains
     procedure                   :: open          => nc_open
+    procedure                   :: close         => nc_close
     procedure                   :: dump          => nc_dump
     procedure                   :: read1D        => nc_variable_read1d
     procedure                   :: read2D        => nc_variable_read2d
