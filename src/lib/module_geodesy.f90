@@ -46,7 +46,7 @@ module module_geodesy
   public :: gc_destination_point, gc_inverse
   public :: vincenty_direct, vincenty_inverse
   public :: spdir2uv, uv2spdir
-  public :: dms2dec, dec2dms
+  public :: dms2dec, dm2dec, dec2dms, dec2dm
   public :: ll2m
 
   !> @brief Canonical WGS84 constant set (single source of truth).
@@ -425,6 +425,23 @@ contains
     if (gg < 0) deg = -deg
   end subroutine dms2dec
 
+  !> @brief Convert degrees-minutes to decimal degrees.
+  !!
+  !! @param[in]  gg Degrees (integer, sign carries hemisphere)
+  !! @param[in]  mm Minutes (real, includes seconds as decimal part)
+  !! @param[out] deg Decimal degrees [deg]
+  subroutine dm2dec(gg, mm, deg)
+     integer,  intent(in)           :: gg  
+     real(dp), intent(in)           :: mm      ! Fractional minutes  
+     real(dp), intent(out)          :: deg  
+     real(dp) :: sign_, mm_abs, ss_use  
+     sign_  = merge(-1.0_dp, 1.0_dp, gg < 0)  
+     mm_abs = abs(mm)  
+     ! minutes arefractional already  
+     deg = abs(gg) + mm_abs/60.0_dp  
+     deg = sign_ * deg  
+  end subroutine dm2dec
+
   !> @brief Convert decimal degrees to degrees-minutes-seconds.
   !!
   !! @param[in]  deg Decimal degrees [deg]
@@ -443,6 +460,24 @@ contains
     gg  = (res - mm)/60
     if (deg < 0.0_dp) gg = -gg
   end subroutine dec2dms
+
+  !> @brief Convert decimal degrees to degrees-minutes.
+  !!
+  !! @param[in]  deg Decimal degrees [deg]
+  !! @param[out] gg Degrees (integer, sign carries hemisphere)
+  !! @param[out] mm Minutes  (real, seconds in the decimal part)
+  subroutine dec2dm(deg, gg, mm)
+    real(dp), intent(in) :: deg
+    integer, intent(out) :: gg
+    real(dp), intent(out) :: mm
+    real(dp) :: adeg, frac_deg
+
+    adeg = abs(deg)  
+    gg   = int(floor(adeg))       ! degrees magnitude  
+    frac_deg = adeg - real(gg, dp)  
+    mm = frac_deg * 60.0_dp  ! return fractional minutes; avoid integer seconds  
+    if (deg < 0.0_dp) gg = -gg  
+  end subroutine dec2dm
 
   !> @brief Project two lon/lat grids to a common local ENU in meters.
   !!
