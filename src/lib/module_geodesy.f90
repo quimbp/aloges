@@ -20,7 +20,7 @@
 ! Public License along with this program.                                  !
 ! If not, see <http://www.gnu.org/licenses/>.                              !
 ! - haversine                                                              !
-! - bearing                                                                !
+! - gc_bearing_deg                                                         !
 ! - compass_to_polar                                                       !
 ! - polar_to_compass                                                       !
 ! - gc_destination_point                                                   !
@@ -42,7 +42,7 @@ module module_geodesy
 
   implicit none (type, external)
   private
-  public :: haversine, Bearing, compass_to_polar, polar_to_compass
+  public :: haversine, gc_bearing_deg, compass_to_polar, polar_to_compass
   public :: gc_destination_point, gc_inverse
   public :: vincenty_direct, vincenty_inverse
   public :: spdir2uv, uv2spdir
@@ -125,7 +125,7 @@ contains
   !! @param[out] rev_azimuth Reverse bearing from point 2 to 1 [deg]
   !!
   !! @note Spherical geometry; for ellipsoidal bearings use Vincenty inverse.
-  subroutine Bearing(lon1,lat1,lon2,lat2,azimuth,rev_azimuth)
+  subroutine gc_bearing_deg(lon1,lat1,lon2,lat2,azimuth,rev_azimuth)
     real(dp), intent(in)  :: lon1, lat1, lon2, lat2
     real(dp), intent(out) :: azimuth, rev_azimuth
     real(dp) :: dlon, cdlon, sdlon, x, y, xr, yr
@@ -137,7 +137,7 @@ contains
     yr = -sdlon * cos(lat1)
     xr =  cos(lat2)*sin(lat1) - sin(lat2)*cos(lat1)*cdlon
     rev_azimuth = modulo(atan2(yr, xr)*rad2deg + 360.0_dp, 360.0_dp)
-  end subroutine Bearing
+  end subroutine gc_bearing_deg
 
   !> @brief Convert compass angle (0°=North, CW) to math-polar (0°=East, CCW).
   !!
