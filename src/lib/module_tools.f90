@@ -50,7 +50,10 @@
 ! - cell_bounds1d                                                          !
 ! - cell_bounds2d                                                          !
 ! - imaxloc                                                                !
-! - quicksort
+! - quicksort                                                              !
+! - readx                                                                  !
+! - readxy                                                                 !
+! - readxyz                                                                !
 ! -------------------------------------------------------------------------!
 
 module module_tools
@@ -1106,6 +1109,33 @@ contains
   ! ...
   ! ===================================================================
   ! ...
+  subroutine readx(filename,x)
+
+    character(len=*), intent(in)                      :: filename
+    real(dp), dimension(:), allocatable, intent(out)  :: x
+
+    ! ... Local variables
+    ! ...
+    integer iu,i,n
+
+    open(newunit=iu,file=filename,status='old')
+    n = numlines(iu)
+
+    allocate (x(n))
+
+    rewind(iu)
+    do i=1,n
+      read(iu,*,err=10) x(i)
+    enddo
+    close(iu)
+
+    return
+10  stop 'Error in READX: invalid format'
+
+  end subroutine readx
+  ! ...
+  ! ===================================================================
+  ! ...
   subroutine readxy(filename,x,y)
 
     character(len=*), intent(in)                      :: filename
@@ -1131,6 +1161,35 @@ contains
 10  stop 'Error in READXY: invalid format'
 
   end subroutine readxy
+  ! ...
+  ! ===================================================================
+  ! ...
+  subroutine readxyz(filename,x,y,z)
+
+    character(len=*), intent(in)                      :: filename
+    real(dp), dimension(:), allocatable, intent(out)  :: x, y, z
+
+    ! ... Local variables
+    ! ...
+    integer iu,i,n
+
+    open(newunit=iu,file=filename,status='old')
+    n = numlines(iu)
+
+    allocate (x(n))
+    allocate (y(n))
+    allocate (z(n))
+
+    rewind(iu)
+    do i=1,n
+      read(iu,*,err=10) x(i), y(i), z(i)
+    enddo
+    close(iu)
+
+    return
+10  stop 'Error in READXYZ: invalid format'
+
+  end subroutine readxyz
   ! ...
   ! ===================================================================
   ! ...
