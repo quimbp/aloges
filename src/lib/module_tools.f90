@@ -1116,9 +1116,10 @@ contains
 
     ! ... Local variables
     ! ...
-    integer iu,i,n
+    integer iu,i,n,ios
 
-    open(newunit=iu,file=filename,status='old')
+    open(newunit=iu,file=filename,status='old',iostat=ios)
+    if (ios.ne.0) call crash('READX - unable to open file '//trim(filename))
     n = numlines(iu)
 
     allocate (x(n))
@@ -1143,9 +1144,10 @@ contains
 
     ! ... Local variables
     ! ...
-    integer iu,i,n
+    integer iu,i,n,ios
 
-    open(newunit=iu,file=filename,status='old')
+    open(newunit=iu,file=filename,status='old',iostat=ios)
+    if (ios.ne.0) call crash('READXY - unable to open file '//trim(filename))
     n = numlines(iu)
 
     allocate (x(n))
@@ -1171,9 +1173,10 @@ contains
 
     ! ... Local variables
     ! ...
-    integer iu,i,n
+    integer iu,i,n,ios
 
-    open(newunit=iu,file=filename,status='old')
+    open(newunit=iu,file=filename,status='old',iostat=ios)
+    if (ios.ne.0) call crash('READXYZ - unable to open file '//trim(filename))
     n = numlines(iu)
 
     allocate (x(n))
