@@ -144,10 +144,14 @@ contains
     SD%nvars   = nvars
     SD%natts   = natts
     SD%unlimid = unlimid
+
+    if (allocated(SD%dimlist)) deallocate(SD%dimlist)
+    if (allocated(SD%varlist)) deallocate(SD%varlist)
     allocate(SD%dimlist(ndims))
     allocate(SD%varlist(nvars))
 
     if (natts.gt.0) then
+      if (allocated(SD%attribute)) deallocate(SD%attribute)
       allocate(SD%attribute(natts))
       do i=1,natts
         SD%attribute(i) = nc_read_attribute(fid,0,i)
@@ -438,8 +442,6 @@ contains
   ! ...
   function nc_variable_read1d(SD,varname,po,pf) result (X)
 
-    implicit none
-
     class(type_dataset), intent(inout)               :: SD
     character(len=*), intent(in)                     :: varname
     integer, dimension(:), intent(in), optional      :: po, pf
@@ -510,8 +512,6 @@ contains
   ! ==================================================================
   ! ...
   function nc_variable_read2d(SD,varname,po,pf) result (X)
-
-    implicit none
 
     class(type_dataset), intent(inout)               :: SD
     character(len=*), intent(in)                     :: varname
