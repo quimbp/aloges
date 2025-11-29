@@ -1013,22 +1013,26 @@ contains
       ! ...
       err = NF90_DEF_VAR(ncid_out, 'lon', NF90_DOUBLE, [dim_x, dim_y], var_lon)
       err = NF90_PUT_ATT(ncid_out, var_lon, 'long_name', 'longitude')
+      err = NF90_PUT_ATT(ncid_out, var_lon, 'standard_name', 'longitude')
       err = NF90_PUT_ATT(ncid_out, var_lon, 'units', 'degrees_east')
       err = NF90_PUT_ATT(ncid_out, var_lon, 'axis', 'X')
 
       err = NF90_DEF_VAR(ncid_out, 'lat', NF90_DOUBLE, [dim_x, dim_y], var_lat)
       err = NF90_PUT_ATT(ncid_out, var_lat, 'long_name', 'latitude')
+      err = NF90_PUT_ATT(ncid_out, var_lat, 'standard_name', 'latitude')
       err = NF90_PUT_ATT(ncid_out, var_lat, 'units', 'degrees_north')
       err = NF90_PUT_ATT(ncid_out, var_lat, 'axis', 'Y')
 
       err = NF90_DEF_VAR(ncid_out, 'depth', NF90_DOUBLE, [dim_z], var_depth)
       err = NF90_PUT_ATT(ncid_out, var_depth, 'long_name', 'depth')
+      err = NF90_PUT_ATT(ncid_out, var_depth, 'standard_name', 'depth')
       err = NF90_PUT_ATT(ncid_out, var_depth, 'units', 'm')
       err = NF90_PUT_ATT(ncid_out, var_depth, 'positive', 'down')
       err = NF90_PUT_ATT(ncid_out, var_depth, 'axis', 'Z')
 
       err = NF90_DEF_VAR(ncid_out, 'time', NF90_DOUBLE, [dim_time], var_time)
       err = NF90_PUT_ATT(ncid_out, var_time, 'long_name', 'time')
+      err = NF90_PUT_ATT(ncid_out, var_time, 'standard_name', 'time')
       err = NF90_PUT_ATT(ncid_out, var_time, 'units', trim(ROMS%time%units))
       err = NF90_PUT_ATT(ncid_out, var_time, 'calendar', trim(ROMS%time%calendar))
       err = NF90_PUT_ATT(ncid_out, var_time, 'axis', 'T')
