@@ -36,6 +36,8 @@ use module_constants
 use module_tools
 
 implicit none (type, external)
+private
+public type_matrix, matrix_create
 
 type type_matrix
   character(len=maxlen)                 :: filename = ''
@@ -118,6 +120,7 @@ contains
     ! ... Local variables:
     ! ...
     integer iu,ios,i
+    real(dp) :: time
     real(dp), dimension(:), allocatable :: A
 
     type = ''
@@ -131,7 +134,7 @@ contains
       if (ios.eq.0) then
         allocate(A(m))
         do i=1,n
-          read(iu,err=100,end=100) A
+          read(iu,err=100,end=100) time, A
         enddo
         close(iu)
         type = 'bin'
@@ -151,7 +154,7 @@ contains
       if (ios.eq.0) then
         allocate(A(m))
         do i=1,n
-          read(iu,*,err=200,end=200) A
+          read(iu,*,err=200,end=200) time, A
         enddo
         close(iu)
         type = 'asc'
@@ -305,12 +308,47 @@ contains
     B%type = A%type
     B%m = A%m
     B%n = A%n
+    if (allocated(B%T)) deallocate(B%T)
+    if (allocated(B%X)) deallocate(B%X)
     allocate(B%T(B%n))
     allocate(B%X(B%m,B%n))
     B%T(:) = A%T(:)
     B%X(:,:) = A%X(:,:)
    
   end function matrix_copy
+  ! ...
+  ! ===================================================================
+  ! ...
+  subroutine matrix_create(filename,A,type)
+
+    character(len=*), intent(in)           :: filename
+    real(dp), dimension(:,:), intent(in)   :: A
+    character(len=*), intent(in), optional :: type
+    integer iu,j
+    character(len=3) out_type
+
+    out_type = 'asc'  ! Default, ascii type
+    if (present(type)) out_type = type
+
+    if (out_type.eq.'asc') then
+      open(newunit=iu,file=filename,status='unknown')
+      rewind(iu)
+      write(iu,*) size(A,1), size(A,2)
+      do j=1,size(A,2)
+        write(iu,*) real(j,dp), A(:,j)
+      enddo   
+    else
+      open(newunit=iu,file=filename,status='unknown',form='unformatted')
+      rewind(iu)
+      write(iu) size(A,1), size(A,2)
+      do j=1,size(A,2)
+        write(iu) real(j,dp), A(:,j)
+      enddo   
+    endif
+    close(iu)
+
+  end subroutine matrix_create
+
   ! ...
   ! ===================================================================
   ! ...
