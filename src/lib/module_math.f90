@@ -15,7 +15,7 @@ module module_math
 use, intrinsic :: ieee_arithmetic, only: ieee_value, ieee_quiet_nan
 use iso_fortran_env, only: error_unit, output_unit
 use module_types, only: dp
-use module_constants, only: nan
+use module_constants, only: nan, pi
 use module_tools, only: crash
 
 implicit none (type, external)
@@ -23,6 +23,7 @@ implicit none (type, external)
 private
 
 public :: randn, randseries, random_integer
+public :: wiener_increment
 public :: arange, linspace, meshgrid
 public :: brent, golden
 public :: diff, gradient, cumsum, cumprod
@@ -147,7 +148,6 @@ contains
   !! @return Real(dp) allocatable array of size (m,n), standard normal variates.
   !!
   !! Notes:
-  !! - OpenMP parallelized over columns and rows.
   !! - Output is allocated if not already allocated.
   function randn_a(m, n) result(ff)
     integer, intent(in) :: m, n
@@ -163,6 +163,38 @@ contains
     end do
     end do
   end function randn_a
+
+
+  !> @brief Generate a Wiener process increment
+  !! @param[in] dt Real(dp), time step size
+  !! @return Real(dp) the Wiener process increment for a given time step dt.
+  function wiener_increment(dt) result (dW)
+  ! ==============================================================================  
+  ! WIENER_INCREMENT - Generate Wiener process increment  
+  ! ==============================================================================  
+  !   
+  ! DESCRIPTION:  
+  !   Generates a Wiener process increment dW for a given time step dt.  
+  !   The increment follows: dW ~ N(0, dt), i.e., dW = sqrt(dt) * Z  
+  !   where Z ~ N(0,1) is a standard normal random variable.  
+  !  
+  ! STATISTICAL PROPERTIES:  
+  !   - E[dW] = 0  
+  !   - Var[dW] = dt  
+  !   - E[dW^2] = dt  (Itô isometry)  
+  !   - Independent increments over non-overlapping intervals  
+  !  
+  ! USAGE:  
+  !   dW = wiener_increment(dt)  
+  !  
+  ! ==============================================================================  
+  
+    real(dp), intent(in) :: dt
+    real(dp)             :: dW
+
+    ! ... Scale standard normal by sqrt(dt) to get Wiener increment
+    dW = DSQRT(dt) * randn_single()
+  end function wiener_increment 
 
   !> @brief Generate a smooth random time series with optional periodicity and lag correlation.
   !!
