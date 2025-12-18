@@ -737,7 +737,7 @@ contains
     character(len=*), intent(in)         :: text
     integer, intent(in), optional        :: pos
 
-    character(len=180)  :: ww
+    character(len=maxlen)  :: ww
     character(len=7)  :: fmt
     integer nlen,ipos
     integer i,io,il,n

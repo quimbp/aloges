@@ -29,6 +29,7 @@
 
 module module_help
 
+use module_types, only : maxlen
 use module_tools
 use iso_fortran_env
 
@@ -46,7 +47,7 @@ type type_help
   character(len=1000)                              :: example = ''
 
   character(len=80), dimension(MAXOPTIONS)         :: option
-  character(len=180), dimension(MAXOPTIONS)        :: description
+  character(len=maxlen), dimension(MAXOPTIONS)     :: description
   character(len=80), dimension(MAXOPTIONS)         :: default
 
   contains

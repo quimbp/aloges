@@ -30,6 +30,6 @@ implicit none (type, external)
 integer, parameter                               :: i4 = int32        ! integer
 integer, parameter                               :: sp = real32       ! Single precision
 integer, parameter                               :: dp = real64       ! Double precision
-integer, parameter                               :: maxlen  = 180     ! Max char length
+integer, parameter                               :: maxlen  = 400     ! Max char length
 
 end module module_types
