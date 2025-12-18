@@ -20,13 +20,14 @@
 ! Public License along with this program.                                  !
 ! If not, see <http://www.gnu.org/licenses/>.                              !
 ! - haversine                                                              !
+! - haversine_deg                                                          !
 ! - gc_bearing_deg                                                         !
 ! - compass_to_polar                                                       !
 ! - polar_to_compass                                                       !
 ! - gc_destination_point                                                   !
 ! - gc_inverse                                                             !
-! - vincent_direct                                                         !
-! - vincent_inverse                                                        !
+! - vincenty_direct                                                        !
+! - vincenty_inverse                                                       !
 ! - spdir2uv                                                               !
 ! - uv2spdir                                                               !
 ! - gms2dec                                                                !
@@ -42,7 +43,8 @@ module module_geodesy
 
   implicit none (type, external)
   private
-  public :: haversine, gc_bearing_deg, compass_to_polar, polar_to_compass
+  public :: WGS84
+  public :: haversine, haversine_deg, gc_bearing_deg, compass_to_polar, polar_to_compass
   public :: gc_destination_point, gc_inverse
   public :: vincenty_direct, vincenty_inverse
   public :: spdir2uv, uv2spdir
@@ -94,18 +96,18 @@ contains
   !!
   !! Inputs are in radians; output distance is in meters using mean Earth radius.
   !!
-  !! @param[in] lon1 Longitude of point 1 [rad]
   !! @param[in] lat1 Latitude  of point 1 [rad]
-  !! @param[in] lon2 Longitude of point 2 [rad]
+  !! @param[in] lon1 Longitude of point 1 [rad]
   !! @param[in] lat2 Latitude  of point 2 [rad]
+  !! @param[in] lon2 Longitude of point 2 [rad]
   !!
   !! @return Real(dp) distance along great circle [m].
   !!
   !! @note Robust for all separations; numerically stable.
-  real(dp) function haversine(lon1,lat1,lon2,lat2)
-    real(dp), intent(in) :: lon1, lat1, lon2, lat2
+  real(dp) function haversine(lat1,lon1,lat2,lon2)
+    real(dp), intent(in) :: lat1, lon1, lat2, lon2
     real(dp) :: sindx, sindy, dang, ccl1, ccl2
-    call init_wgs84_once()
+    !call init_wgs84_once()
     sindx = sin(0.5_dp*(lon2-lon1))
     sindy = sin(0.5_dp*(lat2-lat1))
     ccl1  = cos(lat1); ccl2 = cos(lat2)
@@ -113,22 +115,43 @@ contains
     haversine = WGS84%Earth_Radius * dang
   end function haversine
 
+  real(dp) function haversine_deg(lat1_deg,lon1_deg,lat2_deg,lon2_deg)
+    real(dp), intent(in) :: lat1_deg, lon1_deg, lat2_deg, lon2_deg
+    real(dp)             :: lat1, lon1, lat2, lon2
+    real(dp) :: sindx, sindy, dang, ccl1, ccl2
+    !call init_wgs84_once()
+    lon1 = lon1_deg * deg2rad
+    lat1 = lat1_deg * deg2rad
+    lon2 = lon2_deg * deg2rad
+    lat2 = lat2_deg * deg2rad
+    sindx = sin(0.5_dp*(lon2-lon1))
+    sindy = sin(0.5_dp*(lat2-lat1))
+    ccl1  = cos(lat1); ccl2 = cos(lat2)
+    dang  = 2.0_dp*asin( sqrt(sindy*sindy + ccl2*ccl1*sindx*sindx) )
+    haversine_deg = WGS84%Earth_Radius * dang
+  end function haversine_deg
+
   !> @brief Forward and reverse azimuth between two points on sphere.
   !!
   !! Inputs are in radians; azimuth outputs in degrees [0, 360).
   !!
-  !! @param[in]  lon1 Longitude of start point [rad]
-  !! @param[in]  lat1 Latitude  of start point [rad]
-  !! @param[in]  lon2 Longitude of end   point [rad]
-  !! @param[in]  lat2 Latitude  of end   point [rad]
+  !! @param[in]  lat1 Latitude  of start point [deg]
+  !! @param[in]  lon1 Longitude of start point [deg]
+  !! @param[in]  lat2 Latitude  of end   point [deg]
+  !! @param[in]  lon2 Longitude of end   point [deg]
   !! @param[out] azimuth     Initial bearing from point 1 to 2 [deg]
   !! @param[out] rev_azimuth Reverse bearing from point 2 to 1 [deg]
   !!
   !! @note Spherical geometry; for ellipsoidal bearings use Vincenty inverse.
-  subroutine gc_bearing_deg(lon1,lat1,lon2,lat2,azimuth,rev_azimuth)
-    real(dp), intent(in)  :: lon1, lat1, lon2, lat2
+  subroutine gc_bearing_deg(lat1_deg,lon1_deg,lat2_deg,lon2_deg,azimuth,rev_azimuth)
+    real(dp), intent(in)  :: lat1_deg, lon1_deg, lat2_deg, lon2_deg
     real(dp), intent(out) :: azimuth, rev_azimuth
+    real(dp)              :: lon1, lat1, lon2, lat2
     real(dp) :: dlon, cdlon, sdlon, x, y, xr, yr
+    lat1 = lat1_deg * deg2rad
+    lat2 = lat2_deg * deg2rad
+    lon1 = lon1_deg * deg2rad
+    lon2 = lon2_deg * deg2rad
     dlon  = lon2 - lon1
     cdlon = cos(dlon); sdlon = sin(dlon)
     y = sdlon * cos(lat2)
@@ -173,7 +196,7 @@ contains
     real(dp), intent(in)  :: lat0_deg, lon0_deg, bearing_deg, dist
     real(dp), intent(out) :: lat1_deg, lon1_deg
     real(dp) :: lat0, lon0, bearing, lat1, lon1, R
-    call init_wgs84_once()
+    !call init_wgs84_once()
     R = WGS84%Earth_Radius
     lat0    = lat0_deg * deg2rad
     lon0    = lon0_deg * deg2rad
