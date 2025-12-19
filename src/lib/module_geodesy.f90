@@ -48,7 +48,7 @@ module module_geodesy
   public :: gc_destination_point, gc_inverse
   public :: vincenty_direct, vincenty_inverse
   public :: spdir2uv, uv2spdir
-  public :: dms2dec, dm2dec, dec2dms, dec2dm
+  public :: dms2dec, dec2dms, dm2dec, dec2dm, dms2dm, dm2dms
   public :: ll2m
 
   !> @brief Canonical WGS84 constant set (single source of truth).
@@ -73,6 +73,11 @@ module module_geodesy
   interface uv2spdir
     module procedure uv2spdir_r, uv2spdir_v
   end interface uv2spdir
+
+  !> @brief Generic interface for Conversion dms (deg-min-sec) to decimal deg
+  interface dms2dec
+    module procedure dms2dec_i, dms2dec_d
+  end interface dms2dec
 
 contains
 
@@ -441,28 +446,35 @@ contains
   !! @param[in]  mm Minutes  (0..59)
   !! @param[in]  ss Seconds  (0..59)
   !! @param[out] deg Decimal degrees [deg]
-  subroutine dms2dec(gg, mm, ss, deg)
-    integer, intent(in) :: gg, mm, ss
+  pure subroutine dms2dec_i(gg, mm, ss, deg)
+    integer, intent(in)   :: gg, mm, ss
     real(dp), intent(out) :: deg
-    deg = abs(gg) + (mm + ss/60.0_dp)/60.0_dp
-    if (gg < 0) deg = -deg
-  end subroutine dms2dec
+
+    deg = abs(gg) + (real(mm,dp) + real(ss,dp)/60.0_dp)/60.0_dp
+    if (gg < 0.0_dp) deg = -deg
+  end subroutine dms2dec_i
+
+  pure subroutine dms2dec_d(gg, mm, ss, deg)
+    integer, intent(in)   :: gg, mm
+    real(dp), intent(in)  :: ss                ! Fractional seconds
+    real(dp), intent(out) :: deg
+
+    deg = abs(gg) + (real(mm,dp) + ss/60.0_dp)/60.0_dp
+    if (gg < 0.0_dp) deg = -deg
+  end subroutine dms2dec_d
 
   !> @brief Convert degrees-minutes to decimal degrees.
   !!
   !! @param[in]  gg Degrees (integer, sign carries hemisphere)
   !! @param[in]  mm Minutes (real, includes seconds as decimal part)
   !! @param[out] deg Decimal degrees [deg]
-  subroutine dm2dec(gg, mm, deg)
+  pure subroutine dm2dec(gg, mm, deg)
      integer,  intent(in)           :: gg  
      real(dp), intent(in)           :: mm      ! Fractional minutes  
      real(dp), intent(out)          :: deg  
-     real(dp) :: sign_, mm_abs, ss_use  
-     sign_  = merge(-1.0_dp, 1.0_dp, gg < 0)  
-     mm_abs = abs(mm)  
-     ! minutes arefractional already  
-     deg = abs(gg) + mm_abs/60.0_dp  
-     deg = sign_ * deg  
+
+     deg = abs(gg) + abs(mm)/60.0_dp  
+     if (gg < 0.0_dp) deg = -deg  
   end subroutine dm2dec
 
   !> @brief Convert decimal degrees to degrees-minutes-seconds.
@@ -471,16 +483,31 @@ contains
   !! @param[out] gg Degrees (integer, sign carries hemisphere)
   !! @param[out] mm Minutes  (0..59)
   !! @param[out] ss Seconds  (0..59)
-  subroutine dec2dms(deg, gg, mm, ss)
-    real(dp), intent(in) :: deg
-    integer, intent(out) :: gg, mm, ss
-    real(dp) :: sec
-    integer :: res
-    sec = anint(abs(deg) * 3600.0_dp)
-    ss  = mod(nint(sec), 60)
-    res = nint((sec - ss) / 60.0_dp)
-    mm  = mod(res, 60)
-    gg  = (res - mm)/60
+  pure subroutine dec2dms(deg, gg, mm, ss)
+    real(dp), intent(in)  :: deg
+    integer, intent(out)  :: gg, mm
+    real(dp), intent(out) :: ss
+    real(dp) :: adeg, total_sec, rem_sec
+    integer  :: total_min
+
+    adeg = abs(deg)
+
+    ! Total seconds without rounding
+    total_sec = adeg * 3600.0_dp
+
+    ! Whole minutes
+    total_min = int(total_sec / 60.0_dp)
+    ss        = total_sec - real(total_min, dp) * 60.0_dp
+
+    ! Normalize seconds
+    if (ss >= 60.0_dp) then
+       ss = ss - 60.0_dp
+       total_min = total_min + 1
+    end if
+
+    mm = mod(total_min, 60)
+    gg = total_min / 60
+
     if (deg < 0.0_dp) gg = -gg
   end subroutine dec2dms
 
@@ -489,18 +516,55 @@ contains
   !! @param[in]  deg Decimal degrees [deg]
   !! @param[out] gg Degrees (integer, sign carries hemisphere)
   !! @param[out] mm Minutes  (real, seconds in the decimal part)
-  subroutine dec2dm(deg, gg, mm)
-    real(dp), intent(in) :: deg
-    integer, intent(out) :: gg
+  pure subroutine dec2dm(deg, gg, mm)
+    real(dp), intent(in)  :: deg
+    integer, intent(out)  :: gg
     real(dp), intent(out) :: mm
-    real(dp) :: adeg, frac_deg
+    real(dp) :: adeg
 
     adeg = abs(deg)  
-    gg   = int(floor(adeg))       ! degrees magnitude  
-    frac_deg = adeg - real(gg, dp)  
-    mm = frac_deg * 60.0_dp  ! return fractional minutes; avoid integer seconds  
+    gg   = int(floor(adeg))       
+    mm = (adeg - real(gg,dp)) * 60.0_dp  ! return fractional minutes; avoid integer seconds  
     if (deg < 0.0_dp) gg = -gg  
   end subroutine dec2dm
+
+  !> @brief Convert degrees-minutes-seconds to degrees-minutes.
+  !!
+  !! @param[in]  gg Degrees     (integer, sign carries hemisphere)
+  !! @param[in]  mm_in Minutes  (integer 0..59)
+  !! @param[in]  ss Seconds     (real)
+  !! @param[out] gg Degrees     (integer, sign carries hemisphere)
+  !! @param[out] mm_out Minutes (real, seconds in the decimal part)
+  pure subroutine dms2dm(gg, mm_in, ss, gg_out, mm_out)
+    integer, intent(in)  :: gg, mm_in
+    real(dp), intent(in) :: ss
+    integer, intent(out) :: gg_out
+    real(dp), intent(out):: mm_out
+
+    real(dp) :: deg
+
+    call dms2dec(gg, mm_in, ss, deg)
+    call dec2dm(deg, gg_out, mm_out)
+  end subroutine dms2dm
+
+  !> @brief Convert degrees-minutes to degrees-minutes-seconds
+  !!
+  !! @param[in]  gg Degrees (integer, sign carries hemisphere)
+  !! @param[in]  mm Minutes (real, includes seconds as decimal part)
+  !! @param[out] gg_out Degrees  (integer, sign carries hemisphere)
+  !! @param[out] mm_out Minutes  (integer, minutes)
+  !! @param[out] ss_out Minutes  (real, fractional seconds)
+  pure subroutine dm2dms(gg, mm, gg_out, mm_out, ss_out)
+    integer, intent(in)   :: gg
+    real(dp), intent(in)  :: mm
+    integer, intent(out)  :: gg_out, mm_out
+    real(dp), intent(out) :: ss_out
+    real(dp) :: deg
+
+    call dm2dec(gg, mm, deg)
+    call dec2dms(deg, gg_out, mm_out, ss_out)
+  end subroutine dm2dms
+
 
   !> @brief Project two lon/lat grids to a common local ENU in meters.
   !!
