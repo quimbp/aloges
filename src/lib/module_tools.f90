@@ -26,7 +26,7 @@
 ! - crash                                                                  !
 ! - filename_split                                                         !
 ! - get_commandline                                                        !
-! - indexx                                                                 !
+! - argsort                                                                !
 ! - is_numeric                                                             !
 ! - line_replace                                                           !
 ! - line_word                                                              !
@@ -262,100 +262,212 @@ contains
   ! ...
   ! ===================================================================
   ! ...
-  !> @brief Index sort: return permutation indices that sort array arr in ascending order.
-  !!
-  !! From Numerical Recipes in Fortran (Press et al., 1992).
-  !!
-  !! @param[in] arr Real(dp) array to sort.
-  !! @param[out] indx Integer array of size(arr), permutation indices such that arr(indx) is sorted.
-  !!
-  !! Notes:
-  !! - Does not modify arr.
-  !! - indx(i) gives the index of the i-th smallest element.
-  subroutine indexx(arr, indx)
-    real(dp), dimension(:), intent(in) :: arr
-    integer, dimension(size(arr)), intent(out) :: indx
-    integer, parameter :: M = 7
-    integer :: n, i, indxt, r, itemp, j, jstack, k, l
-    integer, dimension(size(arr)) :: istack
-    real(dp) :: a
-
-    n = size(arr)
-    do j = 1, n
-      indx(j) = j
+  subroutine argsort(a, indx, descending)
+    ! Argsort subroutine: returns indices that would sort the array
+    !
+    ! Parameters:
+    !   a : double precision array to sort
+    !   indx : integer array of indices (output)
+    !   descending : optional logical, if true sort in descending order
+    
+    real(8), intent(in) :: a(:)
+    integer, intent(out) :: indx(:)
+    logical, optional, intent(in) :: descending
+    
+    integer, parameter :: STACK_SIZE = 64  ! Enough for arrays up to 2^64 elements
+    integer :: i, n
+    logical :: desc
+    
+    ! Check array sizes match
+    n = size(a)
+    if (n /= size(indx)) then
+      error stop "Error in argsort: input and output arrays must have the same size"
+    end if
+    
+    ! Initialize index array
+    do i = 1, n
+      indx(i) = i
     end do
-
-    jstack = 0
-    l = 1
-    r = n
-    do
-      if (r - l < M) then
-        do j = l + 1, r
-          indxt = indx(j)
-          a = arr(indxt)
-          do i = j - 1, 1, -1
-            if (arr(indx(i)) <= a) exit
-            indx(i+1) = indx(i)
-          end do
-          indx(i+1) = indxt
-        end do
-        if (jstack == 0) return
-        r = istack(jstack)
-        l = istack(jstack-1)
-        jstack = jstack - 2
-      else
-        k = (l + r)/2
-        itemp = indx(k)
-        indx(k) = indx(l+1)
-        indx(l+1) = itemp
-        if (arr(indx(l+1)) > arr(indx(r))) then
-          itemp = indx(l+1)
-          indx(l+1) = indx(r)
-          indx(r) = itemp
-        end if
-        if (arr(indx(l)) > arr(indx(r))) then
-          itemp = indx(l)
-          indx(l) = indx(r)
-          indx(r) = itemp
-        end if
-        if (arr(indx(l+1)) > arr(indx(l))) then
-          itemp = indx(l+1)
-          indx(l+1) = indx(l)
-          indx(l) = itemp
-        end if
-        i = l + 1
-        j = r
-        indxt = indx(l+1)
-        a = arr(indxt)
+    
+    ! Check for optional descending argument
+    desc = .false.
+    if (present(descending)) then
+      desc = descending
+    end if
+    
+    ! Perform non-recursive quicksort on indices based on values in a
+    if (desc) then
+      call quicksort_nr_desc(a, indx, n)
+    else
+      call quicksort_nr_asc(a, indx, n)
+    end if
+    
+  contains
+  
+  subroutine quicksort_nr_asc(a, indx, n)
+    ! Non-recursive quicksort for ascending order
+    
+    real(8), intent(in) :: a(:)
+    integer, intent(inout) :: indx(:)
+    integer, intent(in) :: n
+    
+    integer :: stack(STACK_SIZE)
+    integer :: top, left, right, i, j, pivot, temp
+    
+    ! Initialize stack
+    top = 1
+    stack(top) = 1     ! left
+    stack(top + 1) = n ! right
+    
+    do while (top > 0)
+      ! Pop left and right from stack
+      left = stack(top)
+      right = stack(top + 1)
+      top = top - 2
+      
+      ! Partition the current segment
+      do while (left < right)
+        ! Choose middle element as pivot
+        pivot = indx((left + right) / 2)
+        i = left
+        j = right
+        
+        ! Partitioning loop
         do
-          do
+          ! Move i right while a(indx(i)) < a(pivot)
+          do while (a(indx(i)) < a(pivot))
             i = i + 1
-            if (arr(indx(i)) >= a) exit
           end do
-          do
+          
+          ! Move j left while a(indx(j)) > a(pivot)
+          do while (a(pivot) < a(indx(j)))
             j = j - 1
-            if (arr(indx(j)) <= a) exit
           end do
-          if (j < i) exit
-          itemp = indx(i)
+          
+          ! If pointers cross, partitioning is done
+          if (i >= j) exit
+          
+          ! Swap indices i and j
+          temp = indx(i)
           indx(i) = indx(j)
-          indx(j) = itemp
+          indx(j) = temp
+          
+          ! Move pointers
+          i = i + 1
+          j = j - 1
         end do
-        indx(l+1) = indx(j)
-        indx(j) = indxt
-        jstack = jstack + 2
-        if (r - i + 1 >= j - l) then
-          istack(jstack) = r
-          istack(jstack-1) = i
-          r = j - 1
+        
+        ! Now we have two segments: [left, j] and [j+1, right]
+        ! Push the larger segment onto stack and process smaller segment first
+        
+        if (j - left < right - (j + 1)) then
+          ! Right segment is larger
+          if (j + 1 < right) then
+            ! Push right segment onto stack
+            top = top + 2
+            stack(top) = j + 1
+            stack(top + 1) = right
+          end if
+          ! Process left segment next
+          right = j
         else
-          istack(jstack) = j - 1
-          istack(jstack-1) = l
-          l = i
+          ! Left segment is larger
+          if (left < j) then
+            ! Push left segment onto stack
+            top = top + 2
+            stack(top) = left
+            stack(top + 1) = j
+          end if
+          ! Process right segment next
+          left = j + 1
         end if
-      end if
+      end do
     end do
-  end subroutine indexx
+    
+  end subroutine quicksort_nr_asc
+  
+  subroutine quicksort_nr_desc(a, indx, n)
+    ! Non-recursive quicksort for descending order
+    
+    real(8), intent(in) :: a(:)
+    integer, intent(inout) :: indx(:)
+    integer, intent(in) :: n
+    
+    integer :: stack(STACK_SIZE)
+    integer :: top, left, right, i, j, pivot, temp
+    
+    ! Initialize stack
+    top = 1
+    stack(top) = 1     ! left
+    stack(top + 1) = n ! right
+    
+    do while (top > 0)
+      ! Pop left and right from stack
+      left = stack(top)
+      right = stack(top + 1)
+      top = top - 2
+      
+      ! Partition the current segment
+      do while (left < right)
+        ! Choose middle element as pivot
+        pivot = indx((left + right) / 2)
+        i = left
+        j = right
+        
+        ! Partitioning loop (reversed comparisons for descending order)
+        do
+          ! Move i right while a(indx(i)) > a(pivot)
+          do while (a(indx(i)) > a(pivot))
+            i = i + 1
+          end do
+          
+          ! Move j left while a(pivot) > a(indx(j))
+          do while (a(pivot) > a(indx(j)))
+            j = j - 1
+          end do
+          
+          ! If pointers cross, partitioning is done
+          if (i >= j) exit
+          
+          ! Swap indices i and j
+          temp = indx(i)
+          indx(i) = indx(j)
+          indx(j) = temp
+          
+          ! Move pointers
+          i = i + 1
+          j = j - 1
+        end do
+        
+        ! Now we have two segments: [left, j] and [j+1, right]
+        ! Push the larger segment onto stack and process smaller segment first
+        
+        if (j - left < right - (j + 1)) then
+          ! Right segment is larger
+          if (j + 1 < right) then
+            ! Push right segment onto stack
+            top = top + 2
+            stack(top) = j + 1
+            stack(top + 1) = right
+          end if
+          ! Process left segment next
+          right = j
+        else
+          ! Left segment is larger
+          if (left < j) then
+            ! Push left segment onto stack
+            top = top + 2
+            stack(top) = left
+            stack(top + 1) = j
+          end if
+          ! Process right segment next
+          left = j + 1
+        end if
+      end do
+    end do
+    
+  end subroutine quicksort_nr_desc
+  end subroutine argsort
   ! ...
   ! ===================================================================
   ! ...

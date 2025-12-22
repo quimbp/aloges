@@ -14,7 +14,7 @@ module module_statistics
 use iso_fortran_env, only: output_unit
 use module_types, only: dp
 use module_constants, only: nan
-use module_tools, only: crash, indexx, quicksort
+use module_tools, only: crash, argsort, quicksort
 use module_math, only: t_inverse_cdf, t_cdf_complement, f_cdf_complement
 
 implicit none (type, external)
@@ -303,7 +303,7 @@ contains
     end if
 
     n = size(x)
-    call indexx(x, indx)
+    call argsort(x,indx)
 
     if (excel) then
       rr = p*(n - 1.0_dp)/100.0_dp + 1.0_dp
@@ -719,7 +719,7 @@ contains
   !! @param[out] ranks Real(dp) array of same size, ranks from 1 to n.
   !!
   !! Notes:
-  !! - Uses indexx from module_math for sorting indices.
+  !! - Uses argsort from module_tools for sorting indices.
   !! - Ties receive the average of their ranks.
   !! - Example: [10, 20, 20, 30] -> [1.0, 2.5, 2.5, 4.0]
   subroutine compute_ranks(x, ranks)
@@ -732,7 +732,7 @@ contains
     n = size(x)
   
     ! Get sorted indices
-    call indexx(x, idx)
+    call argsort(x,idx)
   
     ! Assign ranks with tie handling
     i = 1
