@@ -22,6 +22,7 @@ implicit none (type, external)
 
 private
 
+public :: rseed
 public :: randn, randseries, random_integer
 public :: wiener_increment
 public :: arange, linspace, meshgrid
@@ -68,6 +69,19 @@ end interface nanmean
 
 
 contains
+
+  !> @brief Fortran Random Number Generator (RNG) seed
+  !! @param[in] seed_number Integer, seed value 
+  subroutine rseed(seed_number)
+    integer, intent(in)  :: seed_number
+    integer n
+    integer, allocatable :: seed(:) 
+    call random_seed(size=n)
+    allocate(seed(n))
+    seed(:) = seed_number
+    call random_seed(put=seed)
+    deallocate(seed)
+  end subroutine rseed
 
   !> @brief Generate a single Gaussian random number 
   !> with mean=0, std=1.
