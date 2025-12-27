@@ -145,10 +145,10 @@ contains
 
     ! ... Check out how many trajectories:
     ! ... 
-    Nf = numwords(trajectory_name)
+    Nf = count_words(trajectory_name)
     allocate(filelist(Nf))
     do i=1,Nf
-      call line_word(trajectory_name,i,filelist(i))
+      call get_word(trajectory_name,i,filelist(i))
     enddo
     allocate (To(Nf))
     

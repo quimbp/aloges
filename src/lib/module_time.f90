@@ -305,10 +305,10 @@ module module_time
     i = index(att,'since')
     if (i.eq.0) then
       RefDate = ''
-      time_units = compress(att)
+      time_units = compress_string(att)
     else
-      RefDate = compress(att(i+6:))
-      time_units = compress(att(1:i-1))
+      RefDate = compress_string(att(i+6:))
+      time_units = compress_string(att(1:i-1))
     endif
     call check_units(time_units)
 
@@ -700,25 +700,25 @@ att = line_replace(att,'-',' ')
 att = line_replace(att,':',' ')
 att = line_replace(att,'T',' ')
 att = line_replace(att,'.',' ')
-nw  = numwords(att)
+nw  = count_words(att)
 if ((nw.ne.7).and.(nw.ne.6).and.(nw.ne.3)) then
   write(*,*) trim(string)
   call crash('STRPREFTIME: Invalid units attribute')
 endif
 
-call line_word(att,1,word)
+call get_word(att,1,word)
 read(word,*) date%year
-call line_word(att,2,word)
+call get_word(att,2,word)
 read(word,*) date%month
-call line_word(att,3,word)
+call get_word(att,3,word)
 read(word,*) date%day
 
 if (nw.ge.6) then
-  call line_word(att,4,word)
+  call get_word(att,4,word)
   read(word,*) date%hour
-  call line_word(att,5,word)
+  call get_word(att,5,word)
   read(word,*) date%minute
-  call line_word(att,6,word)
+  call get_word(att,6,word)
   read(word,*) date%second
 else
   date%hour   = 0
@@ -726,7 +726,7 @@ else
   date%second = 0
 endif
 
-!call line_word(att,2,date%month)
+!call get_word(att,2,date%month)
 !read(att(i:i+3),*)     date%year
 !read(att(i+5:i+6),*)   date%month
 !read(att(i+8:i+9),*)   date%day
@@ -832,7 +832,7 @@ att = line_replace(att,'Z',' ')
 att = line_replace(att,'"',' ')
 att = line_replace(att,'[',' ')
 att = line_replace(att,']',' ')
-nw  = numwords(att)
+nw  = count_words(att)
 if (nw.ne.6) then
   write(*,*) 'Error in strptime'
   write(*,*) 'input string    : ', trim(string)
@@ -841,18 +841,18 @@ if (nw.ne.6) then
   call crash('STRPTIME: Invalid iso date')
 endif
 
-call line_word(att,1,word)
+call get_word(att,1,word)
 read(word,*) date%year
-call line_word(att,2,word)
+call get_word(att,2,word)
 read(word,*) date%month
-call line_word(att,3,word)
+call get_word(att,3,word)
 read(word,*) date%day
 
-call line_word(att,4,word)
+call get_word(att,4,word)
 read(word,*) date%hour
-call line_word(att,5,word)
+call get_word(att,5,word)
 read(word,*) date%minute
-call line_word(att,6,word)
+call get_word(att,6,word)
 read(word,*) date%second
 
 if (date%month.gt.12.or.date%month.le.0) call crash('STRPTIME ERROR. Invalid month')

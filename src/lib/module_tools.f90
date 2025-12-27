@@ -22,19 +22,19 @@
 !                                                                          !
 ! List of routines:                                                        !
 ! - cat                                                                    !
-! - compress                                                               !
+! - compress_string                                                        !
 ! - crash                                                                  !
 ! - filename_split                                                         !
 ! - get_commandline                                                        !
 ! - argsort                                                                !
 ! - is_numeric                                                             !
 ! - line_replace                                                           !
-! - line_word                                                              !
+! - get_word                                                               !
 ! - locate                                                                 !
 ! - lowercase                                                              !
 ! - ls                                                                     !
 ! - numlines                                                               !
-! - numwords                                                               !
+! - count_words                                                            !
 ! - randstr                                                                !
 ! - unique_elements (integer, real(dp) interface)                          !
 ! - unitfree                                                               !
@@ -110,55 +110,52 @@ contains
   ! ...
   ! ===================================================================
   ! ...
-  function compress(A) result(t)
-  ! ... Removes all double whites and spaces before a comma or dot
-
-    character(len=*), intent(in)   :: A
-    character(len=len(A))          :: t
-
-    ! ... Local variables
-    ! ...
-    integer i,n
-
-    ! ... Remove leading whitespaces
-    ! ...
-    t = adjustl(A)
-    n = len_trim(t)
-
-    ! ... Replace tabs by whitespaces
-    ! ...
-    do i=1,n
-      if (iachar(t(i:i)).eq.9) t(i:i) = ' '
-    enddo
-
-    ! ... Remove all double whites
-    ! ...
-    10 i = index(t,'  ')
-       if ((i.gt.0).and.(i.lt.n)) then
-         t(i+1:) = t(i+2:)
-         n = n - 1
-         goto 10
-       endif
-
-    ! ... Remove space-commas
-    ! ...
-    20 i = index(t,' ,')
-       if ((i.gt.0).and.(i.lt.n)) then
-         t(i:) = t(i+1:)
-         n = n - 1
-         goto 20
-       endif
-
-    ! ... Remove space-dots
-    ! ...
-    30 i = index(t,' .')
-       if ((i.gt.0).and.(i.lt.n)) then
-         t(i:) = t(i+1:)
-         n = n - 1
-         goto 30
-       endif
-
-  end function compress
+  !=====================================================================
+  ! STRING COMPRESSION (removes extra whitespace)
+  !=====================================================================
+  function compress_string(str) result(compressed)
+    ! Removes leading/trailing whitespace and reduces internal whitespace
+    character(len=*), intent(in) :: str
+    character(len=:), allocatable :: compressed
+    
+    integer :: i, j, str_len
+    logical :: last_was_space
+    
+    str_len = len(str)
+    allocate(character(len=str_len) :: compressed)
+    
+    j = 0
+    last_was_space = .true.  ! Start with true to skip leading spaces
+    
+    do i = 1, str_len
+        if (str(i:i) == ' ') then
+            if (.not. last_was_space) then
+                j = j + 1
+                compressed(j:j) = ' '
+                last_was_space = .true.
+            end if
+        else if (str(i:i) == char(9)) then  ! Tab character
+            if (.not. last_was_space) then
+                j = j + 1
+                compressed(j:j) = ' '
+                last_was_space = .true.
+            end if
+        else
+            j = j + 1
+            compressed(j:j) = str(i:i)
+            last_was_space = .false.
+        end if
+    end do
+    
+    ! Trim trailing space if present
+    if (j > 0 .and. compressed(j:j) == ' ') then
+        j = j - 1
+    end if
+    
+    ! Reallocate to actual length
+    compressed = compressed(1:j)
+    
+  end function compress_string
   ! ...
   ! ===================================================================
   ! ...
@@ -529,55 +526,72 @@ contains
   ! ...
   ! ===================================================================
   ! ...
-  subroutine line_word(line,nw,word)
-  ! ... Returns the nw-th word in line
-
-    character(len=*), intent(in)   :: line
-    integer, intent(in)            :: nw
-    character(len=*)               :: word
-
-    ! ... Local variables
-    ! ...
-    integer i,j,n,nm,nn,jmax
-    character ai
-    character(len=len(line))       :: t
-
-    jmax = len(word)
+  !====================================================================
+  ! GET WORD
+  !====================================================================
+  subroutine get_word(line, n, word, delimiter, status)
+    ! Returns the n-th word from a string
+    character(len=*), intent(in)           :: line
+    integer, intent(in)                    :: n
+    character(len=*), intent(out)          :: word
+    character(len=1), intent(in), optional :: delimiter
+    integer, intent(out), optional         :: status
+    
+    integer :: i, word_count, line_len, word_start, word_end
+    logical :: in_word
+    character(len=1) :: delim
+    
+    ! Initialize
+    if (present(delimiter)) then
+        delim = delimiter
+    else
+        delim = ' '
+    end if
+    
+    if (present(status)) then
+        status = 0  ! 0 = success, 1 = word not found
+    end if
+    
     word = ''
-
-    t    = compress(line)
-    nm   = numwords(t)
-    if (nw.GT.nm) return
-
-    n    = len_trim(t)
-    j = 0
-    nn = 0
-    do i=1,n-1
-      ai = t(i:i)
-      if ((ai.ne.' ').and.(ai.ne.',')) then
-        j = j + 1
-        if (j.le.jmax) word(j:j) = ai
-      else
-        if (len_trim(word).gt.0) then
-          nn = nn + 1
-          if (nn.eq.nw) return
-          j = 0
-          word = ''
-        endif
-      endif
-    enddo
-
-    ai = t(n:n)
-    if ((ai.ne.' ').and.(ai.ne.',')) then
-      j = j + 1
-      if (j.le.jmax) word(j:j) = ai
-    endif
-
-    return
-  end subroutine line_word
-  ! ...
-  ! ===================================================================
-  ! ...
+    line_len = len_trim(line)
+    word_count = 0
+    in_word = .false.
+    word_start = 1
+    
+    do i = 1, line_len
+        if (line(i:i) == delim) then
+            if (in_word) then
+                word_count = word_count + 1
+                if (word_count == n) then
+                    word_end = i - 1
+                    word = line(word_start:word_end)
+                    return
+                end if
+                in_word = .false.
+            end if
+        else
+            if (.not. in_word) then
+                word_start = i
+                in_word = .true.
+            end if
+        end if
+    end do
+    
+    ! Check for last word
+    if (in_word) then
+        word_count = word_count + 1
+        if (word_count == n) then
+            word = line(word_start:line_len)
+            return
+        end if
+    end if
+    
+    ! If we get here, word not found
+    if (present(status)) then
+        status = 1
+    end if
+    
+  end subroutine get_word
 ! ...
 ! =====================================================================
 ! ...
@@ -661,8 +675,8 @@ contains
     ! ... Random filename for temporal storage
     ! ... Send the contents of the selected folder to thar filename
     tmpname = '/tmp/'//randstr(8)
-    call system('echo ls '//compress(dirname)//' -1 > '//tmpname)
-    call system('ls '//compress(dirname)//' -1 > '//tmpname)
+    call system('echo ls '//compress_string(dirname)//' -1 > '//tmpname)
+    call system('ls '//compress_string(dirname)//' -1 > '//tmpname)
 
     iu = unitfree()
     open(iu,file=tmpname,status='old')
@@ -725,41 +739,47 @@ contains
   ! ...
   ! ===================================================================
   ! ...
-  integer function numwords(A)
-  ! ... Counts the number of words in a string
-
-    character(len=*), intent(in)   :: A
-
-    ! ... Local variables
-    ! ...
-    integer i,n
-    character(len=len(A))          :: t
-    character                      :: ai,an,ap
-
-    numwords = 0
-
-    t = compress(A)
-    n = len_trim(t)
-    if (n.eq.0) return
-
-    numwords = 1
-    do i=2,n-1
-      ai = t(i:i)
-      an = t(i+1:i+1)
-      ap = t(i-1:i-1)
-      if ((ai.eq.',').and.(an.eq.' ')) then
-        numwords = numwords + 1
-      else if (ai.eq.',') then
-        numwords = numwords + 1
-      else if ((ai.eq.' ').and.(ap.ne.',')) then
-        numwords = numwords + 1
-      endif
-    enddo
-
-    return
-  end function numwords
-
-
+  !=====================================================================
+  ! COUNT WORDS (optimized version)
+  !=====================================================================
+  function count_words(line, delimiter) result(n_words)
+    ! Counts words in a string using specified delimiter
+    character(len=*), intent(in)           :: line
+    character(len=1), intent(in), optional :: delimiter
+    integer                                :: n_words
+    
+    integer :: i, line_len
+    logical :: in_word
+    character(len=1) :: delim
+    
+    ! Set delimiter
+    if (present(delimiter)) then
+        delim = delimiter
+    else
+        delim = ' '
+    end if
+    
+    line_len = len_trim(line)
+    n_words = 0
+    in_word = .false.
+    
+    do i = 1, line_len
+        if (line(i:i) == delim) then
+            if (in_word) then
+                in_word = .false.
+            end if
+        else
+            if (.not. in_word) then
+                n_words = n_words + 1
+                in_word = .true.
+            end if
+        end if
+    end do
+    
+  end function count_words
+  ! ...
+  ! ===================================================================
+  ! ...
   !> @brief Generate a random uppercase alphabetic string.
   !!
   !! @param[in] len Integer, length of string to generate.
@@ -1020,11 +1040,11 @@ contains
     att = line_replace(att,'[',' ')
     att = line_replace(att,']',' ')
 
-    n = numwords(att)
+    n = count_words(att)
     allocate(A(n))
 
     do i=1,n
-      call line_word(att,i,word)
+      call get_word(att,i,word)
       read(word,*) A(i)
     enddo
 
@@ -1047,7 +1067,7 @@ contains
 
     ll = len(label)
     write(sll,*) ll+2
-    sll = compress(sll)
+    sll = compress_string(sll)
 
     lfmt = '(T2,A,T'//trim(sll)//',5'//trim(fmt)//')'
 
@@ -1329,7 +1349,7 @@ contains
 
     if (allocated(A)) deallocate(A)
 
-    nw = numwords(line)
+    nw = count_words(line)
 
     ! ... Hande empty input
     if (nw.le.0) then
@@ -1340,7 +1360,7 @@ contains
     allocate(words(nw)) ! temporary storage
     lmax = 1
     do i=1,nw
-      call line_word(line,i,words(i))
+      call get_word(line,i,words(i))
       wlen = len_trim(words(i))
       if (wlen.gt.lmax) lmax = wlen
     enddo

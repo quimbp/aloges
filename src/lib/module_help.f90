@@ -73,7 +73,7 @@ subroutine help_progname(HLP,word)
 class(type_help), intent(inout)        :: HLP
 character(len=*), intent(in)           :: word
 
-HLP%progname = compress(word)
+HLP%progname = compress_string(word)
 
 return
 end subroutine help_progname
@@ -85,7 +85,7 @@ subroutine help_version(HLP,word)
 class(type_help), intent(inout)        :: HLP
 character(len=*), intent(in)           :: word
 
-HLP%version = compress(word)
+HLP%version = compress_string(word)
 
 return
 end subroutine help_version
@@ -99,7 +99,7 @@ character(len=*), intent(in)           :: word
 
 HLP%command = trim(word)
 if (HLP%command(1:1).EQ.'>') HLP%command(1:1) = ''
-HLP%command = compress(HLP%command)
+HLP%command = compress_string(HLP%command)
 
 return
 end subroutine help_command
@@ -113,7 +113,7 @@ character(len=*), intent(in)           :: word
 
 HLP%example = trim(word)
 if (HLP%example(1:1).EQ.'>') HLP%example(1:1) = ''
-HLP%example = compress(HLP%example)
+HLP%example = compress_string(HLP%example)
 
 return
 end subroutine help_example
@@ -125,7 +125,7 @@ subroutine help_summary(HLP,word)
 class(type_help), intent(inout)        :: HLP
 character(len=*), intent(in)           :: word
 
-HLP%summary = compress(word)
+HLP%summary = compress_string(word)
 
 return
 end subroutine help_summary
@@ -137,7 +137,7 @@ subroutine help_author(HLP,word)
 class(type_help), intent(inout)        :: HLP
 character(len=*), intent(in)           :: word
 
-HLP%author = compress(word)
+HLP%author = compress_string(word)
 
 return
 end subroutine help_author

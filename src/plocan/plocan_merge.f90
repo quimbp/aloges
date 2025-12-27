@@ -141,13 +141,13 @@ do rec=1,nrecs
 
       if (word.eq.'time') then
         err = NF90_GET_ATT(fid,var,'base_date',base_date)
-        call line_word(base_date,1,word)
+        call get_word(base_date,1,word)
         read(word,*) base_year
-        call line_word(base_date,2,word)
+        call get_word(base_date,2,word)
         read(word,*) base_month
-        call line_word(base_date,3,word)
+        call get_word(base_date,3,word)
         read(word,*) base_day
-        call line_word(base_date,4,word)
+        call get_word(base_date,4,word)
         read(word,*) base_hour
       endif
     enddo
@@ -183,13 +183,13 @@ do rec=1,nrecs
 
     if (word.eq.'time') then
       err = NF90_GET_ATT(fid,var,'base_date',base_date)
-      call line_word(base_date,1,word)
+      call get_word(base_date,1,word)
       read(word,*) year
-      call line_word(base_date,2,word)
+      call get_word(base_date,2,word)
       read(word,*) month
-      call line_word(base_date,3,word)
+      call get_word(base_date,3,word)
       read(word,*) day
-      call line_word(base_date,4,word)
+      call get_word(base_date,4,word)
       read(word,*) hour
       ord = ymd2ord(year,month,day)
       hours = (ord - base_ord)*24 + hour - base_hour

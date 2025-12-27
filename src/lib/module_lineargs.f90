@@ -67,7 +67,7 @@ if (read_from_file) then
   na = 0
   do i=1,nn
     read(iu,'(A)') line
-    if (line(1:1).ne.'#') na = na + numwords(line)
+    if (line(1:1).ne.'#') na = na + count_words(line)
   enddo
   lineargs_nargs = na
   allocate (lineargs_val(na))
@@ -79,9 +79,9 @@ if (read_from_file) then
   do i=1,nn
     read(iu,'(A)') line
     if (line(1:1).ne.'#') then
-      do j=1,numwords(line)
+      do j=1,count_words(line)
         jj = jj + 1
-        call line_word(line,j,lineargs_val(jj))
+        call get_word(line,j,lineargs_val(jj))
       enddo
     endif
   enddo
@@ -262,9 +262,9 @@ do k=1,lineargs_nargs
   do j=k+1,lineargs_nargs
     if (lineargs_val(j)(1:1).EQ.'-') EXIT
     if (len_trim(list).eq.0) then
-      list = compress(lineargs_val(j))
+      list = compress_string(lineargs_val(j))
     else
-      word = compress(lineargs_val(j))
+      word = compress_string(lineargs_val(j))
       list = trim(list)//' '//trim(word)
     endif
     lineargs_used(j) = 1
