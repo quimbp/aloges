@@ -38,6 +38,7 @@
 # NF90_LIB = Path to the  NetCDF Fortran 90 libraries
 # PLPLOT_INC = Path to the PLPLOT Fortran 90 modules
 # PLPLOT_LIB = Path to the PLPLOT Fortran 90 libraries
+# LAPACK_LIB = Path to the Lapack Fortran 90 libraries
 # 
 
 # OS and compiler options:
@@ -150,11 +151,16 @@ endif
 #PLPLOT_INC = -I/usr/lib/x86_64-linux-gnu/fortran/modules/plplot/
 #PLPLOT_LIB = -lplplotfortran
 
+# -------------------------------------------------------------------------#  
+# LAPACK (optional)  
+# -------------------------------------------------------------------------#  
+LAPACK_LIB = -llapack -lblas
+  
 # Common compile-time includes (used by subdir makefiles)  
 COMMON_INCS := $(CDF_INC) $(PLPLOT_INC)  
   
 # Link-time libs (used by subdir makefiles)  
-COMMON_LIBS := $(CDF_LIB) $(PLPLOT_LIB)  
+COMMON_LIBS := $(CDF_LIB) $(PLPLOT_LIB)  $(LAPACK_LIB)
   
 # Default install prefix  
 # The variable ALOGES, defined in .bashrc

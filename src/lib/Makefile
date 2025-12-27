@@ -53,7 +53,7 @@ OBJ = module_types.o $(PLOBJ) module_constants.o module_color.o     \
       module_enkf.o module_sysdyn.o module_interp.o                 \
       module_geodesy.o module_codar.o module_roms.o                 \
       module_fft.o module_spectra.o module_statistics.o             \
-      module_regrid.o
+      module_regrid.o module_wavelet.o module_nn.o module_ar.o 
 
 all: $(OBJ) $(LIBDIR) $(INCDIR) aloges.o
 	rm -f $(TARGET)
@@ -91,6 +91,9 @@ clean:
 	if test -d $(INCDIR); then rm -f $(INCDIR)module_fft.mod; fi
 	if test -d $(INCDIR); then rm -f $(INCDIR)module_spectra.mod; fi
 	if test -d $(INCDIR); then rm -f $(INCDIR)module_regrid.mod; fi
+	if test -d $(INCDIR); then rm -f $(INCDIR)module_wavelet.mod; fi
+	if test -d $(INCDIR); then rm -f $(INCDIR)module_nn.mod; fi
+	if test -d $(INCDIR); then rm -f $(INCDIR)module_ar.mod; fi
 	if test -d $(INCDIR); then rm -f $(INCDIR)aloges.mod; fi
 
 $(INCDIR):
@@ -103,6 +106,12 @@ $(LIBDIR):
 
 module_types.o: module_types.f90
 	$(FC) -c $(FFLAGS) $(COMMON_INCS) module_types.f90
+
+module_nn.o: module_types.f90 module_nn.f90
+	$(FC) -c $(FFLAGS) $(COMMON_INCS) module_nn.f90
+
+module_ar.o: module_types.f90 module_ar.f90
+	$(FC) -c $(FFLAGS) $(COMMON_INCS) module_ar.f90
 
 module_plplot.o: module_types.f90 module_plplot.f90
 	$(FC) -c $(FFLAGS) $(COMMON_INCS) module_plplot.f90
@@ -130,6 +139,9 @@ module_nc.o: module_types.o module_tools.o module_nc.f90
 
 module_math.o: module_types.o module_constants.o module_tools.o module_math.f90
 	$(FC) -c $(FFLAGS) $(COMMON_INCS) module_math.f90
+
+module_wavelet.o: module_types.o module_constants.o module_wavelet.f90
+	$(FC) -c $(FFLAGS) $(COMMON_INCS) module_wavelet.f90
 
 module_regrid.o: module_types.o module_tools.o module_regrid.f90
 	$(FC) -c $(FFLAGS) $(COMMON_INCS) module_regrid.f90

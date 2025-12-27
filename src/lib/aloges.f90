@@ -52,6 +52,9 @@ use module_codar
 use module_roms
 use module_fft
 use module_spectra
+use module_wavelet
+use module_nn
+use module_ar
 
 implicit none
 
