@@ -40,3 +40,11 @@ To skip the plotting utilities of the aloges library, leave empty the variable
 
 in the file make.inc
 
+### Lapack / Blas libraries
+
+In annticipation of using Lapack and BLAS libraries to accelerate the code,
+the following libraries should be also installed.
+
+> sudo apt update
+> sudo apt install gfortran libblas-dev liblapack-dev
+
