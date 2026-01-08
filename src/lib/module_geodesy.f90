@@ -19,11 +19,11 @@
 ! You should have received a copy of the GNU Lesser General                !
 ! Public License along with this program.                                  !
 ! If not, see <http://www.gnu.org/licenses/>.                              !
+! - lldist, lldist_deg                                                     !
+! - llbearing, llbearing_deg                                               !
 ! - haversine                                                              !
 ! - haversine_deg                                                          !
 ! - gc_bearing_deg                                                         !
-! - compass_to_polar                                                       !
-! - polar_to_compass                                                       !
 ! - gc_destination_point                                                   !
 ! - gc_inverse                                                             !
 ! - vincenty_direct                                                        !
@@ -33,6 +33,8 @@
 ! - gms2dec                                                                !
 ! - dec2gms                                                                !
 ! - ll2m                                                                   !
+! - compass_to_polar                                                       !
+! - polar_to_compass                                                       !
 ! -------------------------------------------------------------------------!
 
 module module_geodesy
@@ -44,6 +46,8 @@ module module_geodesy
   implicit none (type, external)
   private
   public :: WGS84
+  public :: lldist_deg, llbearing_deg
+  public :: lldist, llbearing
   public :: haversine, haversine_deg
   public :: gc_bearing_deg, gc_destination_point, gc_inverse
   public :: vincenty_direct, vincenty_inverse
@@ -91,6 +95,122 @@ module module_geodesy
   end interface dms2dec
 
 contains
+
+  ! ------------------------------------- 
+  ! ------------------------------------- SPHERICAL EARTH
+  ! ------------------------------------- Equirectangular (flat-Earth)
+  ! ------------------------------------- for nearby points (< 100 km)
+  ! ------------------------------------- 
+
+  !> @brief Approximate distance between two nearby points (equirectangular).
+  !!
+  !! Uses a flat-Earth approximation with latitude correction. Valid for
+  !! points within ~100 km. Faster than haversine but less accurate.
+  !!
+  !! @param[in] lat1_deg Latitude  of point 1 [deg]
+  !! @param[in] lon1_deg Longitude of point 1 [deg]
+  !! @param[in] lat2_deg Latitude  of point 2 [deg]
+  !! @param[in] lon2_deg Longitude of point 2 [deg]
+  !!
+  !! @return Real(dp) approximate distance [m].
+  !!
+  !! @note For higher accuracy, use haversine or vincenty_inverse.
+  real(dp) function lldist_deg(lat1_deg, lon1_deg, lat2_deg, lon2_deg)
+    real(dp), intent(in) :: lat1_deg, lon1_deg, lat2_deg, lon2_deg
+    real(dp) :: lat1, lon1, lat2, lon2, lat_mean
+    real(dp) :: dlat, dlon, dx, dy, R
+
+    R = WGS84%Earth_Radius
+
+    lat1 = lat1_deg * deg2rad
+    lon1 = lon1_deg * deg2rad
+    lat2 = lat2_deg * deg2rad
+    lon2 = lon2_deg * deg2rad
+
+    dlat = lat2 - lat1
+    dlon = lon2 - lon1
+
+    lat_mean = 0.5_dp * (lat1 + lat2)
+
+    dx = R * dlon * cos(lat_mean)
+    dy = R * dlat
+
+    lldist_deg = sqrt(dx*dx + dy*dy)
+  end function lldist_deg
+
+  real(dp) function lldist(lat1, lon1, lat2, lon2)
+    real(dp), intent(in) :: lat1, lon1, lat2, lon2   ! In Radians
+    real(dp) :: lat_mean
+    real(dp) :: dlat, dlon, dx, dy, R
+
+    R = WGS84%Earth_Radius
+
+    dlat = lat2 - lat1
+    dlon = lon2 - lon1
+
+    lat_mean = 0.5_dp * (lat1 + lat2)
+
+    dx = R * dlon * cos(lat_mean)
+    dy = R * dlat
+
+    lldist = sqrt(dx*dx + dy*dy)
+  end function lldist
+
+
+  !> @brief Approximate bearing between two nearby points (equirectangular).
+  !!
+  !! Uses a flat-Earth approximation with latitude correction. Valid for
+  !! points within ~100 km. Faster than gc_bearing_deg but less accurate.
+  !!
+  !! @param[in] lat1_deg Latitude  of point 1 [deg]
+  !! @param[in] lon1_deg Longitude of point 1 [deg]
+  !! @param[in] lat2_deg Latitude  of point 2 [deg]
+  !! @param[in] lon2_deg Longitude of point 2 [deg]
+  !!
+  !! @return Real(dp) approximate bearing [deg], compass convention [0, 360).
+  !!
+  !! @note For higher accuracy, use gc_bearing_deg or vincenty_inverse.
+  real(dp) function llbearing_deg(lat1_deg, lon1_deg, lat2_deg, lon2_deg)
+    real(dp), intent(in) :: lat1_deg, lon1_deg, lat2_deg, lon2_deg
+    real(dp) :: lat1, lon1, lat2, lon2, lat_mean
+    real(dp) :: dlat, dlon, dx, dy, R
+
+    R = WGS84%Earth_Radius
+
+    lat1 = lat1_deg * deg2rad
+    lon1 = lon1_deg * deg2rad
+    lat2 = lat2_deg * deg2rad
+    lon2 = lon2_deg * deg2rad
+
+    dlat = lat2 - lat1
+    dlon = lon2 - lon1
+
+    lat_mean = 0.5_dp * (lat1 + lat2)
+
+    dx = R * dlon * cos(lat_mean)
+    dy = R * dlat
+
+    llbearing_deg = modulo(atan2(dx, dy) * rad2deg + 360.0_dp, 360.0_dp)
+  end function llbearing_deg
+
+  real(dp) function llbearing(lat1, lon1, lat2, lon2)
+    real(dp), intent(in) :: lat1, lon1, lat2, lon2
+    real(dp) :: lat_mean
+    real(dp) :: dlat, dlon, dx, dy, R
+
+    R = WGS84%Earth_Radius
+
+    dlat = lat2 - lat1
+    dlon = lon2 - lon1
+
+    lat_mean = 0.5_dp * (lat1 + lat2)
+
+    dx = R * dlon * cos(lat_mean)
+    dy = R * dlat
+
+    llbearing = modulo(atan2(dx, dy) * rad2deg + 360.0_dp, 360.0_dp)
+  end function llbearing
+
 
   ! ------------------------------------- 
   ! ------------------------------------- SPHERICAL EARTH
