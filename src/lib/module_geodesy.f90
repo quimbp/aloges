@@ -44,25 +44,36 @@ module module_geodesy
   implicit none (type, external)
   private
   public :: WGS84
-  public :: haversine, haversine_deg, gc_bearing_deg, compass_to_polar, polar_to_compass
-  public :: gc_destination_point, gc_inverse
+  public :: haversine, haversine_deg
+  public :: gc_bearing_deg, gc_destination_point, gc_inverse
   public :: vincenty_direct, vincenty_inverse
   public :: spdir2uv, uv2spdir
   public :: dms2dec, dec2dms, dm2dec, dec2dm, dms2dm, dm2dms
   public :: ll2m
+  public :: compass_to_polar, polar_to_compass
 
-  !> @brief Canonical WGS84 constant set (single source of truth).
-  !! 
-  !! Stores spherical mean radius plus ellipsoidal parameters. Dependent
-  !! values (semi-minor axis, eccentricity squared) are derived at runtime.
-  !! Units: meters (length), dimensionless (ratios).
-  type :: type_WGS84_constants
-    real(dp) :: Earth_Radius    = 6371008.8_dp      !< Mean spherical Earth radius [m]
-    real(dp) :: Earth_SemiMajor = 6378137.0_dp      !< WGS84 semi-major axis a [m]
-    real(dp) :: Earth_InvFlatten= 298.257223563_dp  !< Inverse flattening 1/f
-    real(dp) :: Earth_SemiMinor = 0.0_dp            !< WGS84 semi-minor axis b [m] (derived)
-    real(dp) :: Earth_Ecc2      = 0.0_dp            !< First eccentricity squared e^2 (derived)
-  end type type_WGS84_constants
+  !> @brief Canonical WGS84 constant set (single source of truth).   
+  !!   
+  !! Stores ellipsoidal parameters and physical constants.   
+  !! Units: meters (length), rad/s (angular velocity), m^3/s^2 (GM).  
+  !!  
+  !! For the sake of convenience, a standard mean spherical radius (Earth_Radius)   
+  !! has also been included, although this parameter does not belong to the   
+  !! WGS84 standard.  
+  type :: type_WGS84_constants  
+    ! Primary WGS84 Parameters  
+    real(dp) :: a               = 6378137.0_dp        !< Semi-major axis [m]  
+    real(dp) :: rf              = 298.257223563_dp    !< Inverse flattening (1/f)  
+    real(dp) :: GM              = 3.986004418E14_dp   !< Geocentric gravitational constant  
+    real(dp) :: w               = 72.92115E-06_dp     !< Earth's angular velocity [rad/s]   
+  
+    ! Derived Parameters (Pre-calculated for WGS84)  
+    real(dp) :: b               = 6356752.3142_dp     !< Semi-minor axis b = a(1-f) [m]  
+    real(dp) :: e2              = 6.69437999014E-3_dp !< First eccentricity squared e² = 1 - b²/a²  
+  
+    ! Non-standard helper  
+    real(dp) :: Earth_Radius    = 6371008.8_dp        !< Mean spherical radius [m] (Not part of WGS84)  
+  end type type_WGS84_constants  
 
   type(type_WGS84_constants) :: WGS84
 
@@ -81,21 +92,9 @@ module module_geodesy
 
 contains
 
-  !> @brief Initialize WGS84 derived constants once.
-  !!
-  !! Derives semi-minor axis b and eccentricity squared e^2 from a and 1/f.
-  !! Called lazily by public routines; no need to call directly.
-  !! Units: meters (a,b), dimensionless (e^2).
-  subroutine init_wgs84_once()
-    real(dp) :: a, f, b
-    if (WGS84%Earth_SemiMinor == 0.0_dp .and. WGS84%Earth_Ecc2 == 0.0_dp) then
-      a = WGS84%Earth_SemiMajor
-      f = 1.0_dp / WGS84%Earth_InvFlatten
-      b = a * (1.0_dp - f)
-      WGS84%Earth_SemiMinor = b
-      WGS84%Earth_Ecc2      = 1.0_dp - (b*b)/(a*a)
-    end if
-  end subroutine init_wgs84_once
+  ! ------------------------------------- 
+  ! ------------------------------------- SPHERICAL EARTH
+  ! ------------------------------------- 
 
   !> @brief Great-circle distance using the haversine formula (sphere).
   !!
@@ -112,7 +111,6 @@ contains
   real(dp) function haversine(lat1,lon1,lat2,lon2)
     real(dp), intent(in) :: lat1, lon1, lat2, lon2
     real(dp) :: sindx, sindy, dang, ccl1, ccl2
-    !call init_wgs84_once()
     sindx = sin(0.5_dp*(lon2-lon1))
     sindy = sin(0.5_dp*(lat2-lat1))
     ccl1  = cos(lat1); ccl2 = cos(lat2)
@@ -120,11 +118,23 @@ contains
     haversine = WGS84%Earth_Radius * dang
   end function haversine
 
+
+  !> @brief Great-circle distance using the haversine formula (sphere).
+  !!
+  !! Inputs are in degrees; output distance is in meters using mean Earth radius.
+  !!
+  !! @param[in] lat1 Latitude  of point 1 [deg]
+  !! @param[in] lon1 Longitude of point 1 [deg]
+  !! @param[in] lat2 Latitude  of point 2 [deg]
+  !! @param[in] lon2 Longitude of point 2 [deg]
+  !!
+  !! @return Real(dp) distance along great circle [m].
+  !!
+  !! @note Robust for all separations; numerically stable.
   real(dp) function haversine_deg(lat1_deg,lon1_deg,lat2_deg,lon2_deg)
     real(dp), intent(in) :: lat1_deg, lon1_deg, lat2_deg, lon2_deg
     real(dp)             :: lat1, lon1, lat2, lon2
     real(dp) :: sindx, sindy, dang, ccl1, ccl2
-    !call init_wgs84_once()
     lon1 = lon1_deg * deg2rad
     lat1 = lat1_deg * deg2rad
     lon2 = lon2_deg * deg2rad
@@ -136,9 +146,10 @@ contains
     haversine_deg = WGS84%Earth_Radius * dang
   end function haversine_deg
 
+
   !> @brief Forward and reverse azimuth between two points on sphere.
   !!
-  !! Inputs are in radians; azimuth outputs in degrees [0, 360).
+  !! Inputs are in degrees; azimuth outputs in degrees [0, 360).
   !!
   !! @param[in]  lat1 Latitude  of start point [deg]
   !! @param[in]  lon1 Longitude of start point [deg]
@@ -167,23 +178,6 @@ contains
     rev_azimuth = modulo(atan2(yr, xr)*rad2deg + 360.0_dp, 360.0_dp)
   end subroutine gc_bearing_deg
 
-  !> @brief Convert compass angle (0°=North, CW) to math-polar (0°=East, CCW).
-  !!
-  !! @param[in] compass Compass/bearing angle [deg]
-  !! @return Real(dp) polar angle [deg].
-  pure real(dp) function compass_to_polar(compass)
-    real(dp), intent(in) :: compass
-    compass_to_polar = modulo(450.0_dp - compass, 360.0_dp)
-  end function compass_to_polar
-
-  !> @brief Convert math-polar angle (0°=East, CCW) to compass (0°=North, CW).
-  !!
-  !! @param[in] polar Polar angle [deg]
-  !! @return Real(dp) compass angle [deg].
-  pure real(dp) function polar_to_compass(polar)
-    real(dp), intent(in) :: polar
-    polar_to_compass = modulo(450.0_dp - polar, 360.0_dp)
-  end function polar_to_compass
 
   !> @brief Destination point given start, bearing, and distance (sphere).
   !!
@@ -201,7 +195,6 @@ contains
     real(dp), intent(in)  :: lat0_deg, lon0_deg, bearing_deg, dist
     real(dp), intent(out) :: lat1_deg, lon1_deg
     real(dp) :: lat0, lon0, bearing, lat1, lon1, R
-    !call init_wgs84_once()
     R = WGS84%Earth_Radius
     lat0    = lat0_deg * deg2rad
     lon0    = lon0_deg * deg2rad
@@ -212,6 +205,7 @@ contains
     lat1_deg = lat1 * rad2deg
     lon1_deg = lon1 * rad2deg
   end subroutine gc_destination_point
+
 
   !> @brief Initial bearing and spherical great-circle distance between two points.
   !!
@@ -227,7 +221,6 @@ contains
     real(dp), intent(in)  :: lat1_deg, lon1_deg, lat2_deg, lon2_deg
     real(dp), intent(out) :: dist, bearing_deg
     real(dp) :: lat1, lon1, lat2, lon2, dlon, cosc, c, y, x, R
-    call init_wgs84_once()
     R   = WGS84%Earth_Radius
     lat1 = lat1_deg * deg2rad; lon1 = lon1_deg * deg2rad
     lat2 = lat2_deg * deg2rad; lon2 = lon2_deg * deg2rad
@@ -240,6 +233,10 @@ contains
     x = cos(lat1) * sin(lat2) - sin(lat1) * cos(lat2) * cos(dlon)
     bearing_deg = modulo(atan2(y, x) * rad2deg + 360.0_dp, 360.0_dp)
   end subroutine gc_inverse
+
+  ! ------------------------------------- 
+  ! ------------------------------------- ELLIPSOIDAL EARTH
+  ! ------------------------------------- 
 
   !> @brief Vincenty forward problem on WGS84 ellipsoid.
   !!
@@ -262,10 +259,9 @@ contains
     real(dp) :: sinAlpha, cosSqAlpha, uSq, A_coeff, B_coeff, deltaSigma
     real(dp) :: sigmaP, cos2SigmaM
     real(dp) :: lat1, lon1, lat2, lon2
-    call init_wgs84_once()
-    a = WGS84%Earth_SemiMajor
-    f = 1.0_dp / WGS84%Earth_InvFlatten
-    b = WGS84%Earth_SemiMinor
+    a = WGS84%a
+    f = 1.0_dp / WGS84%rf
+    b = WGS84%b
     lat1   = lat1_deg   * deg2rad
     lon1   = lon1_deg   * deg2rad
     alpha1 = bearing_deg* deg2rad
@@ -296,6 +292,7 @@ contains
     lon2_deg = modulo(lon2 * rad2deg + 540.0_dp, 360.0_dp) - 180.0_dp
   end subroutine vincenty_direct
 
+
   !> @brief Vincenty inverse problem on WGS84 ellipsoid.
   !!
   !! Computes geodesic distance and forward/back azimuths between two points.
@@ -318,10 +315,9 @@ contains
     real(dp) :: sinAlpha, cosSqAlpha, cos2SigmaM, C, uSq, A_coeff, B_coeff, deltaSigma
     integer  :: iterLimit
     real(dp) :: lat1, lon1, lat2, lon2
-    call init_wgs84_once()
-    a = WGS84%Earth_SemiMajor
-    f = 1.0_dp / WGS84%Earth_InvFlatten
-    b = WGS84%Earth_SemiMinor
+    a = WGS84%a
+    f = 1.0_dp / WGS84%rf
+    b = WGS84%b
     lat1 = lat1_deg * deg2rad; lon1 = lon1_deg * deg2rad
     lat2 = lat2_deg * deg2rad; lon2 = lon2_deg * deg2rad
     L  = lon2 - lon1
@@ -362,6 +358,11 @@ contains
     azimuth1 = modulo(atan2( cosU2*sinLambda,  cosU1*sinU2 - sinU1*cosU2*cosLambda )*rad2deg + 360.0_dp, 360.0_dp)
     azimuth2 = modulo(atan2( cosU1*sinLambda, -sinU1*cosU2 + cosU1*sinU2*cosLambda )*rad2deg + 360.0_dp, 360.0_dp)
   end subroutine vincenty_inverse
+
+
+  ! ------------------------------------- 
+  ! ------------------------------------- HELPER TRANSFORMATIONS
+  ! ------------------------------------- 
 
   !> @brief Convert speed and compass direction to (u,v) components (scalar).
   !!
@@ -524,7 +525,7 @@ contains
 
     adeg = abs(deg)  
     gg   = int(floor(adeg))       
-    mm = (adeg - real(gg,dp)) * 60.0_dp  ! return fractional minutes; avoid integer seconds  
+    mm = (adeg - real(gg,dp)) * 60.0_dp  ! return fractional minutes
     if (deg < 0.0_dp) gg = -gg  
   end subroutine dec2dm
 
@@ -586,16 +587,17 @@ contains
   !!
   !! @note Valid for regional domains (rule of thumb: < ~1000 km).
   !! Uses WGS84 ellipsoidal radii of curvature at reference latitude.
-  subroutine ll2m(xi_deg, yi_deg, xc_deg, yc_deg, xim, yim, xcm, ycm, lon0_deg, lat0_deg)
-    real(dp), intent(in)  :: xi_deg(:), yi_deg(:), xc_deg(:), yc_deg(:)
-    real(dp), intent(out) :: xim(size(xi_deg)), yim(size(yi_deg)), xcm(size(xc_deg)), ycm(size(yc_deg))
+  subroutine ll2m(xi_deg, yi_deg, xc_deg, yc_deg, xim, yim, &
+                  xcm, ycm, lon0_deg, lat0_deg)
+    real(dp), intent(in)              :: xi_deg(:), yi_deg(:)
+    real(dp), intent(in)              :: xc_deg(:), yc_deg(:)
+    real(dp), intent(out)             :: xim(size(xi_deg)), yim(size(yi_deg))
+    real(dp), intent(out)             :: xcm(size(xc_deg)), ycm(size(yc_deg))
     real(dp), intent(inout), optional :: lon0_deg, lat0_deg
     real(dp) :: lon0, lat0, lon0_in_deg, lat0_in_deg
     real(dp) :: lonc_deg, latc_deg, phi0, sinphi0, cosphi0
     real(dp) :: N_phi0, M_phi0
     integer :: n, m
-
-    call init_wgs84_once()
 
     n = size(xi_deg); m = size(xc_deg)
     if (size(yi_deg) /= n) stop 'll2m: xi/yi size mismatch'
@@ -630,8 +632,8 @@ contains
     phi0 = lat0
     sinphi0 = sin(phi0); cosphi0 = cos(phi0)
 
-    N_phi0 = WGS84%Earth_SemiMajor / sqrt(1.0_dp - WGS84%Earth_Ecc2 * sinphi0*sinphi0)
-    M_phi0 = WGS84%Earth_SemiMajor * (1.0_dp - WGS84%Earth_Ecc2) / ( (1.0_dp - WGS84%Earth_Ecc2*sinphi0*sinphi0)**1.5_dp )
+    N_phi0 = WGS84%a / sqrt(1.0_dp - WGS84%e2 * sinphi0*sinphi0)
+    M_phi0 = WGS84%a * (1.0_dp - WGS84%e2) / ( (1.0_dp - WGS84%e2*sinphi0*sinphi0)**1.5_dp )
 
     call project_set(xi_deg, yi_deg, lon0, lat0, N_phi0, M_phi0, cosphi0, xim, yim)
     call project_set(xc_deg, yc_deg, lon0, lat0, N_phi0, M_phi0, cosphi0, xcm, ycm)
@@ -727,5 +729,23 @@ contains
     real(dp), intent(in) :: theta
     t = modulo(theta + pi, two_pi) - pi
   end function wrap_pi
+
+  !> @brief Convert compass angle (0°=North, CW) to math-polar (0°=East, CCW).
+  !!
+  !! @param[in] compass Compass/bearing angle [deg]
+  !! @return Real(dp) polar angle [deg].
+  pure real(dp) function compass_to_polar(compass)
+    real(dp), intent(in) :: compass
+    compass_to_polar = modulo(450.0_dp - compass, 360.0_dp)
+  end function compass_to_polar
+
+  !> @brief Convert math-polar angle (0°=East, CCW) to compass (0°=North, CW).
+  !!
+  !! @param[in] polar Polar angle [deg]
+  !! @return Real(dp) compass angle [deg].
+  pure real(dp) function polar_to_compass(polar)
+    real(dp), intent(in) :: polar
+    polar_to_compass = modulo(450.0_dp - polar, 360.0_dp)
+  end function polar_to_compass
 
 end module module_geodesy
