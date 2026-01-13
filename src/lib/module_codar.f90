@@ -31,9 +31,9 @@ use module_tools, only: crash
 implicit none (type, external)
 
 type type_codar_table
-  character(len=20)                                :: Type
-  integer                                          :: nrows
-  integer                                          :: ncols
+  character(len=20)                                :: Type = ""
+  integer                                          :: nrows = 0
+  integer                                          :: ncols = 0
   real(dp)                                         :: missing = -999.0_dp
   character(len=4), allocatable                    :: ColumnNames(:)
   character(len=maxlen)                            :: Names,Units
@@ -348,17 +348,20 @@ contains
       ! ...
       if (in_table) then
 
+
         if (line(1:9).eq.'%TableEnd') then
           ! Nothing to be done
         else if (index(line,'%TableType') > 0) then
           read(line(index(line,':')+1:),*) CODAR%Table(itable)%Type
+          CODAR%Table(itable)%ncols = 0
+          CODAR%Table(itable)%nrows = 0
         else if (index(line,'%TableColumns') > 0) then
-          read(line(index(line,':')+1:),*) CODAR%Table(itable)%ncols
-          ncols = CODAR%Table(itable)%ncols
+          read(line(index(line,':')+1:),*,iostat=ios) ncols
+          if (ios.eq.0) CODAR%Table(itable)%ncols = ncols
           if (verbosity.ge.3) write(*,*) ' > CODAR%Table [itable, ncols]: ', itable, ncols
         else if (index(line,'%TableRows') > 0) then
-          read(line(index(line,':')+1:),*) CODAR%Table(itable)%nrows
-          nrows = CODAR%Table(itable)%nrows
+          read(line(index(line,':')+1:),*,iostat=ios) nrows
+          if (ios.eq.0) CODAR%Table(itable)%nrows = nrows
           if (verbosity.ge.3) write(*,*) ' > CODAR%Table [itable, nrows]: ', itable, nrows
           allocate(CODAR%Table(itable)%data(nrows,ncols))
         else if (line(1:17).eq.'%TableColumnTypes') then
@@ -385,7 +388,7 @@ contains
     ! ... Check that all tables are full:
     ! ...
     !do itable=1,CODAR%ntables
-    !  print*, CODAR%Table(itable)%nrows, CODAR%Table(itable)%ncols
+    !  print*, itable, CODAR%Table(itable)%nrows, CODAR%Table(itable)%ncols
     !enddo
    
     ! ... Get the ID of the table with the LLUV data (usually the first one).
@@ -396,12 +399,13 @@ contains
         status = -1
         return
       else
-        call crash('Cannot open ruv file')
+        call crash('Cannot find LLUV table')
       endif
     endif
 
     ! ... Check that the table is full
     ! ...
+    !print*, itable, CODAR%Table(itable)%nrows, CODAR%Table(itable)%ncols
     if (CODAR%Table(itable)%nrows.le.0.or.CODAR%Table(itable)%ncols.le.0) then
       if (present(status)) then
         status = -1
