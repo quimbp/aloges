@@ -81,6 +81,9 @@ type type_codar
   real(dp), allocatable                             :: cell_lat(:,:)  ! [nbearings,nranges]
   integer, allocatable                              :: cell_mask(:,:) ! 1=water,0=land
 
+  ! --- Radial measurements ---
+  real(dp), allocatable                             :: cell_vel(:,:)  ! [nbearings,nranges] (m)
+
   ! --- Measurement characteristics ---
   real(dp), allocatable                             :: sigma_vr(:,:) ! radial velocity std dev
   real(dp)                                          :: freq_hz       ! operating frequency
@@ -102,6 +105,7 @@ type type_codar
   contains
     procedure :: ruv_read  => codar_ruv_read
     procedure :: att_get   => codar_att_get
+    procedure :: row2grid  => codar_row2grid
     procedure :: ruv_write => codar_ruv_write
 end type type_codar
 
@@ -307,6 +311,7 @@ contains
     if (allocated(CODAR%range)) deallocate(CODAR%range)
     if (allocated(CODAR%cell_lon)) deallocate(CODAR%cell_lon)
     if (allocated(CODAR%cell_lat)) deallocate(CODAR%cell_lat)
+    if (allocated(CODAR%cell_vel)) deallocate(CODAR%cell_vel)
     if (allocated(CODAR%cell_mask)) deallocate(CODAR%cell_mask)
     if (allocated(CODAR%sigma_vr)) deallocate(CODAR%sigma_vr)
     if (allocated(CODAR%cos_theta)) deallocate(CODAR%cos_theta)
@@ -316,6 +321,7 @@ contains
     allocate(CODAR%range(nranges))
     allocate(CODAR%cell_lon(nbearings,nranges))
     allocate(CODAR%cell_lat(nbearings,nranges))
+    allocate(CODAR%cell_vel(nbearings,nranges))
     allocate(CODAR%cell_mask(nbearings,nranges))
     allocate(CODAR%sigma_vr(nbearings,nranges))
     allocate(CODAR%cos_theta(nbearings,nranges))
@@ -430,18 +436,6 @@ contains
         call crash('Cannot find BEAR column')
       endif
     endif
-
-    ! ... Add offset to bearings
-    ! ...
-    !min_bearing = 5000
-    !do i=1,CODAR%Table(itable)%nrows
-    !  xbear = CODAR%Table(itable)%data(i,id_bear)
-    !  if (xbear.lt.min_bearing) min_bearing = xbear
-    !enddo
-    !print*, CODAR%bearing
-    !print*, min_bearing
-    !CODAR%bearing(:) = min_bearing + CODAR%bearing
-    !print*, CODAR%bearing
 
     min_bearing = minval(CODAR%Table(itable)%data(:,id_bear))
     closest_theoretical = floor(min_bearing / bearing_res) * bearing_res 
@@ -593,7 +587,7 @@ contains
     ! Local variables
     integer :: itable, irow, nrows, ncols
     integer :: i, irange, ibear
-    real(dp) :: lon, lat, range_km, bearing_deg
+    real(dp) :: lon, lat, velo, range_km, bearing_deg
     integer :: vflg
     real(dp) :: range_center, bearing_center
     integer :: id_lon, id_lat, id_range, id_bear, id_vflg
@@ -611,6 +605,7 @@ contains
     CODAR%cell_mask = 0
     CODAR%cell_lon  = 0.0_dp
     CODAR%cell_lat  = 0.0_dp
+    CODAR%cell_vel  = -999.0_dp
     CODAR%cos_theta = 0.0_dp
     CODAR%sin_theta = 0.0_dp
     if (allocated(CODAR%sigma_vr)) CODAR%sigma_vr = 0.0_dp
@@ -636,10 +631,11 @@ contains
     do irow = 1, nrows
         
         ! Get location data from table
-        lon = CODAR%Table(itable)%data(irow, id_lon)
-        lat = CODAR%Table(itable)%data(irow, id_lat)
-        range_km    = CODAR%Table(itable)%data(irow, id_range)
+        lon  = CODAR%Table(itable)%data(irow, id_lon)
+        lat  = CODAR%Table(itable)%data(irow, id_lat)
+        velo = CODAR%Table(itable)%data(irow, id_velo) 
         bearing_deg = CODAR%Table(itable)%data(irow, id_bear)
+        range_km    = CODAR%Table(itable)%data(irow, id_range)
         vflg        = nint(CODAR%Table(itable)%data(irow, id_vflg))
         
         ! Check for valid data (vector flag should be 0 for good data)
@@ -653,8 +649,7 @@ contains
         ! Since the table provides actual lon/lat, use those for grid position
         ! But also validate against range/bearing metadata
         
-        call find_grid_indices(CODAR, lon, lat, range_km, bearing_deg, &
-                              irange, ibear)
+        call find_grid_indices(CODAR, bearing_deg, range_km, ibear, irange)
         
         ! Check if indices are within valid range
         if (irange < 1 .or. irange > CODAR%nranges .or. &
@@ -669,6 +664,7 @@ contains
         ! Store grid position
         CODAR%cell_lon(ibear,irange)  = lon
         CODAR%cell_lat(ibear,irange)  = lat
+        CODAR%cell_vel(ibear,irange)  = velo / 100.0_dp ! in meter/seconds
         CODAR%cos_theta(ibear,irange) = cos(bearing_deg*deg2rad)
         CODAR%sin_theta(ibear,irange) = sin(bearing_deg*deg2rad)
         CODAR%cell_mask(ibear,irange) = 1  ! Mark as having data
@@ -718,20 +714,19 @@ contains
   !
   ! ========================================================================
 
-  subroutine find_grid_indices(CODAR, lon, lat, range_km, bearing_deg, &
-                            irange, ibear,status)
+  subroutine find_grid_indices(CODAR, bearing_deg, range_km, &
+                               ibear, irange, status)
     
     class(type_codar), intent(in)     :: CODAR
-    real(dp), intent(in)              :: lon, lat, range_km, bearing_deg
-    integer, intent(out)              :: irange, ibear
+    real(dp), intent(in)              :: bearing_deg, range_km
+    integer, intent(out)              :: ibear, irange
     integer, intent(out), optional    :: status
     integer                           :: i, j
     real(dp)                          :: range_m, dist_min, dist
    
     if (present(status)) status = 0
  
-    ! Strategy 1: Use range and bearing directly
-    ! Convert km to meters
+    ! Convert range in km to meters
     range_m = range_km * 1000.0_dp
     
     ! Find range index: closest range cell
@@ -769,5 +764,27 @@ contains
     endif 
     
 end subroutine find_grid_indices
+
+  subroutine codar_row2grid(CODAR, irow, ibear, irange, status)
+    class(type_codar), intent(in)     :: CODAR
+    integer, intent(in)               :: irow
+    integer, intent(out)              :: ibear,irange
+    integer, intent(out), optional    :: status
+
+    integer                           :: itable,id_bear,id_range
+    real(dp)                          :: bearing_deg,range_km
+    real(dp)                          :: dist_min, dist
+   
+    if (present(status)) status = 0
+
+    itable      = find_table_by_type(CODAR, 'LLUV')
+    id_bear     = CODAR%Table(itable)%id('BEAR')  ! Bearing (True degrees)
+    id_range    = CODAR%Table(itable)%id('RNGE')  ! Range (km)
+    bearing_deg = CODAR%Table(itable)%data(irow, id_bear)
+    range_km    = CODAR%Table(itable)%data(irow, id_range)
+    call find_grid_indices(CODAR, bearing_deg, range_km, ibear, irange, status)
+
+  end subroutine codar_row2grid
+
 
 end module module_codar
