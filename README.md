@@ -15,7 +15,7 @@ Install the compiler toolchain:
 
 Check:
 
-gfotran --version
+gfortran --version
 
 ### NetCDF (Scientific data format)
 The library includes utilities to handle NetCDF files via **NetCDF-Fortran** bindings: [https://www.unidata.ucar.edu/software/netcdf](https://www.unidata.ucar.edu/software/netcdf)
@@ -60,7 +60,7 @@ Several numerical modules require LAPACK and BLAS libraries.
 Install:
 
 sudo apt update<br>
-sudo apt install gfortran liblapack-dev libblas-dev
+sudo apt install liblapack-dev libblas-dev
 
 Verify installation:
 
@@ -70,7 +70,7 @@ Typical library installation path on Ubuntu:
 
 /usr/lib/x86_l64-linux-gnu
 
-Example compilation using LAPACK/:
+Example compilation using LAPACK/BLAS:
 
 gfortran -O2 -o example example.f90 -llapack -lblas
 
