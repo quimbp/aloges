@@ -1,50 +1,93 @@
-# Aloges model and library
-Aloges Lagrangian Model
+# Aloges library
 
 ## Introduction
-The aloges model and library contains a set of Fortran fuctions solving some general-purpose matrhomatical and file processing used by the Aloges Lagrangian Model.
-This set of functions have been tested with the gfortran compiler (13.3.0) within an Ubuntu system (Ubuntu 24.04.2 LTS, Release: 24.04, noble).
+The **Aloges** library is a collection of Fortran modules providing general-purpose mathematical routines and file /IO utilities used by the *Aloges Lagrangian Model*.<br>
+The library has been tested with the **GNU Fortran** (gfortran) **13.3.0** on **Ubuntu 24.04.2 LTS (noble)**.
 
-## Pre-requisistes
+## Pre-requisistes (Ubuntu/Debian)
 
 ### Fortran compiler
 
-The aloges library has been compiled and tested with the gfortran compiler. In Ubuntu, to install the compiler:
+Install the compiler toolchain:
 
-> sudo apt-get update
+sudo apt update<br>
+sudo apt install gfortran
 
-> sudo apt-get install gfortran
+Check:
+
+gfotran --version
 
 ### NetCDF (Scientific data format)
-The library includes utilities to handle NetCDF files. These are buil upon the NetCDF (https://www.unidata.ucar.edu/software/netcdf) bindings for the Fortran language. Before compiling the code the user must install them:
+The library includes utilities to handle NetCDF files via **NetCDF-Fortran** bindings: [https://www.unidata.ucar.edu/software/netcdf](https://www.unidata.ucar.edu/software/netcdf)
 
-> sudo apt-get install libnetcdff-dev
+Install:
 
-It is also advisable to install the following packages:
+sudo apt update<br>
+sudo apt install libnetcdff-dev
 
-> sudo apt-get install netcdf-bin ncview
+Optional tools:
+
+sudo apt install netcdf-bin ncview
+
+Verify installation:
+
+nf-config --version<br>
+dpkg -l | grep -E "libnetcdf|libnetcdff"
 
 ### Plplot (graphic library)
-The library includes plotting utilities built upon the PLPLOT library (https://plplot.sourceforge.net/) bindings for the Fortran language.
-Before compiling the code, if these utilities are wanted, the user must install the fortran library:
+Plotting utilities rely on the **PLplot** Fortran bindings: [https://plplot.sourceforge.net/](https://plplot.sourceforge.net/)
 
-> sudo apt-get install libplplot-dev
+Install (if plotting support is required):
 
-The following device drivers can be of help:
+sudo update<br>
+sudo apt install libplplot-dev
 
-> sudo apt-get install plplot-driver-cairo plplot-driver-qt plplot-driver-wxwidgets plplot-driver-xwin plplot-tcl
+Recommended device drivers:
 
-To skip the plotting utilities of the aloges library, leave empty the variable
 
-> MODULE_PLPLOT=
+sudo apt install plplot-driver-cairo plplot-driver-qt plplot-driver-wxwidgets plplot-driver-xwin plplot-tcl
 
-in the file make.inc
+To disable PLplot support, set the following variable to an empty value in make.inc:
 
-### Lapack / Blas libraries
 
-In annticipation of using Lapack and BLAS libraries to accelerate the code,
-the following libraries should be also installed.
+MODULE_PLPLOT=
 
-> sudo apt update
-> sudo apt install gfortran libblas-dev liblapack-dev
+
+### LAPACK / BLAS libraries
+
+Several numerical modules require LAPACK and BLAS libraries.
+
+Install:
+
+sudo apt update<br>
+sudo apt install gfortran liblapack-dev libblas-dev
+
+Verify installation:
+
+dpkg -l | grep -E "libblas|liblapack"
+
+Typical library installation path on Ubuntu:
+
+/usr/lib/x86_l64-linux-gnu
+
+Example compilation using LAPACK/:
+
+gfortran -O2 -o example example.f90 -llapack -lblas
+
+### Limited-memory BFGS (L-BFGS-B)
+
+The Neural Network module uses the limited-memory BFGS with bounds library, L-BFGS-B. 
+
+Install:
+
+sudo apt update<br>
+sudo apt install liblbfgsb-dev
+
+Verify installation:
+
+dpkg - l | grep lbfgsb
+
+Example compilation using L-BFGS-B: 
+
+gfortran -O2 -o example example.f90 -llbfgsb -llapack -lblas
 
