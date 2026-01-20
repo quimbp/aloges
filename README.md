@@ -135,3 +135,16 @@ PATH="$ALOGES/bin:$PATH"
 
 In this way, your sistem will be able to locate the applications and scripts present in your folder *SOMEPATH/aloges/bin/*
 
+## Examples
+
+A series of examples using various modules of the **Aloges** library can be found in the folder src/examples
+
+cd src/examples
+
+To compile all the examples:
+
+make
+
+Each example can be individually compiled using the script **afort**:
+
+afort example_constants
