@@ -23,17 +23,12 @@
 
 include ../../make.inc
 
-#DBFLAGS = -ffpe-summary=zero,invalid,overflow,underflow
-#DBFLAGS = -ffpe-trap=zero,invalid,overflow,underflow
-DBFLAGS =
-FCFLAGS = $(FFLAGS) $(DBFLAGS)
-
 BINDIR = ../../bin/
 INCDIR = ../../include/
 LIBDIR = ../../lib/
+INC_DIRS = -I$(INCDIR) $(COMMON_INCS)
+LIB_DIRS = -L$(LIBDIR) -laloges $(COMMON_LIBS)
 
-LIB = -L$(LIBDIR) -laloges $(CDF_LIB)
-INC = $(COMMON_INCS) -I$(INCDIR)
 
 TARGET = aloges
 OBJ = module_alm.o module_forcing.o module_float.o module_model.o module_options.o \
@@ -51,27 +46,27 @@ it:
 
 clean:
 	rm -f $(TARGET) $(OBJ) *.mod 
-	if test -d $(BINDIR); then rm -f $(BINDIR)alm; fi
+	if test -d $(BINDIR); then rm -f $(BINDIR)/$(TARGET); fi
 
 $(TARGET): $(OBJ) main.f90
 	rm -f $(TARGET)
-	$(FC) $(FFLAGS) -o $(TARGET) main.f90 $(OBJ) $(INC) $(LIB)
+	$(FC) $(FFLAGS) -o $(TARGET) main.f90 $(OBJ) $(INC_DIRS) $(LIB_DIRS)
 	$(INSTALL) $(TARGET) $(BINDIR)
 
 module_alm.o: module_alm.f90
-	$(FC) -c $(FFLAGS) $(INC) module_alm.f90
+	$(FC) -c $(FFLAGS) $(INC_DIRS) module_alm.f90
 
 module_forcing.o: module_forcing.f90
-	$(FC) -c $(FFLAGS) $(INC) module_forcing.f90
+	$(FC) -c $(FFLAGS) $(INC_DIRS) module_forcing.f90
 
 module_float.o: module_float.f90
-	$(FC) -c $(FFLAGS) $(INC) module_float.f90
+	$(FC) -c $(FFLAGS) $(INC_DIRS) module_float.f90
 
 module_model.o: module_model.f90
-	$(FC) -c $(FFLAGS) $(INC) module_model.f90
+	$(FC) -c $(FFLAGS) $(INC_DIRS) module_model.f90
 
 module_fitting.o: module_fitting.f90
-	$(FC) -c $(FFLAGS) $(INC) module_fitting.f90
+	$(FC) -c $(FFLAGS) $(INC_DIRS) module_fitting.f90
 
 module_options.o: module_forcing.o module_float.o module_model.o module_fitting.o module_options.f90
-	$(FC) -c $(FFLAGS) $(INC) module_options.f90
+	$(FC) -c $(FFLAGS) $(INC_DIRS) module_options.f90

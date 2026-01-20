@@ -20,13 +20,8 @@
 # Public License along with this program.                                  #
 # If not, see <http://www.gnu.org/licenses/>.                              #
 # -------------------------------------------------------------------------#
-# Last Modified: 2025-10-27                                                #
+# Last Modified: 2026-01-20                                                #
 # -------------------------------------------------------------------------#  
-  
-include make.inc  
-  
-.PHONY: all clean distclean afort install uninstall lib model  
-
 #
 # To compile the library and lagrangian model:
 # > make
@@ -35,9 +30,15 @@ include make.inc
 
 include make.inc
 
+.PHONY: all clean afort install uninstall lib model  
+BINDIR = ./bin
+
 all: lib model
 	(cd src/lib; make)
 	(cd src/lagrangian; make)
+
+$(DIRS):
+	mkdir -p $@
 
 lib: 
 	$(MAKE) -C src/lib
@@ -50,16 +51,20 @@ clean:
 	$(MAKE) -C src/lagrangian clean
 	rm -f bin/afort
 
-afort:
+$(BINDIR):
+	@echo "Directory $(BINDIR) does not exist. Creating it"
+	mkdir -p $@
+
+afort: $(BINDIR) scripts/afort.template
 	(cd scripts; sed \
 		-e 's@#ALOGES_ROOT.*@ALOGES_ROOT=${PWD}@' \
 		-e 's@#FC.*@FC=${FC}@' \
 		-e 's@#FFLAGS.*@FFLAGS="'"${FFLAGS}"'"@' \
-		-e 's@#CDFINC.*@CDFINC="'"${CDFINC}"'"@' \
-		-e 's@#CDFLIB.*@CDFLIB="'"${CDFLIB}"'"@' \
+		-e 's@#NCDF_INC.*@NCDF_INC="'"${NCDF_INC}"'"@' \
+		-e 's@#NCDF_LIB.*@NCDF_LIB="'"${NCDF_LIB}"'"@' \
 		-e 's@#PLPLOT_INC.*@PLPLOT_INC="'"${PLPLOT_INC}"'"@' \
 		-e 's@#PLPLOT_LIB.*@PLPLOT_LIB="'"${PLPLOT_LIB}"'"@' \
+		-e 's@#LBFGSB_LIB.*@LBFGSB_LIB="'"${LBFGSB_LIB}"'"@' \
 		afort.template > ../bin/afort)
 	chmod +x bin/afort
-
 

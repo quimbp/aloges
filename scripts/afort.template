@@ -9,13 +9,14 @@ version="2.1"
 #ALOGES_ROOT=
 #FC=
 #FFLAGS=
-#CDFINC=
-#CDFLIB=
+#NCDF_INC=
+#NCDF_LIB=
 #PLPLOT_INC=
 #PLPLOT_LIB=
+#LBFGSB_LIB=
 
-INC="-I${ALOGES_ROOT}/include ${CDFINC} ${PLPLOT_INC}"
-LIB="-L${ALOGES_ROOT}/lib -laloges ${CDFLIB} ${PLPLOT_LIB}"
+INC="-I${ALOGES_ROOT}/include ${NCDF_INC} ${PLPLOT_INC}"
+LIB="-L${ALOGES_ROOT}/lib -laloges ${NCDF_LIB} ${PLPLOT_LIB} ${LBFGSB_LIB}"
 
 Nargs=$#
 
@@ -29,6 +30,16 @@ fi
 
 user_defined_executable=0
 user_wants_an_object=0
+just_show=0
+
+if [ "$1" == "--help" ]; then 
+  echo "Help ..."
+  exit
+fi
+
+if [ "$1" == "--show" ]; then 
+  just_show=1
+fi
 
 i=1
 options=""
@@ -45,33 +56,36 @@ for argument in "$@"; do
   ((i++))
 done
 
-# Last argument is the file to be compiled
-#
-file=${@:$#}
+if [ "$just_show" == "0" ]; then
 
-# Get basename and extension from file argument
-#
-basename=${file%%.*}
-extension=${file##*.}
-if [ "$extension" == "$basename" ]; then
-  extension=""
-fi
+  # Last argument is the file to be compiled
+  #
+  file=${@:$#}
 
-
-if [ $user_defined_executable == 0 ]; then
-  executable=" -o ${basename} "
-fi
-
-if [ "$extension" == "" ]; then
-  if [ -e ${basename}.f90 ]; then
-    filename="${basename}.f90"
-    extension="f90"
-  else
-    echo "file ${basename}.f90 not found"
-    exit 1
+  # Get basename and extension from file argument
+  #
+  basename=${file%%.*}
+  extension=${file##*.}
+  if [ "$extension" == "$basename" ]; then
+    extension=""
   fi
-else
-  filename=$file
+
+
+  if [ $user_defined_executable == 0 ]; then
+    executable=" -o ${basename} "
+  fi
+
+  if [ "$extension" == "" ]; then
+    if [ -e ${basename}.f90 ]; then
+      filename="${basename}.f90"
+      extension="f90"
+    else
+      echo "file ${basename}.f90 not found"
+      exit 1
+    fi
+  else
+    filename=$file
+  fi
 fi
 
 echo "==============================================================="
@@ -79,12 +93,25 @@ echo "cfort $version"
 echo "==============================================================="
 echo "FC         :: " ${FC}
 echo "FFLAGS     :: " ${FFLAGS}
-echo "Options    :: " ${options}
-echo "Filename   :: " ${filename}
-echo "Extension  :: " ${extension}
 echo "ALOGES     :: " ${ALOGES}
-echo "CDFINC     :: " ${CDFINC}
-echo "CDFLIB     :: " ${CDFLIB}
+echo "NCDF_INC   :: " ${NCDF_INC}
+echo "NCDF_LIB   :: " ${NCDF_LIB}
+echo "PLPLOT_INC :: " ${PLPLOT_INC}
+echo "PLPLOT_LIB :: " ${PLPLOT_LIB}
+echo "LBFGSB_LIB :: " ${LBFGSB_LIB}
+if [ "$just_show" == "0" ]; then
+  echo "Options    :: " ${options}
+  echo "Filename   :: " ${filename}
+  echo "Extension  :: " ${extension}
+fi
+
+if [ "$just_show" == "1" ]; then
+  echo ""
+  echo "Compilation options:"
+  echo ""
+  echo "${FC} ${FFLAGS} ${options} ${INC} ${LIB}"
+  exit
+fi
 
 if [ "$user_wants_an_object" == "1" ]; then
   echo "${FC} ${FFLAGS} ${options} ${filename} ${INC} "
