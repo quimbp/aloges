@@ -147,4 +147,8 @@ make
 
 Each example can be individually compiled using the script **afort**:
 
+afort example_constants.f90
+
+or 
+
 afort example_constants
