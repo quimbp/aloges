@@ -121,7 +121,7 @@ character(len=*), public, parameter :: lowercase_letters = letters(27:) !! a .. 
 type type_constants
   real(dp)             :: Earth_Gravity     = 9.80665_dp     ! Standard gravity [m/s^2]
   real(dp)             :: Earth_Omega       = 7.2921159D-5   ! Earth's angular velocity [rad/s]
-  real(dp)             :: Earth_Radius      = 6371315.0_dp   ! Earth radius used in models [m]
+  real(dp)             :: Earth_Radius      = 6371008.8_dp   ! Earth radius Wikipedia
   real(dp)             :: Earth_Mass        = 5.9722D24      ! Earth mass [kg]
   real(dp)             :: Earth_Declination = 23.446_dp      ! Earth orb. decl. deg
   real(dp)             :: Solar_Constant    = 1365.2_dp      ! W/m2

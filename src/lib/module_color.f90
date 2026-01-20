@@ -91,7 +91,7 @@ contains
   subroutine print_colored(msg, color)
     character(len=*), intent(in) :: msg, color
 
-    print '(A)', trim(color)//msg//reset
+    write(*,'(A)') trim(color)//msg//reset
 
   end subroutine print_colored
 
