@@ -10,8 +10,8 @@ The library has been tested with the **GNU Fortran** (gfortran) **13.3.0** on **
 
 Install the compiler toolchain:
 
-sudo apt update<br>
-sudo apt install gfortran
+  sudo apt update<br>
+  sudo apt install gfortran
 
 Check:
 
