@@ -10,8 +10,8 @@ The library has been tested with the **GNU Fortran** (gfortran) **13.3.0** on **
 
 Install the compiler toolchain:
 
-  sudo apt update<br>
-  sudo apt install gfortran
+sudo apt update<br>
+sudo apt install gfortran
 
 Check:
 
@@ -47,10 +47,13 @@ Recommended device drivers:
 
 sudo apt install plplot-driver-cairo plplot-driver-qt plplot-driver-wxwidgets plplot-driver-xwin plplot-tcl
 
-To disable PLplot support, set the following variable to an empty value in make.inc:
+By default, the library will be compiled with plotting capabilities. In the file **make.inc** file, the following statement can be found:
 
+WITH_PLPLOT = 1
 
-MODULE_PLPLOT=
+To disable PLplot support, set in **make.inc**:
+
+WITH_PLPLOT = 0
 
 
 ### LAPACK / BLAS libraries
@@ -90,4 +93,45 @@ dpkg - l | grep lbfgsb
 Example compilation using L-BFGS-B: 
 
 gfortran -O2 -o example example.f90 -llbfgsb -llapack -lblas
+
+## Install
+
+The installation of the **Aloges** library and applications has three steps: Download the code, compile and system setup:
+
+### Download the code
+
+To download the code from the **git** repository:
+
+git clone https://github.com/quimbp/aloges.git
+
+### Compile the code
+
+cd aloges
+
+*Edit, if necessary, the file **make.inc**. In this file the user can change the compiler, the compiler options, library paths and linking options. In this file, the variable **WITH_PLPLOT** can be used to activate (default) and deactivate the library's plotting capabilities.*
+
+Compilation:
+
+make
+
+A *script* is available to compile a Fortran program using the options defined in the file **make.inc**. To generate such a script:
+
+make afort
+
+*It will create a bash script in the *bin/* folder that can be used to compile your own applications using the **Aloges** library:
+
+afort your_program.f90
+
+
+### Setting up the linux environment
+
+Inside the **.bashrc** file in your home folder, define the following variable:
+
+export ALOGES=SOMEPATH/aloges
+
+Then, add:
+
+PATH="$ALOGES/bin:$PATH"
+
+In this way, your sistem will be able to locate the applications and scripts present in your folder *SOMEPATH/aloges/bin/*
 
