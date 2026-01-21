@@ -25,6 +25,7 @@ public :: mean, var, std
 public :: median, mad, percentile, quantile
 public :: moment, skewness, kurtosis
 public :: corr, cov
+public :: autocorr, acf
 public :: zscore, trimmed_mean
 public :: stats, get_stats
 public :: spearman, linreg

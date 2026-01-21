@@ -1,5 +1,10 @@
+program example_constants
+
 use module_constants ! or:  use aloges
+use aloges, only: head_aloges
 implicit none (type, external)
+
+call head_aloges(fortran_version=.True.)
 
 write(*,*) 'True, False    = ', True, False
 write(*,*) 'One, two, half = ', one, two, half
@@ -12,4 +17,4 @@ write(*,*) 'Uppercase letters = ', uppercase_letters
 write(*,*) 'Digits            = ', digits
 write(*,*) 'Bell !!', ASCII_BEL
 
-end
+end program example_constants

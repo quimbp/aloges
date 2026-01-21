@@ -30,7 +30,7 @@ LIBDIR = ../../lib/
 INC_DIRS = -I$(INCDIR) $(COMMON_INCS)
 LIB_DIRS = -L$(LIBDIR) -laloges $(COMMON_LIBS)
 
-EXAMPLES = example_constants example_color
+EXAMPLES = example_constants example_color example_random_uniform
 
 # Default target: build all programs  
 all: $(EXAMPLES)  

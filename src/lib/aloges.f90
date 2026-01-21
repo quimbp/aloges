@@ -60,7 +60,7 @@ implicit none
 
 character(len=4)  :: ALOGES_VERSION = "1.0"
 character(len=20) :: ALOGES_AUTHOR  = "Joaquim Ballabrera"
-character(len=20) :: ALOGES_DATE    = "April, 2022"
+character(len=20) :: ALOGES_DATE    = "January, 2026"
 
 contains
 
