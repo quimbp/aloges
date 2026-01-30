@@ -1438,22 +1438,19 @@ contains
     ! the value of the first element or a quick mean of a small subsample),
     ! floating point errors can be reduced.
     ! First pass: calculate the mean using sasum
-    use, intrinsic :: iso_fortran_env
-    implicit none
     
     ! Arguments
-    real(real64), intent(in) :: x(:)
-    real(real64), intent(out) :: xmean, xvar, xskew, xkurt
+    real(dp), intent(in) :: x(:)
+    real(dp), intent(out) :: xmean, xvar, xskew, xkurt
     
     ! Local variables
     integer :: n, i
-    real(real64) :: shift, sum_diff, sum2, sum3, sum4
-    real(real64) :: diff, diff2, s_std
-    real(real64), allocatable :: x_shifted(:)
+    real(dp) :: shift, sum_diff, sum2, sum3, sum4
+    real(dp) :: diff, diff2, s_std
+    real(dp), allocatable :: x_shifted(:)
     
     ! External BLAS functions
-    real(real64), external :: dasum, dnrm2
-
+    ! real(dp), external :: dasum, dnrm2
 
     xmean = 0.0; xvar = 0.0; xskew = 0.0; xkurt = 0.0
 
@@ -1467,13 +1464,13 @@ contains
     
     ! Calculate shifted sum for the mean: sum(x_i - shift)
     ! We use a simple loop here, or could use dasum if we handle signs
-    sum_diff = 0.0_real64
+    sum_diff = 0.0_dp
     do i = 1, n
         x_shifted(i) = x(i) - shift
         sum_diff = sum_diff + x_shifted(i)
     end do
     
-    xmean = shift + (sum_diff / real(n, real64))
+    xmean = shift + (sum_diff / real(n, dp))
 
     ! Now re-center x_shifted so it is exactly relative to the true sample mean
     ! x_shifted = x - xmean
@@ -1484,9 +1481,9 @@ contains
     ! Pass 2: Calculate higher moments
     ! Variance using BLAS dnrm2: sqrt(sum(diff^2))
     ! sum2 = (dnrm2(n, x_shifted, 1))**2
-    sum2 = 0.0_real64
-    sum3 = 0.0_real64
-    sum4 = 0.0_real64
+    sum2 = 0.0_dp
+    sum3 = 0.0_dp
+    sum4 = 0.0_dp
     
     do i = 1, n
         diff  = x_shifted(i)
@@ -1497,14 +1494,13 @@ contains
     end do
 
     ! Finalize Statistics
-    xvar  = sum2 / real(n - 1, real64)
+    xvar  = sum2 / real(n - 1, dp)
     s_std = sqrt(xvar)
     
-    xskew = (sum3 / real(n, real64)) / (s_std**3)
-    xkurt = (sum4 / real(n, real64)) / (xvar**2) - 3.0_real64
+    xskew = (sum3 / real(n, dp)) / (s_std**3)
+    xkurt = (sum4 / real(n, dp)) / (xvar**2) - 3.0_dp
 
     deallocate(x_shifted)
   end subroutine calculate_moments_twopass
-
 
 end module module_statistics
