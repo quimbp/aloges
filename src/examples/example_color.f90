@@ -4,7 +4,7 @@ use module_color ! or: use aloges
 use aloges, only: head_aloges
 implicit none (type, external)
 
-call head_aloges(fortran_version=.True.)
+call head_aloges(os_version=.True.,fortran_version=.True.)
 
 call print_colored('This text is in red', red)      ! red is a parameter constant
 call print_colored('This text is in blue', blue)    ! blue is a parameter constant

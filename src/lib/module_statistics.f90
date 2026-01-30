@@ -30,6 +30,7 @@ public :: zscore, trimmed_mean
 public :: stats, get_stats
 public :: spearman, linreg
 public :: rms
+public :: calculate_moments_twopass
 
 !> @brief Derived type for comprehensive statistical summary.
 !!
@@ -105,6 +106,25 @@ contains
   !! Notes:
   !! - If W is present, must have same size as A.
   !! - Negative weights are allowed but may produce unexpected results.
+  !!
+  !! Test for BLAS
+  !! ! BLAS Function Declaration
+  !!     interface
+  !!         real(8) function ddot(n, dx, incx, dy, incy)
+  !!             integer, intent(in) :: n, incx, incy
+  !!             real(8), intent(in) :: dx(*), dy(*)
+  !!         end function ddot
+  !!     end interface
+  !! if (present(W)) then
+  !!        ! sum(W) is still best handled by Fortran intrinsic
+  !!        Sw = sum(W)
+  !!        ! Use BLAS DDOT for the numerator
+  !!        mean = ddot(n, W, 1, A, 1) / Sw
+  !!    else
+  !!        ! Fortran's intrinsic sum() is highly optimized by gfortran
+  !!        mean = sum(A) / n
+  !!    end if  
+  !!
   real(dp) function mean(A, W)
     real(dp), dimension(:), intent(in) :: A
     real(dp), dimension(:), optional :: W
@@ -1399,5 +1419,92 @@ contains
     deallocate(acf_vals, phi)
 
   end subroutine pacf
+
+
+  !> @brief Compute mean, variance, skewness and excess curtosis
+  !!
+  !! @param[in] x Real(dp) array, time series data.
+  !! @param[out] xmean Real(dp), Mean value of x.
+  !! @param[out] xvar Real(dp), Variance of x.
+  !! @param[out] xskew Real(dp), Skewness of x.
+  !! @param[out] xkurt Real(dp), Excess kurtosis of x.
+  !!
+  !! Notes:
+  !! - Uses Two-pass shifted algorithm
+  subroutine calculate_moments_twopass(x, xmean, xvar, xskew, xkurt)
+
+    ! Two-pass shifted algorithm: Usually he fastest method when the data
+    ! fits in memory. By shifting the sata by an estimate of the mean (usually
+    ! the value of the first element or a quick mean of a small subsample),
+    ! floating point errors can be reduced.
+    ! First pass: calculate the mean using sasum
+    use, intrinsic :: iso_fortran_env
+    implicit none
+    
+    ! Arguments
+    real(real64), intent(in) :: x(:)
+    real(real64), intent(out) :: xmean, xvar, xskew, xkurt
+    
+    ! Local variables
+    integer :: n, i
+    real(real64) :: shift, sum_diff, sum2, sum3, sum4
+    real(real64) :: diff, diff2, s_std
+    real(real64), allocatable :: x_shifted(:)
+    
+    ! External BLAS functions
+    real(real64), external :: dasum, dnrm2
+
+
+    xmean = 0.0; xvar = 0.0; xskew = 0.0; xkurt = 0.0
+
+    n = size(x)
+    if (n.eq.0) return
+    
+    allocate(x_shifted(n))
+
+    ! Pass 1: Use the first element as a shift to maintain numerical stability
+    shift = x(1)
+    
+    ! Calculate shifted sum for the mean: sum(x_i - shift)
+    ! We use a simple loop here, or could use dasum if we handle signs
+    sum_diff = 0.0_real64
+    do i = 1, n
+        x_shifted(i) = x(i) - shift
+        sum_diff = sum_diff + x_shifted(i)
+    end do
+    
+    xmean = shift + (sum_diff / real(n, real64))
+
+    ! Now re-center x_shifted so it is exactly relative to the true sample mean
+    ! x_shifted = x - xmean
+    do i = 1, n
+        x_shifted(i) = x(i) - xmean
+    end do
+
+    ! Pass 2: Calculate higher moments
+    ! Variance using BLAS dnrm2: sqrt(sum(diff^2))
+    ! sum2 = (dnrm2(n, x_shifted, 1))**2
+    sum2 = 0.0_real64
+    sum3 = 0.0_real64
+    sum4 = 0.0_real64
+    
+    do i = 1, n
+        diff  = x_shifted(i)
+        diff2 = diff * diff
+        sum2  = sum2 + diff2
+        sum3  = sum3 + diff2 * diff
+        sum4  = sum4 + diff2 * diff2
+    end do
+
+    ! Finalize Statistics
+    xvar  = sum2 / real(n - 1, real64)
+    s_std = sqrt(xvar)
+    
+    xskew = (sum3 / real(n, real64)) / (s_std**3)
+    xkurt = (sum4 / real(n, real64)) / (xvar**2) - 3.0_real64
+
+    deallocate(x_shifted)
+  end subroutine calculate_moments_twopass
+
 
 end module module_statistics

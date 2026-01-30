@@ -64,30 +64,48 @@ character(len=20) :: ALOGES_DATE    = "January, 2026"
 
 contains
 
-subroutine head_aloges(fortran_version,fortran_options)
+subroutine head_aloges(os_version,fortran_version,fortran_options)
 
+  logical, intent(in), optional             :: os_version
   logical, intent(in), optional             :: fortran_version
   logical, intent(in), optional             :: fortran_options
-  logical cver,copt
+  logical osver,cver,copt
   character(len=maxlen) progname
+  character(len=:), allocatable :: os
 
-  cver = .false.; copt = .false.
+  osver = .false.; cver = .false.; copt = .false.
+  if (present(os_version)) osver = os_version
   if (present(fortran_version)) cver = fortran_version
   if (present(fortran_options)) copt = fortran_options
+
+  os = detect_os()
    
   call getarg(0,progname)
 
   write(*,*) 
   write(*,*) '======================================================================='
   write(*,*) 'Program: ' // trim(progname)
-  write(*,*) 'Aloges version: ' // ALOGES_VERSION
-  write(*,*) 'Aloges version date: ' // ALOGES_DATE
-  if (cver) write(*,*) 'Compiler version: ', compiler_version()
-  if (copt) write(*,*) 'Compiler options: ', compiler_options()
+  write(*,*) 'Aloges version: ' // ALOGES_VERSION // ' ' // ALOGES_DATE
+  if (osver) write(*,*) 'Operative system: ', os
+  if (cver) write(*,*)  'Compiler version: ', compiler_version()
+  if (copt) write(*,*)  'Compiler options: ', compiler_options()
   write(*,*) '======================================================================='
   write(*,*) 
 
 end subroutine head_aloges
+
+
+function detect_os() result(out)
+  character(len=:), allocatable :: os_name, os_version  
+  character(len=:), allocatable :: out  
+  os_name    = run_and_capture("uname -s")  
+  os_version = run_and_capture("lsb_release -d")
+  os_version = compress_string(line_replace(os_version,'Description:',''))
+
+  out = trim(os_name) // ' ' // trim(os_version)
+
+end function detect_os
+
 
 end module aloges
 

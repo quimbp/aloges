@@ -4,7 +4,7 @@ use module_constants ! or:  use aloges
 use aloges, only: head_aloges
 implicit none (type, external)
 
-call head_aloges(fortran_version=.True.)
+call head_aloges(os_version=.True.,fortran_version=.True.)
 
 write(*,*) 'True, False    = ', True, False
 write(*,*) 'One, two, half = ', one, two, half

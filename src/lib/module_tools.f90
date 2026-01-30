@@ -54,6 +54,7 @@
 ! - readx                                                                  !
 ! - readxy                                                                 !
 ! - readxyz                                                                !
+! - run_and_capture                                                        !
 ! -------------------------------------------------------------------------!
 
 module module_tools
@@ -1594,6 +1595,40 @@ contains
     end function median3
 
   end subroutine quicksort
+  ! ...
+  ! ===================================================================
+  ! ...
+  function run_and_capture(cmd) result(out)  
+    implicit none  
+    character(len=*), intent(in) :: cmd  
+    character(len=:), allocatable :: out  
+    character(len=4096) :: line  
+    integer :: u, ios, exitstat  
+  
+    ! Run the command and redirect stdout to a temp file.   
+    call execute_command_line(cmd // " > .tmp_fortran_cmd_out.txt", exitstat=exitstat)  
+  
+    if (exitstat /= 0) then  
+      out = "UNKNOWN"  
+      return  
+    end if  
+  
+    open(newunit=u, file=".tmp_fortran_cmd_out.txt", status="old", action="read", iostat=ios)  
+    if (ios /= 0) then  
+      out = "UNKNOWN"  
+      return  
+    end if  
+  
+    read(u, "(A)", iostat=ios) line  
+    close(u)  
+  
+    if (ios /= 0) then  
+      out = "UNKNOWN"  
+    else    
+      out = trim(line)  
+    end if  
+  end function run_and_capture  
+
   ! ...
   ! ===================================================================
   ! ...

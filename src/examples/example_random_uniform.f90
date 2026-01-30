@@ -9,7 +9,7 @@ real(dp) :: r(n)
 real(dp) :: rmean, rvar, rcorr
 integer :: i, bins(10)
     
-call head_aloges(fortran_version=.True.)
+call head_aloges(os_version=.True.,fortran_version=.True.)
 
 ! Generate random numbers
 call random_number(r)
