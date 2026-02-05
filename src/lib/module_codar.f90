@@ -55,8 +55,8 @@ type type_codar
   integer                                           :: Year,Month,Day
   integer                                           :: Hour,Minute,Second
   ! --- Location ---
-  real(dp)                                          :: lon0
-  real(dp)                                          :: lat0
+  real(dp)                                          :: lon0 = -999.0_dp
+  real(dp)                                          :: lat0 = -999.0_dp
   ! --- Geometry ---
   ! ... For CODAR-style HFR systems:
   ! ... Bearing is a geometric property of the radar cell
@@ -74,7 +74,7 @@ type type_codar
   real(dp)                                          :: range_res    ! km
 
   real(dp), allocatable                             :: bearing(:)   ! [nbearings] degrees
-  real(dp), allocatable                             :: range(:)     ! [nranges] meters
+  real(dp), allocatable                             :: range(:)     ! [nranges] kilometers
 
   ! --- Radar grid ---
   real(dp), allocatable                             :: cell_lon(:,:)  ! [nbearings,nranges]
@@ -82,7 +82,8 @@ type type_codar
   integer, allocatable                              :: cell_mask(:,:) ! 1=water,0=land
 
   ! --- Radial measurements ---
-  real(dp), allocatable                             :: cell_vel(:,:)  ! [nbearings,nranges] (m)
+  real(dp), allocatable                             :: cell_vel(:,:)  ! [nbearings,nranges] (cm/s)
+  real(dp), allocatable                             :: cell_vflg(:,:) ! [nbearings,nranges] 
 
   ! --- Measurement characteristics ---
   real(dp), allocatable                             :: sigma_vr(:,:) ! radial velocity std dev
@@ -104,6 +105,7 @@ type type_codar
 
   contains
     procedure :: ruv_read  => codar_ruv_read
+    procedure :: grids     => codar_ruv_grid
     procedure :: att_get   => codar_att_get
     procedure :: row2grid  => codar_row2grid
     procedure :: ruv_write => codar_ruv_write
@@ -304,37 +306,21 @@ contains
     CODAR%nbearings   = nbearings
     CODAR%freq_hz     = freq_hz
     CODAR%bearing_res = bearing_res
-    CODAR%range_res   = range_res  
+    CODAR%range_res   = range_res                  ! km
     CODAR%max_range   = (rmax-0.5_dp)*range_res    ! km
 
     if (allocated(CODAR%bearing)) deallocate(CODAR%bearing)
     if (allocated(CODAR%range)) deallocate(CODAR%range)
-    if (allocated(CODAR%cell_lon)) deallocate(CODAR%cell_lon)
-    if (allocated(CODAR%cell_lat)) deallocate(CODAR%cell_lat)
-    if (allocated(CODAR%cell_vel)) deallocate(CODAR%cell_vel)
-    if (allocated(CODAR%cell_mask)) deallocate(CODAR%cell_mask)
-    if (allocated(CODAR%sigma_vr)) deallocate(CODAR%sigma_vr)
-    if (allocated(CODAR%cos_theta)) deallocate(CODAR%cos_theta)
-    if (allocated(CODAR%sin_theta)) deallocate(CODAR%sin_theta)
 
     allocate(CODAR%bearing(nbearings))
     allocate(CODAR%range(nranges))
-    allocate(CODAR%cell_lon(nbearings,nranges))
-    allocate(CODAR%cell_lat(nbearings,nranges))
-    allocate(CODAR%cell_vel(nbearings,nranges))
-    allocate(CODAR%cell_mask(nbearings,nranges))
-    allocate(CODAR%sigma_vr(nbearings,nranges))
-    allocate(CODAR%cos_theta(nbearings,nranges))
-    allocate(CODAR%sin_theta(nbearings,nranges))
-    CODAR%cell_mask = 0
-    CODAR%sigma_vr  = 0.0_dp
 
     ! Bearings in degrees : First cell, by default, is 0.0. 
     ! Latter, we will add the antenna's starting point.
     CODAR%bearing = [( (i-1)*bearing_res, i=1,nbearings )]
 
     ! Range centers (meters)
-    CODAR%range = [ (real(i,dp)*range_res*1000.0_dp, i=1,nranges) ]         ! meters
+    CODAR%range = [ (real(i,dp)*range_res, i=1,nranges) ]         ! km
 
     in_table = .false.
     iatt    = 0
@@ -391,12 +377,6 @@ contains
  
     enddo
 
-    ! ... Check that all tables are full:
-    ! ...
-    !do itable=1,CODAR%ntables
-    !  print*, itable, CODAR%Table(itable)%nrows, CODAR%Table(itable)%ncols
-    !enddo
-   
     ! ... Get the ID of the table with the LLUV data (usually the first one).
     ! ... 
     itable = find_table_by_type(CODAR, 'LLUV')
@@ -411,13 +391,12 @@ contains
 
     ! ... Check that the table is full
     ! ...
-    !print*, itable, CODAR%Table(itable)%nrows, CODAR%Table(itable)%ncols
     if (CODAR%Table(itable)%nrows.le.0.or.CODAR%Table(itable)%ncols.le.0) then
       if (present(status)) then
         status = -1
         return
       else
-        call crash('Cannot open ruv file')
+        call crash('Empty LLUV table in ruv file')
       endif
     endif
 
@@ -445,11 +424,48 @@ contains
   
     if (any(CODAR%bearing.gt.360)) stop 'Bearing > 360'
 
+  end subroutine codar_ruv_read
+! ...
+! ==========================================================================
+! ...
+  subroutine codar_ruv_grid(CODAR,verbose_level,status)
+
+    class(type_codar), intent(inout)         :: CODAR
+    integer, intent(in), optional            :: verbose_level
+    integer, intent(out), optional           :: status
+
+    integer nbearings,nranges
+    integer verbosity
+
+    if (present(verbose_level)) verbosity = verbose_level
+    if (present(status)) status = 0
+
+    nranges = CODAR%nranges
+    nbearings = CODAR%nbearings
+    if (allocated(CODAR%cell_lon)) deallocate(CODAR%cell_lon)
+    if (allocated(CODAR%cell_lat)) deallocate(CODAR%cell_lat)
+    if (allocated(CODAR%cell_vflg)) deallocate(CODAR%cell_vflg)
+    if (allocated(CODAR%cell_vel)) deallocate(CODAR%cell_vel)
+    if (allocated(CODAR%cell_mask)) deallocate(CODAR%cell_mask)
+    if (allocated(CODAR%sigma_vr)) deallocate(CODAR%sigma_vr)
+    if (allocated(CODAR%cos_theta)) deallocate(CODAR%cos_theta)
+    if (allocated(CODAR%sin_theta)) deallocate(CODAR%sin_theta)
+
+    allocate(CODAR%cell_lon(nbearings,nranges))
+    allocate(CODAR%cell_lat(nbearings,nranges))
+    allocate(CODAR%cell_vflg(nbearings,nranges))
+    allocate(CODAR%cell_vel(nbearings,nranges))
+    allocate(CODAR%cell_mask(nbearings,nranges))
+    allocate(CODAR%sigma_vr(nbearings,nranges))
+    allocate(CODAR%cos_theta(nbearings,nranges))
+    allocate(CODAR%sin_theta(nbearings,nranges))
+
+    CODAR%cell_mask = 0
+    CODAR%sigma_vr  = 0.0_dp
     ! ... Populate grid arrays from table data
     call codar_populate_grid(CODAR,verbosity)
 
-
-  end subroutine codar_ruv_read
+  end subroutine codar_ruv_grid
 ! ...
 ! ==========================================================================
 ! ...
@@ -605,6 +621,7 @@ contains
     CODAR%cell_mask = 0
     CODAR%cell_lon  = 0.0_dp
     CODAR%cell_lat  = 0.0_dp
+    CODAR%cell_vflg = 1000         ! 0 is good
     CODAR%cell_vel  = -999.0_dp
     CODAR%cos_theta = 0.0_dp
     CODAR%sin_theta = 0.0_dp
@@ -631,19 +648,19 @@ contains
     do irow = 1, nrows
         
         ! Get location data from table
+        vflg = nint(CODAR%Table(itable)%data(irow, id_vflg))
         lon  = CODAR%Table(itable)%data(irow, id_lon)
         lat  = CODAR%Table(itable)%data(irow, id_lat)
         velo = CODAR%Table(itable)%data(irow, id_velo) 
         bearing_deg = CODAR%Table(itable)%data(irow, id_bear)
         range_km    = CODAR%Table(itable)%data(irow, id_range)
-        vflg        = nint(CODAR%Table(itable)%data(irow, id_vflg))
         
         ! Check for valid data (vector flag should be 0 for good data)
         ! Vector flag = 128 indicates suspect or secondary radial data
-        if (vflg /= 0) then
-            ! Skip this measurement (marked as suspect or invalid)
-            cycle
-        endif
+        !if (vflg /= 0) then
+        !    ! Skip this measurement (marked as suspect or invalid)
+        !    cycle
+        !endif
         
         ! Find the grid indices (ibear, irange) closest to this measurement
         ! Since the table provides actual lon/lat, use those for grid position
@@ -662,12 +679,13 @@ contains
         endif
         
         ! Store grid position
+        CODAR%cell_vflg(ibear,irange) = vflg
         CODAR%cell_lon(ibear,irange)  = lon
         CODAR%cell_lat(ibear,irange)  = lat
-        CODAR%cell_vel(ibear,irange)  = velo / 100.0_dp ! in meter/seconds
+        CODAR%cell_vel(ibear,irange)  = velo                      ! in cm/seconds
         CODAR%cos_theta(ibear,irange) = cos(bearing_deg*deg2rad)
         CODAR%sin_theta(ibear,irange) = sin(bearing_deg*deg2rad)
-        CODAR%cell_mask(ibear,irange) = 1  ! Mark as having data
+        CODAR%cell_mask(ibear,irange) = 1                         ! Mark as having data
         
         ! Optional: store velocity uncertainty if available
         ! (column 6 = Spatial Quality could be used as proxy for uncertainty)
@@ -722,18 +740,15 @@ contains
     integer, intent(out)              :: ibear, irange
     integer, intent(out), optional    :: status
     integer                           :: i, j
-    real(dp)                          :: range_m, dist_min, dist
+    real(dp)                          :: dist_min, dist
    
     if (present(status)) status = 0
  
-    ! Convert range in km to meters
-    range_m = range_km * 1000.0_dp
-    
     ! Find range index: closest range cell
     irange = 0
     dist_min = huge(1.0_dp)
     do i = 1, CODAR%nranges
-        dist = abs(CODAR%range(i) - range_m)
+        dist = abs(CODAR%range(i) - range_km)
         if (dist < dist_min) then
             dist_min = dist
             irange = i
