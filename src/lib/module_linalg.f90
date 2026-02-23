@@ -50,6 +50,38 @@ contains
     integer, dimension(:), intent(out) :: indx
     real(dp), intent(out) :: d
 
+!    integer :: n, info, i  
+!
+!    ! Explicit interface for LAPACK routine  
+!    interface  
+!      subroutine dgetrf(m, n, a, lda, ipiv, info)  
+!        import :: dp  
+!        integer, intent(in) :: m, n, lda  
+!        real(dp), intent(inout) :: a(lda, *)  
+!        integer, intent(out) :: ipiv(*)  
+!        integer, intent(out) :: info  
+!      end subroutine dgetrf  
+!    end interface        
+!
+!    n = size(a, 1)  
+!    if (size(a, 2) /= n) then   
+!      error stop "ludcmp: Input matrix must be square"   
+!    endif  
+!      
+!    call dgetrf(n, n, a, n, indx, info)  
+!      
+!    if (info < 0) then  
+!      stop "ludcmp: Illegal argument in LAPACK DGETRF"  
+!    else if (info > 0) then  
+!      stop "ludcmp: Matrix is singular"  
+!    endif  
+!      
+!    d = 1.0_dp  
+!    do i = 1, n  
+!      if (indx(i) /= i) d = -d  
+!    enddo  
+
+    real(dp), parameter :: SINGULAR_THRESHOLD = 1.0e-14_dp
     real(dp), parameter :: TINY=1.0D-20
     integer :: n,imax,j
     real(dp) :: vv(size(a,1))
@@ -61,7 +93,7 @@ contains
     
     d = 1.d0
     vv = maxval(abs(a),dim=2)
-    if (any(vv.EQ.0.0)) stop 'singular matrix in ludcmp'
+    if (any(vv.LE.SINGULAR_THRESHOLD)) stop 'Nearly singular matrix in ludcmp'
     vv(:) = 1.d0/vv(:)
 
     do j=1,n
@@ -72,10 +104,11 @@ contains
         vv(imax) = vv(j)
       endif
       indx(j) = imax
-      if (a(j,j).EQ.0.0) a(j,j) = TINY
+      if (abs(a(j,j)).lt.TINY) a(j,j) = TINY
       a(j+1:n,j) = a(j+1:n,j)/a(j,j)
       a(j+1:n,j+1:n) = a(j+1:n,j+1:n) - out_product(a(j+1:n,j),a(j,j+1:n))
     enddo
+
   end subroutine ludcmp
 ! ...
 ! ===================================================================

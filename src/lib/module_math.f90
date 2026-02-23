@@ -33,6 +33,7 @@ public :: ascending, descending
 public :: t_inverse_cdf, t_cdf_complement
 public :: f_cdf_complement
 public :: nanmax, nanmin, nanmean
+public :: index_wrap
 
 
 !> @brief Generic interface for generating Gaussian random 
@@ -1242,7 +1243,7 @@ contains
   !> @brief Mean of a 2D real(dp) array removing nan values-
   !!
   !! @param[in] x Real(dp) aray of shape (l, m).
-  !! @return Real(dp) nan-trimmed mean average.
+  !! @return Real(dp), nan-trimmed mean average.
   pure function nanmean2d(x) result(xmean)
     real(dp), intent(in) :: x(:,:)
     real(dp) :: xmean
@@ -1268,7 +1269,7 @@ contains
   !> @brief Mean of a 3D real(dp) array removing nan values-
   !!
   !! @param[in] x Real(dp) aray of shape (l, m, n).
-  !! @return Real(dp) nan-trimmed mean average.
+  !! @return Real(dp), nan-trimmed mean average.
   pure function nanmean3d(x) result(xmean)
     real(dp), intent(in) :: x(:,:,:)
     real(dp) :: xmean
@@ -1292,6 +1293,19 @@ contains
       xmean = nan()
     endif
   end function nanmean3d
+
+  !> @brief Returns a 1-based index wrapped periodically within [1, n]
+  !!
+  !! @param[in] i Integer, index
+  !! @param[in] n Integer, length of segment
+  !! @return Integer, peridiocally-wrapped index within [1, n].
+  pure integer function index_wrap(i, n) result(res)
+    integer, intent(in) :: i, n
+    ! This version is robust for i << 0 or i >> n
+    res = mod(i - 1, n)
+    if (res < 0) res = res + n
+    res = res + 1
+  end function index_wrap
 
 
 end module module_math
