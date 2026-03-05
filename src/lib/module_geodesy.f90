@@ -64,22 +64,23 @@ module module_geodesy
   !! For the sake of convenience, a standard mean spherical radius (Earth_Radius)   
   !! has also been included, although this parameter does not belong to the   
   !! WGS84 standard.  
-  type :: type_WGS84_constants  
+  type :: type_ellipsoid
     ! Primary WGS84 Parameters  
-    real(dp) :: a               = 6378137.0_dp        !< Semi-major axis [m]  
-    real(dp) :: rf              = 298.257223563_dp    !< Inverse flattening (1/f)  
-    real(dp) :: GM              = 3.986004418E14_dp   !< Geocentric gravitational constant  
-    real(dp) :: w               = 72.92115E-06_dp     !< Earth's angular velocity [rad/s]   
+    real(dp) :: a               = 6378137.0_dp             !< Semi-major axis [m]  
+    real(dp) :: f               = 1.0_dp/298.257223563_dp  !< Flattening (f)  
+    real(dp) :: rf              = 298.257223563_dp         !< Inverse flattening (1/f)  
+    real(dp) :: GM              = 3.986004418E14_dp        !< Geocentric gravitational constant  
+    real(dp) :: w               = 72.92115E-06_dp          !< Earth's angular velocity [rad/s]   
   
     ! Derived Parameters (Pre-calculated for WGS84)  
-    real(dp) :: b               = 6356752.3142_dp     !< Semi-minor axis b = a(1-f) [m]  
+    real(dp) :: b               = 6356752.31425_dp    !< Semi-minor axis b = a(1-f) [m]  
     real(dp) :: e2              = 6.69437999014E-3_dp !< First eccentricity squared e² = 1 - b²/a²  
   
     ! Non-standard helper  
-    real(dp) :: Earth_Radius    = 6371008.8_dp        !< Mean spherical radius [m] (Not part of WGS84)  
-  end type type_WGS84_constants  
+    real(dp) :: Earth_Radius    = 6371000.0_dp        !< Mean spherical radius [m] (Not part of WGS84)  
+  end type type_ellipsoid
 
-  type(type_WGS84_constants) :: WGS84
+  type(type_ellipsoid) :: WGS84
 
   interface spdir2uv
     module procedure spdir2uv_r, spdir2uv_v
@@ -379,8 +380,9 @@ contains
     real(dp) :: sinAlpha, cosSqAlpha, uSq, A_coeff, B_coeff, deltaSigma
     real(dp) :: sigmaP, cos2SigmaM
     real(dp) :: lat1, lon1, lat2, lon2
+    real(dp) :: lambda
     a = WGS84%a
-    f = 1.0_dp / WGS84%rf
+    f = WGS84%f                  !f = 1.0_dp / WGS84%rf
     b = WGS84%b
     lat1   = lat1_deg   * deg2rad
     lon1   = lon1_deg   * deg2rad
@@ -406,8 +408,18 @@ contains
       sigmaP = sigma
       sigma  = dist/(b*A_coeff) + deltaSigma
     end do
-    lat2 = atan2( sinU1*cosSigma + cosU1*sinSigma*cosAlpha1, (1.0_dp - f)*sqrt( sinAlpha*sinAlpha + (sinU1*sinSigma - cosU1*cosSigma*cosAlpha1)**2 ) )
-    lon2 = lon1 + atan2( sinSigma*sinAlpha1, cosU1*cosSigma - sinU1*sinSigma*cosAlpha1 )
+
+    cos2SigmaM = cos(2.0_dp*sigma1 + sigma)
+    sinSigma   = sin(sigma)
+    cosSigma   = cos(sigma)
+
+    lat2 = atan2( sinU1*cosSigma + cosU1*sinSigma*cosAlpha1, &
+                  (1.0_dp - f)*sqrt( sinAlpha*sinAlpha + &
+                  (sinU1*sinSigma - cosU1*cosSigma*cosAlpha1)**2 ) )
+
+    lambda = atan2( sinSigma*sinAlpha1, cosU1*cosSigma - sinU1*sinSigma*cosAlpha1 )
+    lon2 = lon1 + lambda
+
     lat2_deg = lat2 * rad2deg
     lon2_deg = modulo(lon2 * rad2deg + 540.0_dp, 360.0_dp) - 180.0_dp
   end subroutine vincenty_direct
