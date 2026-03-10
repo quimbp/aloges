@@ -19,11 +19,12 @@
 ! You should have received a copy of the GNU Lesser General                !
 ! Public License along with this program.                                  !
 ! If not, see <http://www.gnu.org/licenses/>.                              !
-! - lldist, lldist_deg                                                     !
-! - llbearing, llbearing_deg                                               !
+!                                                                          !
+! Publis routines (all accept optional radians=.true./.false.)             !
+! - lldist                                                                 !
+! - llbearing                                                              !
 ! - haversine                                                              !
-! - haversine_deg                                                          !
-! - gc_bearing_deg                                                         !
+! - gc_bearing                                                             !
 ! - gc_destination_point                                                   !
 ! - gc_inverse                                                             !
 ! - vincenty_direct                                                        !
@@ -35,26 +36,27 @@
 ! - ll2m                                                                   !
 ! - compass_to_polar                                                       !
 ! - polar_to_compass                                                       !
+! - back_azimuth
 ! -------------------------------------------------------------------------!
 
 module module_geodesy
 
-  use, intrinsic :: IEEE_ARITHMETIC, only : IEEE_VALUE, IEEE_QUIET_NAN
+  !use, intrinsic :: IEEE_ARITHMETIC, only : IEEE_VALUE, IEEE_QUIET_NAN
   use module_types,     only: dp
   use module_constants, only: pi, two_pi, deg2rad, rad2deg
 
   implicit none (type, external)
   private
   public :: WGS84
-  public :: lldist_deg, llbearing_deg
   public :: lldist, llbearing
-  public :: haversine, haversine_deg
-  public :: gc_bearing_deg, gc_destination_point, gc_inverse
-  public :: vincenty_direct, vincenty_inverse
+  public :: haversine
+  public :: gc_bearing, gc_destination_point, gc_inverse
+  public :: vincenty_direct, vincenty_inverse, vincenty_full
   public :: spdir2uv, uv2spdir
   public :: dms2dec, dec2dms, dm2dec, dec2dm, dms2dm, dm2dms
   public :: ll2m
   public :: compass_to_polar, polar_to_compass
+  public :: back_azimuth
 
   !> @brief Canonical WGS84 constant set (single source of truth).   
   !!   
@@ -97,64 +99,76 @@ module module_geodesy
 
 contains
 
+  ! ============================================================  
+  ! INTERNAL HELPER: convert inputs to radians based on flag  
+  ! ============================================================  
+  
+  !> @brief Returns .true. if inputs should be treated as degrees (i.e. need conversion).  
+  !! Default (flag absent) = degrees, matching the original module convention.  
+  pure logical function use_degrees(radians_flag)  
+    logical, intent(in), optional :: radians_flag  
+    if (present(radians_flag)) then  
+      use_degrees = .not. radians_flag  
+    else  
+      use_degrees = .true.   ! default: inputs are in degrees  
+    end if  
+  end function use_degrees  
+
   ! ------------------------------------- 
   ! ------------------------------------- SPHERICAL EARTH
   ! ------------------------------------- Equirectangular (flat-Earth)
   ! ------------------------------------- for nearby points (< 100 km)
   ! ------------------------------------- 
 
+  !> @brief [Core] Equirectangular distance, input in radians
+  pure real(dp) function lldist_core(lat1, lon1, lat2, lon2)
+    real(dp), intent(in) :: lat1, lon1, lat2, lon2 
+    real(dp) :: dlat, dlon, dx, dy, R, lat_mean
+    R = WGS84%Earth_Radius
+    dlat = lat2 - lat1
+    dlon = lon2 - lon1
+    lat_mean = 0.5_dp * (lat1 + lat2)
+    dx = R * dlon * cos(lat_mean)
+    dy = R * dlat
+    lldist_core = sqrt(dx*dx + dy*dy)
+  end function lldist_core
+
+  !> @brief [Core] Equirectangular bearing, input in radians, output in radians.
+  pure real(dp) function llbearing_core(lat1, lon1, lat2, lon2)
+    real(dp), intent(in) :: lat1, lon1, lat2, lon2
+    real(dp) :: dlat, dlon, dx, dy, R, lat_mean
+    R = WGS84%Earth_Radius
+    dlat = lat2 - lat1
+    dlon = lon2 - lon1
+    lat_mean = 0.5_dp * (lat1 + lat2)
+    dx = R * dlon * cos(lat_mean)
+    dy = R * dlat
+    llbearing_core = modulo(atan2(dx, dy) + two_pi, two_pi)
+  end function llbearing_core
+
   !> @brief Approximate distance between two nearby points (equirectangular).
   !!
   !! Uses a flat-Earth approximation with latitude correction. Valid for
   !! points within ~100 km. Faster than haversine but less accurate.
   !!
-  !! @param[in] lat1_deg Latitude  of point 1 [deg]
-  !! @param[in] lon1_deg Longitude of point 1 [deg]
-  !! @param[in] lat2_deg Latitude  of point 2 [deg]
-  !! @param[in] lon2_deg Longitude of point 2 [deg]
+  !! @param[in] lat1 Latitude  of point 1 [deg/rad]
+  !! @param[in] lon1 Longitude of point 1 [deg/rad]
+  !! @param[in] lat2 Latitude  of point 2 [deg/rad]
+  !! @param[in] lon2 Longitude of point 2 [deg/rad]
+  !! @param[in] radians (optional) If .true., inputs are in radians.
+  !!                               If .false. or absent, inputs are in degrees (default).
   !!
   !! @return Real(dp) approximate distance [m].
   !!
   !! @note For higher accuracy, use haversine or vincenty_inverse.
-  real(dp) function lldist_deg(lat1_deg, lon1_deg, lat2_deg, lon2_deg)
-    real(dp), intent(in) :: lat1_deg, lon1_deg, lat2_deg, lon2_deg
-    real(dp) :: lat1, lon1, lat2, lon2, lat_mean
-    real(dp) :: dlat, dlon, dx, dy, R
-
-    R = WGS84%Earth_Radius
-
-    lat1 = lat1_deg * deg2rad
-    lon1 = lon1_deg * deg2rad
-    lat2 = lat2_deg * deg2rad
-    lon2 = lon2_deg * deg2rad
-
-    dlat = lat2 - lat1
-    dlon = lon2 - lon1
-
-    lat_mean = 0.5_dp * (lat1 + lat2)
-
-    dx = R * dlon * cos(lat_mean)
-    dy = R * dlat
-
-    lldist_deg = sqrt(dx*dx + dy*dy)
-  end function lldist_deg
-
-  real(dp) function lldist(lat1, lon1, lat2, lon2)
-    real(dp), intent(in) :: lat1, lon1, lat2, lon2   ! In Radians
-    real(dp) :: lat_mean
-    real(dp) :: dlat, dlon, dx, dy, R
-
-    R = WGS84%Earth_Radius
-
-    dlat = lat2 - lat1
-    dlon = lon2 - lon1
-
-    lat_mean = 0.5_dp * (lat1 + lat2)
-
-    dx = R * dlon * cos(lat_mean)
-    dy = R * dlat
-
-    lldist = sqrt(dx*dx + dy*dy)
+  real(dp) function lldist(lat1, lon1, lat2, lon2, radians)
+    real(dp), intent(in) :: lat1, lon1, lat2, lon2
+    logical, intent(in), optional :: radians
+    if (use_degrees(radians)) then
+      lldist = lldist_core(lat1*deg2rad, lon1*deg2rad, lat2*deg2rad, lon2*deg2rad)
+    else
+      lldist = lldist_core(lat1, lon1, lat2, lon2)
+    endif
   end function lldist
 
 
@@ -163,53 +177,26 @@ contains
   !! Uses a flat-Earth approximation with latitude correction. Valid for
   !! points within ~100 km. Faster than gc_bearing_deg but less accurate.
   !!
-  !! @param[in] lat1_deg Latitude  of point 1 [deg]
-  !! @param[in] lon1_deg Longitude of point 1 [deg]
-  !! @param[in] lat2_deg Latitude  of point 2 [deg]
-  !! @param[in] lon2_deg Longitude of point 2 [deg]
+  !! @param[in] lat1 Latitude  of point 1 [deg/rad]
+  !! @param[in] lon1 Longitude of point 1 [deg/rad]
+  !! @param[in] lat2 Latitude  of point 2 [deg/rad]
+  !! @param[in] lon2 Longitude of point 2 [deg/rad]
+  !! @param[in] radians (optional) If .true., inputs are in radians.
+  !!                               If .false. or absent, inputs are in degrees (default).
   !!
-  !! @return Real(dp) approximate bearing [deg], compass convention [0, 360).
+  !! @return Real(dp) approximate bearing [0, 2*pi) or [0, 360), compass convention.
   !!
   !! @note For higher accuracy, use gc_bearing_deg or vincenty_inverse.
-  real(dp) function llbearing_deg(lat1_deg, lon1_deg, lat2_deg, lon2_deg)
-    real(dp), intent(in) :: lat1_deg, lon1_deg, lat2_deg, lon2_deg
-    real(dp) :: lat1, lon1, lat2, lon2, lat_mean
-    real(dp) :: dlat, dlon, dx, dy, R
-
-    R = WGS84%Earth_Radius
-
-    lat1 = lat1_deg * deg2rad
-    lon1 = lon1_deg * deg2rad
-    lat2 = lat2_deg * deg2rad
-    lon2 = lon2_deg * deg2rad
-
-    dlat = lat2 - lat1
-    dlon = lon2 - lon1
-
-    lat_mean = 0.5_dp * (lat1 + lat2)
-
-    dx = R * dlon * cos(lat_mean)
-    dy = R * dlat
-
-    llbearing_deg = modulo(atan2(dx, dy) * rad2deg + 360.0_dp, 360.0_dp)
-  end function llbearing_deg
-
-  real(dp) function llbearing(lat1, lon1, lat2, lon2)
+  real(dp) function llbearing(lat1, lon1, lat2, lon2, radians)
     real(dp), intent(in) :: lat1, lon1, lat2, lon2
-    real(dp) :: lat_mean
-    real(dp) :: dlat, dlon, dx, dy, R
-
-    R = WGS84%Earth_Radius
-
-    dlat = lat2 - lat1
-    dlon = lon2 - lon1
-
-    lat_mean = 0.5_dp * (lat1 + lat2)
-
-    dx = R * dlon * cos(lat_mean)
-    dy = R * dlat
-
-    llbearing = modulo(atan2(dx, dy) * rad2deg + 360.0_dp, 360.0_dp)
+    logical, intent(in), optional :: radians
+    real(dp) :: brg
+    if (use_degrees(radians)) then
+      brg = llbearing_core(lat1*deg2rad, lon1*deg2rad, lat2*deg2rad, lon2*deg2rad)
+      llbearing = brg * rad2deg
+    else
+      llbearing = llbearing_core(lat1, lon1, lat2, lon2)
+    endif
   end function llbearing
 
 
@@ -217,134 +204,55 @@ contains
   ! ------------------------------------- SPHERICAL EARTH
   ! ------------------------------------- 
 
-  !> @brief Great-circle distance using the haversine formula (sphere).
-  !!
-  !! Inputs are in radians; output distance is in meters using mean Earth radius.
-  !!
-  !! @param[in] lat1 Latitude  of point 1 [rad]
-  !! @param[in] lon1 Longitude of point 1 [rad]
-  !! @param[in] lat2 Latitude  of point 2 [rad]
-  !! @param[in] lon2 Longitude of point 2 [rad]
-  !!
-  !! @return Real(dp) distance along great circle [m].
-  !!
-  !! @note Robust for all separations; numerically stable.
-  real(dp) function haversine(lat1,lon1,lat2,lon2)
+
+  !> @brief [Core] Haversine great-circle distance, inputs in radians.
+  pure real(dp) function haversine_core(lat1, lon1, lat2, lon2)
     real(dp), intent(in) :: lat1, lon1, lat2, lon2
     real(dp) :: sindx, sindy, dang, ccl1, ccl2
     sindx = sin(0.5_dp*(lon2-lon1))
     sindy = sin(0.5_dp*(lat2-lat1))
     ccl1  = cos(lat1); ccl2 = cos(lat2)
     dang  = 2.0_dp*asin( sqrt(sindy*sindy + ccl2*ccl1*sindx*sindx) )
-    haversine = WGS84%Earth_Radius * dang
-  end function haversine
+    haversine_core = WGS84%Earth_Radius * dang
+  end function haversine_core
 
 
-  !> @brief Great-circle distance using the haversine formula (sphere).
-  !!
-  !! Inputs are in degrees; output distance is in meters using mean Earth radius.
-  !!
-  !! @param[in] lat1 Latitude  of point 1 [deg]
-  !! @param[in] lon1 Longitude of point 1 [deg]
-  !! @param[in] lat2 Latitude  of point 2 [deg]
-  !! @param[in] lon2 Longitude of point 2 [deg]
-  !!
-  !! @return Real(dp) distance along great circle [m].
-  !!
-  !! @note Robust for all separations; numerically stable.
-  real(dp) function haversine_deg(lat1_deg,lon1_deg,lat2_deg,lon2_deg)
-    real(dp), intent(in) :: lat1_deg, lon1_deg, lat2_deg, lon2_deg
-    real(dp)             :: lat1, lon1, lat2, lon2
-    real(dp) :: sindx, sindy, dang, ccl1, ccl2
-    lon1 = lon1_deg * deg2rad
-    lat1 = lat1_deg * deg2rad
-    lon2 = lon2_deg * deg2rad
-    lat2 = lat2_deg * deg2rad
-    sindx = sin(0.5_dp*(lon2-lon1))
-    sindy = sin(0.5_dp*(lat2-lat1))
-    ccl1  = cos(lat1); ccl2 = cos(lat2)
-    dang  = 2.0_dp*asin( sqrt(sindy*sindy + ccl2*ccl1*sindx*sindx) )
-    haversine_deg = WGS84%Earth_Radius * dang
-  end function haversine_deg
-
-
-  !> @brief Forward and reverse azimuth between two points on sphere.
-  !!
-  !! Inputs are in degrees; azimuth outputs in degrees [0, 360).
-  !!
-  !! @param[in]  lat1 Latitude  of start point [deg]
-  !! @param[in]  lon1 Longitude of start point [deg]
-  !! @param[in]  lat2 Latitude  of end   point [deg]
-  !! @param[in]  lon2 Longitude of end   point [deg]
-  !! @param[out] azimuth     Initial bearing from point 1 to 2 [deg]
-  !! @param[out] rev_azimuth Reverse bearing from point 2 to 1 [deg]
-  !!
-  !! @note Spherical geometry; for ellipsoidal bearings use Vincenty inverse.
-  subroutine gc_bearing_deg(lat1_deg,lon1_deg,lat2_deg,lon2_deg,azimuth,rev_azimuth)
-    real(dp), intent(in)  :: lat1_deg, lon1_deg, lat2_deg, lon2_deg
+  !> @brief [Core] Great-circle bearing, inputs in radians, outputs in radians
+  subroutine gc_bearing_core(lat1, lon1, lat2, lon2, azimuth, rev_azimuth)
+    real(dp), intent(in)  :: lat1, lon1, lat2, lon2
     real(dp), intent(out) :: azimuth, rev_azimuth
-    real(dp)              :: lon1, lat1, lon2, lat2
     real(dp) :: dlon, cdlon, sdlon, x, y, xr, yr
-    lat1 = lat1_deg * deg2rad
-    lat2 = lat2_deg * deg2rad
-    lon1 = lon1_deg * deg2rad
-    lon2 = lon2_deg * deg2rad
     dlon  = lon2 - lon1
     cdlon = cos(dlon); sdlon = sin(dlon)
     y = sdlon * cos(lat2)
     x = cos(lat1)*sin(lat2) - sin(lat1)*cos(lat2)*cdlon
-    azimuth = modulo(atan2(y, x)*rad2deg + 360.0_dp, 360.0_dp)
+    azimuth = modulo(atan2(y, x) + two_pi, two_pi)
     yr = -sdlon * cos(lat1)
     xr =  cos(lat2)*sin(lat1) - sin(lat2)*cos(lat1)*cdlon
-    rev_azimuth = modulo(atan2(yr, xr)*rad2deg + 360.0_dp, 360.0_dp)
-  end subroutine gc_bearing_deg
+    rev_azimuth = modulo(atan2(yr, xr) + two_pi, two_pi)
+  end subroutine gc_bearing_core
 
 
-  !> @brief Destination point given start, bearing, and distance (sphere).
-  !!
-  !! Great-circle forward problem with mean spherical radius.
-  !!
-  !! @param[in]  lat0_deg Start latitude  [deg]
-  !! @param[in]  lon0_deg Start longitude [deg]
-  !! @param[in]  bearing_deg Initial bearing from start [deg]
-  !! @param[in]  dist Distance along great circle [m]
-  !! @param[out] lat1_deg Destination latitude  [deg]
-  !! @param[out] lon1_deg Destination longitude [deg]
-  !!
-  !! @note Longitudes normalized to [-180, 180).
-  subroutine gc_destination_point(lat0_deg, lon0_deg, bearing_deg, dist, lat1_deg, lon1_deg)
-    real(dp), intent(in)  :: lat0_deg, lon0_deg, bearing_deg, dist
-    real(dp), intent(out) :: lat1_deg, lon1_deg
-    real(dp) :: lat0, lon0, bearing, lat1, lon1, R
+  !> @brief [Core] Great-circle destination point, all angles in radians.
+  subroutine gc_destination_point_core(lat0, lon0, bearing, dist, lat1, lon1)
+    real(dp), intent(in)  :: lat0, lon0, bearing, dist
+    real(dp), intent(out) :: lat1, lon1
+    real(dp) :: R
     R = WGS84%Earth_Radius
-    lat0    = lat0_deg * deg2rad
-    lon0    = lon0_deg * deg2rad
-    bearing = bearing_deg * deg2rad
     lat1 = asin( sin(lat0)*cos(dist/R) + cos(lat0)*sin(dist/R)*cos(bearing) )
-    lon1 = lon0 + atan2( sin(bearing)*sin(dist/R)*cos(lat0), cos(dist/R) - sin(lat0)*sin(lat1) )
+    lon1 = lon0 + atan2( sin(bearing)*sin(dist/R)*cos(lat0), &
+                         cos(dist/R) - sin(lat0)*sin(lat1) )
     lon1 = modulo(lon1 + pi, two_pi) - pi
-    lat1_deg = lat1 * rad2deg
-    lon1_deg = lon1 * rad2deg
-  end subroutine gc_destination_point
+  end subroutine gc_destination_point_core
 
 
-  !> @brief Initial bearing and spherical great-circle distance between two points.
-  !!
-  !! Uses spherical law of cosines with clamped acos for robustness.
-  !!
-  !! @param[in]  lat1_deg Latitude  of point 1 [deg]
-  !! @param[in]  lon1_deg Longitude of point 1 [deg]
-  !! @param[in]  lat2_deg Latitude  of point 2 [deg]
-  !! @param[in]  lon2_deg Longitude of point 2 [deg]
-  !! @param[out] dist Great-circle distance [m]
-  !! @param[out] bearing_deg Initial bearing from point 1 to 2 [deg]
-  subroutine gc_inverse(lat1_deg, lon1_deg, lat2_deg, lon2_deg, dist, bearing_deg)
-    real(dp), intent(in)  :: lat1_deg, lon1_deg, lat2_deg, lon2_deg
-    real(dp), intent(out) :: dist, bearing_deg
-    real(dp) :: lat1, lon1, lat2, lon2, dlon, cosc, c, y, x, R
+  !> @brief [Core] Great-circle inverse, all angles in radians; bearing
+  !!                                     output in radians
+  subroutine gc_inverse_core(lat1, lon1, lat2, lon2, dist, bearing)
+    real(dp), intent(in)  :: lat1, lon1, lat2, lon2
+    real(dp), intent(out) :: dist, bearing
+    real(dp) :: dlon, cosc, c, y, x, R
     R   = WGS84%Earth_Radius
-    lat1 = lat1_deg * deg2rad; lon1 = lon1_deg * deg2rad
-    lat2 = lat2_deg * deg2rad; lon2 = lon2_deg * deg2rad
     dlon = lon2 - lon1
     cosc = sin(lat1)*sin(lat2) + cos(lat1)*cos(lat2)*cos(dlon)
     cosc = max(-1.0_dp, min(1.0_dp, cosc))
@@ -352,49 +260,145 @@ contains
     dist = R * c
     y = sin(dlon) * cos(lat2)
     x = cos(lat1) * sin(lat2) - sin(lat1) * cos(lat2) * cos(dlon)
-    bearing_deg = modulo(atan2(y, x) * rad2deg + 360.0_dp, 360.0_dp)
+    bearing = modulo(atan2(y, x) + two_pi, two_pi)
+  end subroutine gc_inverse_core
+
+
+  !> @brief Great-circle distance using the haversine formula (sphere).
+  !!
+  !! Inputs are in degrees; output distance is in meters using mean Earth radius.
+  !!
+  !! @param[in] lat1 Latitude  of point 1 [deg/rad]
+  !! @param[in] lon1 Longitude of point 1 [deg/rad]
+  !! @param[in] lat2 Latitude  of point 2 [deg/rad]
+  !! @param[in] lon2 Longitude of point 2 [deg/rad]
+  !! @param[in] radians (optional) If .true., inputs are in radians.
+  !!                               If .false. or absent, inputs are in degrees (default).
+  !!
+  !! @return Real(dp) distance along great circle [m].
+  !!
+  !! @note Robust for all separations; numerically stable.
+  real(dp) function haversine(lat1, lon1, lat2, lon2, radians)
+    real(dp), intent(in) :: lat1, lon1, lat2, lon2
+    logical, intent(in), optional :: radians
+    if (use_degrees(radians)) then
+      haversine = haversine_core(lat1*deg2rad, lon1*deg2rad, lat2*deg2rad, lon2*deg2rad)
+    else
+      haversine = haversine_core(lat1, lon1, lat2, lon2)
+    endif
+  end function haversine
+
+
+  !> @brief Forward and reverse azimuth between two points on sphere.
+  !!
+  !! Inputs are in degrees; azimuth outputs in degrees [0, 360).
+  !!
+  !! @param[in]  lat1        Latitude  of start point [deg/rad]
+  !! @param[in]  lon1        Longitude of start point [deg/rad]
+  !! @param[in]  lat2        Latitude  of end   point [deg/rad]
+  !! @param[in]  lon2        Longitude of end   point [deg/rad]
+  !! @param[out] azimuth     Initial bearing from point 1 to 2 [deg/rad]
+  !! @param[out] rev_azimuth Reverse bearing from point 2 to 1 [deg/rad]
+  !! @param[in]  radians (optional) If .true., all angles in radians.
+  !!                                If .false. or absent, degrees (default).
+  !!
+  !! @note Spherical geometry; for ellipsoidal bearings use Vincenty inverse.
+  subroutine gc_bearing(lat1, lon1, lat2, lon2, azimuth, rev_azimuth, radians)
+    real(dp), intent(in)  :: lat1, lon1, lat2, lon2
+    real(dp), intent(out) :: azimuth, rev_azimuth
+    logical, intent(in), optional :: radians
+    if (use_degrees(radians)) then  
+      call gc_bearing_core(lat1*deg2rad, lon1*deg2rad, lat2*deg2rad, lon2*deg2rad, &  
+                           azimuth, rev_azimuth)  
+      azimuth     = azimuth     * rad2deg  
+      rev_azimuth = rev_azimuth * rad2deg  
+    else  
+      call gc_bearing_core(lat1, lon1, lat2, lon2, azimuth, rev_azimuth)  
+    end if  
+  end subroutine gc_bearing
+
+
+  !> @brief Destination point given start, bearing, and distance (sphere).
+  !!
+  !! Great-circle forward problem with mean spherical radius.
+  !!
+  !! @param[in]  lat0    Start latitude  [deg/rad]
+  !! @param[in]  lon0    Start longitude [deg/rad]
+  !! @param[in]  bearing Initial bearing from start [deg/rad]
+  !! @param[in]  dist    Distance along great circle [m]
+  !! @param[out] lat1    Destination latitude  [deg/rad]
+  !! @param[out] lon1    Destination longitude [deg/rad]
+  !! @param[in]  radians (optional) If .true., all angles in radians.
+  !!                                If .false. or absent, degrees (default).
+  !!
+  !! @note Longitudes normalized to [-180, 180).
+  subroutine gc_destination_point(lat0, lon0, bearing, dist, lat1, lon1, radians)
+    real(dp), intent(in)  :: lat0, lon0, bearing, dist
+    real(dp), intent(out) :: lat1, lon1
+    logical, intent(in), optional :: radians
+    real(dp) :: la1, lo1  
+    if (use_degrees(radians)) then  
+      call gc_destination_point_core(lat0*deg2rad, lon0*deg2rad, bearing*deg2rad, dist, la1, lo1)  
+      lat1 = la1 * rad2deg  
+      lon1 = lo1 * rad2deg  
+    else  
+      call gc_destination_point_core(lat0, lon0, bearing, dist, lat1, lon1)  
+    end if  
+  end subroutine gc_destination_point
+
+
+  !> @brief Initial bearing and spherical great-circle distance between two points.
+  !!
+  !! Uses spherical law of cosines with clamped acos for robustness.
+  !!
+  !! @param[in]  lat1    Latitude  of point 1 [deg/rad]
+  !! @param[in]  lon1    Longitude of point 1 [deg/rad]
+  !! @param[in]  lat2    Latitude  of point 2 [deg/rad]
+  !! @param[in]  lon2    Longitude of point 2 [deg/rad]
+  !! @param[out] dist    Great-circle distance [m]
+  !! @param[out] bearing Initial bearing from point 1 to 2 [deg/rad]
+  !! @param[in]  radians (optional) If .true., all angles in radians.
+  !!                                If .false. or absent, degrees (default).
+  !!
+  subroutine gc_inverse(lat1, lon1, lat2, lon2, dist, bearing, radians)
+    real(dp), intent(in)  :: lat1, lon1, lat2, lon2
+    real(dp), intent(out) :: dist, bearing
+    logical, intent(in), optional :: radians
+    if (use_degrees(radians)) then  
+      call gc_inverse_core(lat1*deg2rad, lon1*deg2rad, lat2*deg2rad, lon2*deg2rad, dist, bearing)  
+      bearing = bearing * rad2deg  
+    else  
+      call gc_inverse_core(lat1, lon1, lat2, lon2, dist, bearing)  
+    end if  
   end subroutine gc_inverse
+
 
   ! ------------------------------------- 
   ! ------------------------------------- ELLIPSOIDAL EARTH
   ! ------------------------------------- 
 
-  !> @brief Vincenty forward problem on WGS84 ellipsoid.
-  !!
-  !! Computes destination point given start, initial bearing, and distance.
-  !!
-  !! @param[in]  lat1_deg Start latitude  [deg]
-  !! @param[in]  lon1_deg Start longitude [deg]
-  !! @param[in]  bearing_deg Initial azimuth from start [deg]
-  !! @param[in]  dist Geodesic distance on ellipsoid [m]
-  !! @param[out] lat2_deg Destination latitude  [deg]
-  !! @param[out] lon2_deg Destination longitude [deg]
-  !!
-  !! @note Iterative; typically converges rapidly except near poles with
-  !! near-antipodal cases (rare for forward problem).
-  subroutine vincenty_direct(lat1_deg, lon1_deg, bearing_deg, dist, lat2_deg, lon2_deg)
-    real(dp), intent(in)  :: lat1_deg, lon1_deg, bearing_deg, dist
-    real(dp), intent(out) :: lat2_deg, lon2_deg
+
+!> @brief [Core] Vincenty direct, all angles in radians; outputs in radians.  
+  subroutine vincenty_direct_core(lat1, lon1, bearing, dist, lat2, lon2)
+    real(dp), intent(in)  :: lat1, lon1, bearing, dist
+    real(dp), intent(out) :: lat2, lon2
     real(dp) :: a, f, b, alpha1, sinAlpha1, cosAlpha1
     real(dp) :: tanU1, cosU1, sinU1, sigma1, sinSigma, cosSigma, sigma
     real(dp) :: sinAlpha, cosSqAlpha, uSq, A_coeff, B_coeff, deltaSigma
     real(dp) :: sigmaP, cos2SigmaM
-    real(dp) :: lat1, lon1, lat2, lon2
-    real(dp) :: lambda
-    a = WGS84%a
-    f = WGS84%f                  !f = 1.0_dp / WGS84%rf
-    b = WGS84%b
-    lat1   = lat1_deg   * deg2rad
-    lon1   = lon1_deg   * deg2rad
-    alpha1 = bearing_deg* deg2rad
+    real(dp) :: lambda, C, Lcorr
+    a = WGS84%a 
+    f = WGS84%f 
+    b = WGS84%b 
+    alpha1 = bearing 
     sinAlpha1 = sin(alpha1); cosAlpha1 = cos(alpha1)
     tanU1 = (1.0_dp - f) * tan(lat1)
     cosU1 = 1.0_dp / sqrt(1.0_dp + tanU1*tanU1)
-    sinU1 = tanU1 * cosU1
+    sinU1 = tanU1 * cosU1 
     sigma1   = atan2(tanU1, cosAlpha1)
     sinAlpha = cosU1 * sinAlpha1
     cosSqAlpha = 1.0_dp - sinAlpha*sinAlpha
-    uSq = cosSqAlpha * (a*a - b*b) / (b*b)
+    uSq = cosSqAlpha * (a*a - b*b) / (b*b) 
     A_coeff = 1.0_dp + uSq/16384.0_dp*(4096.0_dp + uSq*(-768.0_dp + uSq*(320.0_dp - 175.0_dp*uSq)))
     B_coeff = uSq/1024.0_dp*(256.0_dp  + uSq*(-128.0_dp + uSq*(74.0_dp  -  47.0_dp*uSq)))
     sigma = dist / (b * A_coeff)
@@ -407,7 +411,7 @@ contains
                     - (B_coeff/6.0_dp)*cos2SigmaM*(-3.0_dp + 4.0_dp*sinSigma*sinSigma)*(-3.0_dp + 4.0_dp*cos2SigmaM*cos2SigmaM) ) )
       sigmaP = sigma
       sigma  = dist/(b*A_coeff) + deltaSigma
-    end do
+    end do    
 
     cos2SigmaM = cos(2.0_dp*sigma1 + sigma)
     sinSigma   = sin(sigma)
@@ -418,40 +422,75 @@ contains
                   (sinU1*sinSigma - cosU1*cosSigma*cosAlpha1)**2 ) )
 
     lambda = atan2( sinSigma*sinAlpha1, cosU1*cosSigma - sinU1*sinSigma*cosAlpha1 )
-    lon2 = lon1 + lambda
+    C      = (f/16.0_dp) * cosSqAlpha * (4.0_dp + f*(4.0_dp - 3.0_dp*cosSqAlpha))
+    Lcorr  = lambda - (1.0_dp - C)*f*sinAlpha * ( sigma + C*sinSigma*( cos2SigmaM &
+             + C*cosSigma*(-1.0_dp + 2.0_dp*cos2SigmaM*cos2SigmaM) ) )
+    lon2 = lon1 + Lcorr
+    lon2 = modulo(lon2 + pi, two_pi) - pi
+  end subroutine vincenty_direct_core
 
-    lat2_deg = lat2 * rad2deg
-    lon2_deg = modulo(lon2 * rad2deg + 540.0_dp, 360.0_dp) - 180.0_dp
-  end subroutine vincenty_direct
 
 
-  !> @brief Vincenty inverse problem on WGS84 ellipsoid.
-  !!
-  !! Computes geodesic distance and forward/back azimuths between two points.
-  !!
-  !! @param[in]  lat1_deg Latitude  of point 1 [deg]
-  !! @param[in]  lon1_deg Longitude of point 1 [deg]
-  !! @param[in]  lat2_deg Latitude  of point 2 [deg]
-  !! @param[in]  lon2_deg Longitude of point 2 [deg]
-  !! @param[out] dist     Geodesic distance on ellipsoid [m]
-  !! @param[out] azimuth1 Initial azimuth at point 1 [deg]
-  !! @param[out] azimuth2 Reverse azimuth at point 2 [deg]
-  !!
-  !! @note Iterative; may fail to converge for nearly antipodal points in
-  !! some edge cases. A maximum of 100 iterations is used.
-  subroutine vincenty_inverse(lat1_deg, lon1_deg, lat2_deg, lon2_deg, dist, azimuth1, azimuth2)
-    real(dp), intent(in)  :: lat1_deg, lon1_deg, lat2_deg, lon2_deg
+!  !> @brief [Core] Vincenty direct, all angles in radians; outputs in radians.  
+!  subroutine vincenty_direct_core(lat1, lon1, bearing, dist, lat2, lon2)
+!    real(dp), intent(in)  :: lat1, lon1, bearing, dist
+!    real(dp), intent(out) :: lat2, lon2
+!    real(dp) :: a, f, b, alpha1, sinAlpha1, cosAlpha1
+!    real(dp) :: tanU1, cosU1, sinU1, sigma1, sinSigma, cosSigma, sigma
+!    real(dp) :: sinAlpha, cosSqAlpha, uSq, A_coeff, B_coeff, deltaSigma
+!    real(dp) :: sigmaP, cos2SigmaM
+!    real(dp) :: lambda
+!    a = WGS84%a
+!    f = WGS84%f
+!    b = WGS84%b
+!    alpha1 = bearing
+!    sinAlpha1 = sin(alpha1); cosAlpha1 = cos(alpha1)
+!    tanU1 = (1.0_dp - f) * tan(lat1)
+!    cosU1 = 1.0_dp / sqrt(1.0_dp + tanU1*tanU1)
+!    sinU1 = tanU1 * cosU1
+!    sigma1   = atan2(tanU1, cosAlpha1)
+!    sinAlpha = cosU1 * sinAlpha1
+!    cosSqAlpha = 1.0_dp - sinAlpha*sinAlpha
+!    uSq = cosSqAlpha * (a*a - b*b) / (b*b)
+!    A_coeff = 1.0_dp + uSq/16384.0_dp*(4096.0_dp + uSq*(-768.0_dp + uSq*(320.0_dp - 175.0_dp*uSq)))
+!    B_coeff = uSq/1024.0_dp*(256.0_dp  + uSq*(-128.0_dp + uSq*(74.0_dp  -  47.0_dp*uSq)))
+!    sigma = dist / (b * A_coeff)
+!    sigmaP = two_pi
+!    do while (abs(sigma - sigmaP) > 1.0e-12_dp)
+!      cos2SigmaM = cos(2.0_dp*sigma1 + sigma)
+!      sinSigma   = sin(sigma)
+!      cosSigma   = cos(sigma)
+!      deltaSigma = B_coeff*sinSigma * ( cos2SigmaM + (B_coeff/4.0_dp)*( cosSigma*(-1.0_dp + 2.0_dp*cos2SigmaM*cos2SigmaM) &
+!                    - (B_coeff/6.0_dp)*cos2SigmaM*(-3.0_dp + 4.0_dp*sinSigma*sinSigma)*(-3.0_dp + 4.0_dp*cos2SigmaM*cos2SigmaM) ) )
+!      sigmaP = sigma
+!      sigma  = dist/(b*A_coeff) + deltaSigma
+!    end do
+!
+!    cos2SigmaM = cos(2.0_dp*sigma1 + sigma)
+!    sinSigma   = sin(sigma)
+!    cosSigma   = cos(sigma)
+!
+!    lat2 = atan2( sinU1*cosSigma + cosU1*sinSigma*cosAlpha1, &
+!                  (1.0_dp - f)*sqrt( sinAlpha*sinAlpha + &
+!                  (sinU1*sinSigma - cosU1*cosSigma*cosAlpha1)**2 ) )
+!
+!    lambda = atan2( sinSigma*sinAlpha1, cosU1*cosSigma - sinU1*sinSigma*cosAlpha1 )
+!    lon2 = lon1 + lambda
+!    lon2 = modulo(lon2 + pi, two_pi) - pi
+!  end subroutine vincenty_direct_core
+
+
+  !> @brief [Core] Vincenty inverse, all angles in radians; azimuth outputs in radians.  
+  subroutine vincenty_inverse_core(lat1, lon1, lat2, lon2, dist, azimuth1, azimuth2)
+    real(dp), intent(in)  :: lat1, lon1, lat2, lon2
     real(dp), intent(out) :: dist, azimuth1, azimuth2
     real(dp) :: a, f, b, L, U1, U2, sinU1, cosU1, sinU2, cosU2
     real(dp) :: lambda, lambdaP, sinLambda, cosLambda, sinSigma, cosSigma, sigma
     real(dp) :: sinAlpha, cosSqAlpha, cos2SigmaM, C, uSq, A_coeff, B_coeff, deltaSigma
     integer  :: iterLimit
-    real(dp) :: lat1, lon1, lat2, lon2
     a = WGS84%a
-    f = 1.0_dp / WGS84%rf
+    f = WGS84%f
     b = WGS84%b
-    lat1 = lat1_deg * deg2rad; lon1 = lon1_deg * deg2rad
-    lat2 = lat2_deg * deg2rad; lon2 = lon2_deg * deg2rad
     L  = lon2 - lon1
     U1 = atan( (1.0_dp - f) * tan(lat1) )
     U2 = atan( (1.0_dp - f) * tan(lat2) )
@@ -479,6 +518,7 @@ contains
       lambdaP = lambda
       lambda  = L + (1.0_dp - C)*f*sinAlpha * ( sigma + C*sinSigma*( cos2SigmaM + C*cosSigma*(-1.0_dp + 2.0_dp*cos2SigmaM*cos2SigmaM) ) )
       iterLimit = iterLimit - 1
+      if (iterLimit == 0) print*, 'No convergence !'
       if (abs(lambda - lambdaP) < 1.0e-12_dp .or. iterLimit == 0) exit
     end do
     uSq = cosSqAlpha*(a*a - b*b)/(b*b)
@@ -487,10 +527,145 @@ contains
     deltaSigma = B_coeff*sinSigma*( cos2SigmaM + (B_coeff/4.0_dp)*( cosSigma*(-1.0_dp + 2.0_dp*cos2SigmaM*cos2SigmaM) &
                  - (B_coeff/6.0_dp)*cos2SigmaM*(-3.0_dp + 4.0_dp*sinSigma*sinSigma)*(-3.0_dp + 4.0_dp*cos2SigmaM*cos2SigmaM) ) )
     dist     = b*A_coeff*(sigma - deltaSigma)
-    azimuth1 = modulo(atan2( cosU2*sinLambda,  cosU1*sinU2 - sinU1*cosU2*cosLambda )*rad2deg + 360.0_dp, 360.0_dp)
-    azimuth2 = modulo(atan2( cosU1*sinLambda, -sinU1*cosU2 + cosU1*sinU2*cosLambda )*rad2deg + 360.0_dp, 360.0_dp)
+    azimuth1 = modulo(atan2( cosU2*sinLambda,  cosU1*sinU2 - sinU1*cosU2*cosLambda ) + two_pi, two_pi)
+    azimuth2 = modulo(atan2( cosU1*sinLambda, -sinU1*cosU2 + cosU1*sinU2*cosLambda ) + two_pi, two_pi)
+  end subroutine vincenty_inverse_core
+
+
+  !> @brief [Core] Vincenty direct + back-azimuth; all angles in radians.
+  subroutine vincenty_full_core(lat1, lon1, bearing, dist, lat2, lon2, az_back)
+    real(dp), intent(in)  :: lat1, lon1, bearing, dist
+    real(dp), intent(out) :: lat2, lon2, az_back
+    real(dp) :: a, f, b, alpha1, sinAlpha1, cosAlpha1
+    real(dp) :: tanU1, cosU1, sinU1, sigma1, sinSigma, cosSigma, sigma
+    real(dp) :: sinAlpha, cosSqAlpha, uSq, A_coeff, B_coeff, deltaSigma
+    real(dp) :: sigmaP, cos2SigmaM, lambda, C, Lcorr
+
+    a = WGS84%a;  f = WGS84%f;  b = WGS84%b
+
+    alpha1    = bearing
+    sinAlpha1 = sin(alpha1);  cosAlpha1 = cos(alpha1)
+    tanU1     = (1.0_dp - f) * tan(lat1)
+    cosU1     = 1.0_dp / sqrt(1.0_dp + tanU1*tanU1)
+    sinU1     = tanU1 * cosU1
+    sigma1    = atan2(tanU1, cosAlpha1)
+    sinAlpha  = cosU1 * sinAlpha1
+    cosSqAlpha = 1.0_dp - sinAlpha*sinAlpha
+    uSq = cosSqAlpha * (a*a - b*b) / (b*b)
+    A_coeff = 1.0_dp + uSq/16384.0_dp*(4096.0_dp + uSq*(-768.0_dp + uSq*(320.0_dp - 175.0_dp*uSq)))
+    B_coeff = uSq/1024.0_dp *(256.0_dp  + uSq*(-128.0_dp + uSq*(74.0_dp  -  47.0_dp*uSq)))
+
+    sigma  = dist / (b * A_coeff)
+    sigmaP = two_pi
+    do while (abs(sigma - sigmaP) > 1.0e-12_dp)
+      cos2SigmaM = cos(2.0_dp*sigma1 + sigma)
+      sinSigma   = sin(sigma);  cosSigma = cos(sigma)
+      deltaSigma = B_coeff*sinSigma * ( cos2SigmaM + (B_coeff/4.0_dp)*( &
+                   cosSigma*(-1.0_dp + 2.0_dp*cos2SigmaM*cos2SigmaM) &
+                 - (B_coeff/6.0_dp)*cos2SigmaM*(-3.0_dp + 4.0_dp*sinSigma*sinSigma) &
+                                               *(-3.0_dp + 4.0_dp*cos2SigmaM*cos2SigmaM) ) )
+      sigmaP = sigma
+      sigma  = dist/(b*A_coeff) + deltaSigma
+    end do
+
+    cos2SigmaM = cos(2.0_dp*sigma1 + sigma)
+    sinSigma   = sin(sigma);  cosSigma = cos(sigma)
+
+    ! Destination latitude
+    lat2 = atan2( sinU1*cosSigma + cosU1*sinSigma*cosAlpha1, &
+                (1.0_dp - f)*sqrt( sinAlpha*sinAlpha + &
+                (sinU1*sinSigma - cosU1*cosSigma*cosAlpha1)**2 ) )
+
+    ! Longitude with full Vincenty correction
+    lambda = atan2( sinSigma*sinAlpha1, cosU1*cosSigma - sinU1*sinSigma*cosAlpha1 )
+    C      = (f/16.0_dp) * cosSqAlpha * (4.0_dp + f*(4.0_dp - 3.0_dp*cosSqAlpha))
+    Lcorr  = lambda - (1.0_dp - C)*f*sinAlpha * ( sigma + C*sinSigma*( cos2SigmaM &
+             + C*cosSigma*(-1.0_dp + 2.0_dp*cos2SigmaM*cos2SigmaM) ) )
+    lon2 = lon1 + Lcorr
+    lon2 = modulo(lon2 + pi, two_pi) - pi
+
+    ! Back azimuth: dest → origin (derived directly from converged sigma terms)
+    az_back = modulo( atan2( cosU1*sinAlpha1, &
+                           -sinU1*sinSigma + cosU1*cosSigma*cosAlpha1 ) + two_pi, two_pi)
+    az_back = mod(az_back + pi, two_pi)
+  end subroutine vincenty_full_core
+
+
+  !> @brief Vincenty forward problem on WGS84 ellipsoid.
+  !!
+  !! Computes destination point given start, initial bearing, and distance.
+  !!
+  !! @param[in]  lat1    Start latitude  [deg/rad]
+  !! @param[in]  lon1    Start longitude [deg/rad]
+  !! @param[in]  bearing Initial azimuth from start [deg/rad]
+  !! @param[in]  dist    Geodesic distance on ellipsoid [m]
+  !! @param[out] lat2    Destination latitude  [deg/rad]
+  !! @param[out] lon2    Destination longitude [deg/rad]
+  !! @param[in]  radians (optional) If .true., all angles in radians.
+  !!                                If .false. or absent, degrees (default).
+  !!
+  !! @note Iterative; typically converges rapidly except near poles with
+  !! near-antipodal cases (rare for forward problem).
+  subroutine vincenty_direct(lat1, lon1, bearing, dist, lat2, lon2, radians)
+    real(dp), intent(in)  :: lat1, lon1, bearing, dist
+    real(dp), intent(out) :: lat2, lon2
+    logical, intent(in), optional :: radians
+    real(dp) :: la2, lo2
+    if (use_degrees(radians)) then  
+      call vincenty_direct_core(lat1*deg2rad, lon1*deg2rad, bearing*deg2rad, dist, la2, lo2)  
+      lat2 = la2 * rad2deg  
+      lon2 = lo2 * rad2deg  
+    else  
+      call vincenty_direct_core(lat1, lon1, bearing, dist, lat2, lon2)  
+    end if  
+  end subroutine vincenty_direct
+
+
+  !> @brief Vincenty inverse problem on WGS84 ellipsoid.
+  !!
+  !! Computes geodesic distance and forward/back azimuths between two points.
+  !!
+  !! @param[in]  lat1     Latitude  of point 1 [deg/rad]
+  !! @param[in]  lon1     Longitude of point 1 [deg/rad]
+  !! @param[in]  lat2     Latitude  of point 2 [deg/rad]
+  !! @param[in]  lon2     Longitude of point 2 [deg/rad]
+  !! @param[out] dist     Geodesic distance on ellipsoid [m]
+  !! @param[out] azimuth1 Initial azimuth at point 1 [deg/rad]
+  !! @param[out] azimuth2 Reverse azimuth at point 2 [deg/rad]
+  !! @param[in]  radians (optional) If .true., all angles in radians.
+  !!                                If .false. or absent, degrees (default).
+  !!
+  !! @note Iterative; may fail to converge for nearly antipodal points in
+  !! some edge cases. A maximum of 100 iterations is used.
+  subroutine vincenty_inverse(lat1, lon1, lat2, lon2, dist, azimuth1, azimuth2, radians)
+    real(dp), intent(in)  :: lat1, lon1, lat2, lon2
+    real(dp), intent(out) :: dist, azimuth1, azimuth2
+    logical, intent(in), optional :: radians
+    if (use_degrees(radians)) then  
+      call vincenty_inverse_core(lat1*deg2rad, lon1*deg2rad, lat2*deg2rad, lon2*deg2rad, &  
+                                 dist, azimuth1, azimuth2)  
+      azimuth1 = azimuth1 * rad2deg  
+      azimuth2 = azimuth2 * rad2deg  
+    else  
+      call vincenty_inverse_core(lat1, lon1, lat2, lon2, dist, azimuth1, azimuth2)  
+    end if  
   end subroutine vincenty_inverse
 
+
+  subroutine vincenty_full(lat1, lon1, bearing, dist, lat2, lon2, az_back, radians)
+    real(dp), intent(in)  :: lat1, lon1, bearing, dist
+    real(dp), intent(out) :: lat2, lon2, az_back
+    logical, intent(in), optional :: radians
+    real(dp) :: la2, lo2, az2
+    if (use_degrees(radians)) then  
+      call vincenty_full_core(lat1*deg2rad, lon1*deg2rad, bearing*deg2rad, dist, la2, lo2, az2)  
+      lat2 = la2 * rad2deg  
+      lon2 = lo2 * rad2deg  
+      az_back = az2 * rad2deg  
+    else  
+      call vincenty_full_core(lat1, lon1, bearing, dist, lat2, lon2, az_back)  
+    end if  
+  end subroutine vincenty_full
 
   ! ------------------------------------- 
   ! ------------------------------------- HELPER TRANSFORMATIONS
@@ -879,5 +1054,14 @@ contains
     real(dp), intent(in) :: polar
     polar_to_compass = modulo(450.0_dp - polar, 360.0_dp)
   end function polar_to_compass
+
+  !> @brief Returns back azimuth angle from direction az , i,e. az ± 180.
+  !!
+  !! @param[in] Real(dp) (azimuth) angle [deg]
+  !! @return Real(dp) azimut angle ± 180 [deg].
+  pure real(dp) function back_azimuth(az)
+    real(dp), intent(in) :: az
+    back_azimuth = mod(az + 180.0_dp, 360.0_dp)
+  end function back_azimuth
 
 end module module_geodesy
