@@ -447,8 +447,8 @@ contains
   !
   else if (ROMS%Grid%Vtransform.eq.2) then
 
-    do j=0,ROMS%Grid%L
-    do i=0,ROMS%Grid%M
+    do j=0,ROMS%Grid%M
+    do i=0,ROMS%Grid%L
       hwater = ROMS%Grid%h(i,j)
       fact   = 1.0_dp / ( ROMS%Grid%hc + hwater)
       ROMS%Grid%Zo_r(i,j,:) = fact * (ROMS%Grid%hc * ROMS%Grid%sc_r(:) + ROMS%Grid%Cs_r(:)*hwater )
