@@ -108,6 +108,16 @@ character(len=1), public, parameter :: ASCII_DEL = achar(int(z'7F')) !! Delete
 character(len=*), parameter :: ok_check_symbol = '✔'  
 character(len=*), parameter :: error_x_symbol  = '❌' 
 
+! ----  
+! Symbols units and notation (UTF-8)  
+! ----  
+character(len=2), public, parameter :: sym_deg   = achar(194)//achar(176) !! °  
+character(len=1), public, parameter :: sym_min   = achar(39)              !! '  
+character(len=1), public, parameter :: sym_sec   = achar(34)              !! "  
+character(len=2), public, parameter :: sym_pm    = achar(194)//achar(177) !! ±  
+character(len=2), public, parameter :: sym_micro = achar(194)//achar(181) !! µ  
+character(len=1), public, parameter :: sym_bullet= achar(149)             !! Bullet point •  
+
 ! -------------------------------------------------------------------
 ! Constant character sequences
 ! -------------------------------------------------------------------
