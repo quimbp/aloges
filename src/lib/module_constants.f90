@@ -113,30 +113,51 @@ character(len=*), parameter :: error_x_symbol  = '❌'
 ! Symbols units and notation (UTF-8)  
 ! ----  
 type, public :: type_symbol
-  character(len=2)                    :: square    = achar(194)//achar(178) !! ² 
-  character(len=2)                    :: cube      = achar(194)//achar(179) !! ³
-  character(len=2)                    :: degree    = achar(194)//achar(176) !! °  
-
-  character(len=1)                    :: minute    = achar(39)              !! '  
-  character(len=1)                    :: second    = achar(34)              !! "  
-  character(len=2)                    :: micro     = achar(194)//achar(181)             !! µ  
-  character(len=2)                    :: pm        = achar(194)//achar(177) !! ±  
-  character(len=2)                    :: div       = achar(195)//achar(183) !! ÷ (División)  
-  character(len=2)                    :: mul       = achar(195)//achar(151) !! × (Multiplicación)  
-  character(len=3)                    :: neq       = achar(226)//achar(137)//achar(160) !! ≠ (not equal)
-  character(len=3)                    :: approx    = achar(226)//achar(137)//achar(136) !! ≈ (approx)
-  character(len=3)                    :: leq       = achar(226)//achar(137)//achar(164) !! ≤ (less or equal)
-  character(len=3)                    :: geq       = achar(226)//achar(137)//achar(165) !! ≥ (larger or equal)
-  character(len=3)                    :: nabla     = achar(226)//achar(136)//achar(135) !! ∇  
-  character(len=3)                    :: partial   = achar(226)//achar(136)//achar(130) !! ∂  
-  character(len=3)                    :: inf       = achar(226)//achar(136)//achar(158) !! ∞  
-  character(len=3)                    :: sum       = achar(226)//achar(136)//achar(145) !! ∑  
-  character(len=3)                    :: integral  = achar(226)//achar(136)//achar(171) !! ∫  
-  character(len=3)                    :: sqrt      = achar(226)//achar(136)//achar(154) !! √  
-  character(len=3)                    :: arr_right = achar(226)//achar(134)//achar(146) !! →  
-  character(len=3)                    :: arr_up    = achar(226)//achar(134)//achar(145) !! ↑  
-  character(len=3)                    :: arr_down  = achar(226)//achar(134)//achar(147) !! ↓  
-  character(len=3)                    :: bullet    = achar(226)//achar(128)//achar(162) !! •  
+  character(len=1)         :: minute   = achar(39)                          !! '  
+  character(len=1)         :: second   = achar(34)                          !! "  
+  character(len=2)         :: degree   = achar(194)//achar(176)             !! °  
+  character(len=2)         :: square   = achar(194)//achar(178)             !! ² 
+  character(len=2)         :: cube     = achar(194)//achar(179)             !! ³
+  character(len=3)         :: forall   = achar(226)//achar(136)//achar(128) !! ∀  U+2200
+  character(len=3)         :: exists   = achar(226)//achar(136)//achar(131) !! ∃  U+2203
+  character(len=3)         :: partial  = achar(226)//achar(136)//achar(130) !! ∂  U+2202
+  character(len=3)         :: emptyset = achar(226)//achar(136)//achar(133) !! ∅  U+2205
+  character(len=3)         :: nabla    = achar(226)//achar(136)//achar(135) !! ∇  U+2207
+  character(len=3)         :: isin     = achar(226)//achar(136)//achar(136) !! ∈  U+2208
+  character(len=3)         :: notin    = achar(226)//achar(136)//achar(137) !! ∉  U+2209
+  character(len=3)         :: prod     = achar(226)//achar(136)//achar(143) !! ∏  U+220F
+  character(len=3)         :: sum      = achar(226)//achar(136)//achar(145) !! ∑  U+2211
+  character(len=3)         :: minus    = achar(226)//achar(136)//achar(146) !! −  U+2212
+  character(len=3)         :: radic    = achar(226)//achar(136)//achar(154) !! √  U+221A
+  character(len=3)         :: infin    = achar(226)//achar(136)//achar(158) !! ∞  U+221E
+  character(len=3)         :: and      = achar(226)//achar(136)//achar(167) !! ∧  U+2227
+  character(len=3)         :: or       = achar(226)//achar(136)//achar(168) !! ∨  U+2228
+  character(len=3)         :: cap      = achar(226)//achar(136)//achar(169) !! ∩  U+2229
+  character(len=3)         :: cup      = achar(226)//achar(136)//achar(170) !! ∪  U+222A
+  character(len=3)         :: integral = achar(226)//achar(136)//achar(171) !! ∫  U+222B
+  character(len=3)         :: therefore= achar(226)//achar(136)//achar(180) !! ∴  U+2234
+  character(len=3)         :: sim      = achar(226)//achar(136)//achar(188) !! ∼  U+223C
+  character(len=3)         :: approx   = achar(226)//achar(137)//achar(136) !! ≈  U+2248
+  character(len=3)         :: ne       = achar(226)//achar(137)//achar(160) !! ≠  U+2260
+  character(len=3)         :: equiv    = achar(226)//achar(137)//achar(161) !! ≡  U+2261
+  character(len=3)         :: le       = achar(226)//achar(137)//achar(164) !! ≤  U+2264
+  character(len=3)         :: ge       = achar(226)//achar(137)//achar(165) !! ≥  U+2265
+  character(len=3)         :: subset   = achar(226)//achar(138)//achar(130) !! ⊂  U+2282
+  character(len=3)         :: supset   = achar(226)//achar(138)//achar(131) !! ⊃  U+2283
+  character(len=3)         :: sube     = achar(226)//achar(138)//achar(134) !! ⊆  U+2286
+  character(len=3)         :: supe     = achar(226)//achar(138)//achar(135) !! ⊇  U+2287
+  character(len=3)         :: oplus    = achar(226)//achar(138)//achar(149) !! ⊕  U+2295
+  character(len=3)         :: otimes   = achar(226)//achar(138)//achar(151) !! ⊗  U+2297
+  character(len=3)         :: perp     = achar(226)//achar(138)//achar(165) !! ⊥  U+22A5
+  character(len=3)         :: sdot     = achar(226)//achar(139)//achar(133) !! ⋅  U+22C5
+  character(len=2)         :: micro    = achar(194)//achar(181)             !! µ  
+  character(len=2)         :: pm       = achar(194)//achar(177)             !! ±  
+  character(len=2)         :: div      = achar(195)//achar(183)             !! ÷ (División)  
+  character(len=2)         :: mul      = achar(195)//achar(151)             !! × (Multiplicación)  
+  character(len=3)         :: arr_right= achar(226)//achar(134)//achar(146) !! →  
+  character(len=3)         :: arr_up   = achar(226)//achar(134)//achar(145) !! ↑  
+  character(len=3)         :: arr_down = achar(226)//achar(134)//achar(147) !! ↓  
+  character(len=3)         :: bullet   = achar(226)//achar(128)//achar(162) !! •  
 end type type_symbol
 
 ! -------------------------------------------------------------------
