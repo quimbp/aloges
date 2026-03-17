@@ -115,6 +115,8 @@ character(len=2), public, parameter :: sym_deg   = achar(194)//achar(176) !! °
 character(len=1), public, parameter :: sym_min   = achar(39)              !! '  
 character(len=1), public, parameter :: sym_sec   = achar(34)              !! "  
 character(len=2), public, parameter :: sym_pm    = achar(194)//achar(177) !! ±  
+character(len=2), public, parameter :: sym_div   = achar(195)//achar(183) !! ÷ (División)  
+character(len=2), public, parameter :: sym_mul   = achar(195)//achar(151) !! × (Multiplicación)  
 character(len=2), public, parameter :: sym_micro = achar(194)//achar(181) !! µ  
 character(len=1), public, parameter :: sym_bullet= achar(149)             !! Bullet point •  
 
@@ -143,6 +145,28 @@ type type_constants
 end type type_constants
 
 
+! ----  
+! Greek alphabet (UTF-8, lowercase stored)  
+! ----  
+type :: type_greek  
+  character(len=2) :: alpha   = achar(206)//achar(177) !! α  
+  character(len=2) :: beta    = achar(206)//achar(178) !! β  
+  character(len=2) :: gamma   = achar(206)//achar(179) !! γ  
+  character(len=2) :: delta   = achar(206)//achar(180) !! δ  
+  character(len=2) :: epsilon = achar(206)//achar(181) !! ε  
+  character(len=2) :: theta   = achar(206)//achar(184) !! θ  
+  character(len=2) :: lambda  = achar(206)//achar(187) !! λ  
+  character(len=2) :: mu      = achar(206)//achar(188) !! μ  
+  character(len=2) :: pi_     = achar(207)//achar(128) !! π  
+  character(len=2) :: rho     = achar(207)//achar(129) !! ρ  
+  character(len=2) :: sigma   = achar(207)//achar(131) !! σ  
+  character(len=2) :: phi     = achar(207)//achar(134) !! φ  
+  character(len=2) :: omega   = achar(207)//achar(137) !! ω  
+contains  
+  procedure        :: uppercase => greek_uppercase
+end type type_greek  
+
+
 type(type_Constants)                          :: constants
 
 contains
@@ -161,5 +185,25 @@ contains
     real(dp) :: v  
     v = ieee_value(0.0_dp, ieee_positive_inf)  
   end function inf
+  ! ...
+  ! ===================================================================
+  ! ...
+  pure function greek_uppercase(this, lower) result(upper_char)  
+    class(type_greek), intent(in) :: this  
+    character(len=2), intent(in)  :: lower  
+    character(len=2)              :: upper_char  
+  
+    integer :: b1, b2  
+  
+    b1 = iachar(lower(1:1))  
+    b2 = iachar(lower(2:2))  
+  
+    ! Most Greek lowercase letters → uppercase  
+    if (b1 == 206 .or. b1 == 207) then  
+       upper_char = achar(206)//achar(b2 - 32)  
+    else  
+       upper_char = lower  
+    end if  
+  end function greek_uppercase
 
 end module module_constants
