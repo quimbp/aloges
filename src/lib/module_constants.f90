@@ -29,6 +29,7 @@ use module_types, only : dp
 
 implicit none (type, external)
 
+
 ! ------------------------------------------------------------
 ! Logical constants (optional; Fortran already has .True./.False.)
 ! ------------------------------------------------------------
@@ -111,14 +112,32 @@ character(len=*), parameter :: error_x_symbol  = '❌'
 ! ----  
 ! Symbols units and notation (UTF-8)  
 ! ----  
-character(len=2), public, parameter :: sym_deg   = achar(194)//achar(176) !! °  
-character(len=1), public, parameter :: sym_min   = achar(39)              !! '  
-character(len=1), public, parameter :: sym_sec   = achar(34)              !! "  
-character(len=2), public, parameter :: sym_pm    = achar(194)//achar(177) !! ±  
-character(len=2), public, parameter :: sym_div   = achar(195)//achar(183) !! ÷ (División)  
-character(len=2), public, parameter :: sym_mul   = achar(195)//achar(151) !! × (Multiplicación)  
-character(len=2), public, parameter :: sym_micro = achar(194)//achar(181) !! µ  
-character(len=1), public, parameter :: sym_bullet= achar(149)             !! Bullet point •  
+type, public :: type_symbol
+  character(len=2)                    :: square    = achar(194)//achar(178) !! ² 
+  character(len=2)                    :: cube      = achar(194)//achar(179) !! ³
+  character(len=2)                    :: degree    = achar(194)//achar(176) !! °  
+
+  character(len=1)                    :: minute    = achar(39)              !! '  
+  character(len=1)                    :: second    = achar(34)              !! "  
+  character(len=2)                    :: micro     = achar(194)//achar(181)             !! µ  
+  character(len=2)                    :: pm        = achar(194)//achar(177) !! ±  
+  character(len=2)                    :: div       = achar(195)//achar(183) !! ÷ (División)  
+  character(len=2)                    :: mul       = achar(195)//achar(151) !! × (Multiplicación)  
+  character(len=3)                    :: neq       = achar(226)//achar(137)//achar(160) !! ≠ (not equal)
+  character(len=3)                    :: approx    = achar(226)//achar(137)//achar(136) !! ≈ (approx)
+  character(len=3)                    :: leq       = achar(226)//achar(137)//achar(164) !! ≤ (less or equal)
+  character(len=3)                    :: geq       = achar(226)//achar(137)//achar(165) !! ≥ (larger or equal)
+  character(len=3)                    :: nabla     = achar(226)//achar(136)//achar(135) !! ∇  
+  character(len=3)                    :: partial   = achar(226)//achar(136)//achar(130) !! ∂  
+  character(len=3)                    :: inf       = achar(226)//achar(136)//achar(158) !! ∞  
+  character(len=3)                    :: sum       = achar(226)//achar(136)//achar(145) !! ∑  
+  character(len=3)                    :: integral  = achar(226)//achar(136)//achar(171) !! ∫  
+  character(len=3)                    :: sqrt      = achar(226)//achar(136)//achar(154) !! √  
+  character(len=3)                    :: arr_right = achar(226)//achar(134)//achar(146) !! →  
+  character(len=3)                    :: arr_up    = achar(226)//achar(134)//achar(145) !! ↑  
+  character(len=3)                    :: arr_down  = achar(226)//achar(134)//achar(147) !! ↓  
+  character(len=3)                    :: bullet    = achar(226)//achar(128)//achar(162) !! •  
+end type type_symbol
 
 ! -------------------------------------------------------------------
 ! Constant character sequences
@@ -130,7 +149,7 @@ character(len=*), public, parameter :: lowercase_letters = letters(27:) !! a .. 
 
 ! ... Physical constants
 ! ...
-type type_constants
+type, public :: type_constants
   real(dp)             :: Earth_Gravity     = 9.80665_dp     ! Standard gravity [m/s^2]
   real(dp)             :: Earth_Omega       = 7.2921159D-5   ! Earth's angular velocity [rad/s]
   real(dp)             :: Earth_Radius      = 6371008.8_dp   ! Earth radius Wikipedia
@@ -144,11 +163,12 @@ type type_constants
   real(dp)             :: Avogadro_Number   = 6.02214076D23  ! Avogadro number [1/mol]
 end type type_constants
 
+type(type_Constants)                        :: constants
 
 ! ----  
 ! Greek alphabet (UTF-8, lowercase stored)  
 ! ----  
-type :: type_greek  
+type, public :: type_greek  
   character(len=2) :: alpha   = achar(206)//achar(177) !! α  
   character(len=2) :: beta    = achar(206)//achar(178) !! β  
   character(len=2) :: gamma   = achar(206)//achar(179) !! γ  
@@ -157,7 +177,7 @@ type :: type_greek
   character(len=2) :: theta   = achar(206)//achar(184) !! θ  
   character(len=2) :: lambda  = achar(206)//achar(187) !! λ  
   character(len=2) :: mu      = achar(206)//achar(188) !! μ  
-  character(len=2) :: pi_     = achar(207)//achar(128) !! π  
+  character(len=2) :: pi      = achar(207)//achar(128) !! π  
   character(len=2) :: rho     = achar(207)//achar(129) !! ρ  
   character(len=2) :: sigma   = achar(207)//achar(131) !! σ  
   character(len=2) :: phi     = achar(207)//achar(134) !! φ  
@@ -166,8 +186,6 @@ contains
   procedure        :: uppercase => greek_uppercase
 end type type_greek  
 
-
-type(type_Constants)                          :: constants
 
 contains
   ! ...
