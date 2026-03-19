@@ -119,17 +119,21 @@ type, public :: type_symbol
   character(len=2)         :: square   = achar(194)//achar(178)             !! ² 
   character(len=2)         :: cube     = achar(194)//achar(179)             !! ³
   character(len=3)         :: forall   = achar(226)//achar(136)//achar(128) !! ∀  U+2200
-  character(len=3)         :: exists   = achar(226)//achar(136)//achar(131) !! ∃  U+2203
   character(len=3)         :: partial  = achar(226)//achar(136)//achar(130) !! ∂  U+2202
+  character(len=3)         :: exists   = achar(226)//achar(136)//achar(131) !! ∃  U+2203
   character(len=3)         :: emptyset = achar(226)//achar(136)//achar(133) !! ∅  U+2205
+  character(len=3)         :: Delta    = achar(226)//achar(136)//achar(134) !! ∆  U+2206
   character(len=3)         :: nabla    = achar(226)//achar(136)//achar(135) !! ∇  U+2207
   character(len=3)         :: isin     = achar(226)//achar(136)//achar(136) !! ∈  U+2208
   character(len=3)         :: notin    = achar(226)//achar(136)//achar(137) !! ∉  U+2209
+  character(len=3)         :: eop      = achar(226)//achar(136)//achar(142) !! ∎  U+220E
   character(len=3)         :: prod     = achar(226)//achar(136)//achar(143) !! ∏  U+220F
   character(len=3)         :: sum      = achar(226)//achar(136)//achar(145) !! ∑  U+2211
   character(len=3)         :: minus    = achar(226)//achar(136)//achar(146) !! −  U+2212
-  character(len=3)         :: radic    = achar(226)//achar(136)//achar(154) !! √  U+221A
-  character(len=3)         :: infin    = achar(226)//achar(136)//achar(158) !! ∞  U+221E
+  character(len=3)         :: mp       = achar(226)//achar(136)//achar(147) !! ∓  U+2213
+  character(len=3)         :: sqrt     = achar(226)//achar(136)//achar(154) !! √  U+221A
+  character(len=3)         :: prop     = achar(226)//achar(136)//achar(157) !! ∝  U+221D
+  character(len=3)         :: inf      = achar(226)//achar(136)//achar(158) !! ∞  U+221E
   character(len=3)         :: and      = achar(226)//achar(136)//achar(167) !! ∧  U+2227
   character(len=3)         :: or       = achar(226)//achar(136)//achar(168) !! ∨  U+2228
   character(len=3)         :: cap      = achar(226)//achar(136)//achar(169) !! ∩  U+2229
